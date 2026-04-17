@@ -11,7 +11,8 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('initiate')
-  initiatePayment(@Body() payload: InitiatePaymentDto) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async initiatePayment(@Body() payload: InitiatePaymentDto): Promise<any> {
     return this.paymentsService.createPayment(payload);
   }
 }

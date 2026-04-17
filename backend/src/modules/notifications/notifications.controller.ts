@@ -10,7 +10,8 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get('user/:userId')
-  getNotifications(@Param('userId', ParseIntPipe) userId: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getNotifications(@Param('userId', ParseIntPipe) userId: number): Promise<any> {
     return this.notificationsService.getNotifications(userId);
   }
 }

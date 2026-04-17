@@ -12,17 +12,23 @@ export class OrdersController {
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER)
   @Get(':id')
-  getOrder(@Param('id', ParseIntPipe) id: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getOrder(@Param('id', ParseIntPipe) id: number): Promise<any> {
     return this.ordersService.getOrder(id);
   }
 
   @Roles(Role.ADMIN, Role.CUSTOMER)
   @Post()
-  createOrder(@Body() payload: CreateOrderDto, @Req() request: { user: AuthenticatedUser }) {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  createOrder(
+    @Body() payload: CreateOrderDto,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<any> {
     const normalizedPayload = request.user.roles.includes(Role.CUSTOMER)
       ? { ...payload, userId: request.user.id }
       : payload;
 
     return this.ordersService.createOrder(normalizedPayload);
   }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }

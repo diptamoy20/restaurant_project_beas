@@ -6,7 +6,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class RestaurantsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getRestaurants() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRestaurants(): Promise<any> {
     return this.prisma.restaurant.findMany({
       where: { isActive: true },
       include: {
@@ -16,7 +17,8 @@ export class RestaurantsService {
     });
   }
 
-  async getRestaurant(id: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRestaurant(id: number): Promise<any> {
     return this.prisma.restaurant.findUnique({
       where: { id },
       include: {
@@ -27,7 +29,8 @@ export class RestaurantsService {
     });
   }
 
-  async findNearbyRestaurants(latitude: number, longitude: number, radiusKm = 10) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async findNearbyRestaurants(latitude: number, longitude: number, radiusKm = 10): Promise<any> {
     const restaurants = await this.prisma.restaurant.findMany({
       where: { isActive: true },
       include: {
@@ -62,8 +65,8 @@ export class RestaurantsService {
     sourceLng: number,
     targetLat: number,
     targetLng: number,
-  ) {
-    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  ): number {
+    const toRadians = (degrees: number): number => (degrees * Math.PI) / 180;
     const earthRadiusKm = 6371;
     const latDistance = toRadians(targetLat - sourceLat);
     const lngDistance = toRadians(targetLng - sourceLng);

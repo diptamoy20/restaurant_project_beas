@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
 
 import { DeliveriesService } from './deliveries.service';
-import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
+import {
+  UpdateDeliveryLocationDto,
+  DeliveryLocationUpdateResponseDto,
+  DeliveryTrackingResponseDto,
+} from './dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 
@@ -11,13 +15,17 @@ export class DeliveriesController {
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY)
   @Post('location')
-  updateLocation(@Body() payload: UpdateDeliveryLocationDto) {
+  async updateDeliveryLocation(
+    @Body() payload: UpdateDeliveryLocationDto,
+  ): Promise<DeliveryLocationUpdateResponseDto> {
     return this.deliveriesService.updateDeliveryLocation(payload);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER, Role.DELIVERY_BOY)
   @Get('order/:orderId/track')
-  getTracking(@Param('orderId', ParseIntPipe) orderId: number) {
+  async getTracking(
+    @Param('orderId', ParseIntPipe) orderId: number,
+  ): Promise<DeliveryTrackingResponseDto> {
     return this.deliveriesService.getTrackingByOrder(orderId);
   }
 }

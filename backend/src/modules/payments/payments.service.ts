@@ -7,7 +7,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class PaymentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  createPayment(payload: InitiatePaymentDto) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createPayment(payload: InitiatePaymentDto): Promise<any> {
     return this.prisma.payment.create({
       data: {
         orderId: payload.orderId,

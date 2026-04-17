@@ -11,12 +11,14 @@ export class RestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
 
   @Get()
-  getRestaurants() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRestaurants(): Promise<any> {
     return this.restaurantsService.getRestaurants();
   }
 
   @Get('nearby')
-  getNearbyRestaurants(@Query() query: NearbyRestaurantsDto) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getNearbyRestaurants(@Query() query: NearbyRestaurantsDto): Promise<any> {
     return this.restaurantsService.findNearbyRestaurants(
       query.latitude,
       query.longitude,
@@ -25,7 +27,8 @@ export class RestaurantsController {
   }
 
   @Get(':id')
-  getRestaurant(@Param('id', ParseIntPipe) id: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRestaurant(@Param('id', ParseIntPipe) id: number): Promise<any> {
     return this.restaurantsService.getRestaurant(id);
   }
 }

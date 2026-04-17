@@ -7,7 +7,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOrder(id: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getOrder(id: number): Promise<any> {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
@@ -30,7 +31,8 @@ export class OrdersService {
     return order;
   }
 
-  async createOrder(payload: CreateOrderDto) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createOrder(payload: CreateOrderDto): Promise<any> {
     const orderNumber = `ORD-${Date.now()}`;
     const totalAmount = payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
