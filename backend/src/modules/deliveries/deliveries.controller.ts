@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
-import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
+
 import { DeliveriesService } from './deliveries.service';
+import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 

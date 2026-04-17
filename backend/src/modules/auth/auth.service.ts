@@ -1,14 +1,11 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Role } from '../../common/enums/role.enum';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { compare, hash } from 'bcryptjs';
+
 import { AuthenticatedUser, JwtPayload } from './auth.types';
+import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { Role } from '../../common/enums/role.enum';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
@@ -121,7 +118,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       phone: user.phone,
-      roles: user.roles.map((entry) => entry.role.name as Role),
+      roles: user.roles.map((entry: { role: { name: string } }) => entry.role.name as Role),
     };
   }
 
@@ -132,7 +129,7 @@ export class AuthService {
     phone: string | null;
     roles: { role: { name: string } }[];
   }) {
-    const roles = user.roles.map((entry) => entry.role.name as Role);
+    const roles = user.roles.map((entry: { role: { name: string } }) => entry.role.name as Role);
     const jwtPayload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -153,4 +150,3 @@ export class AuthService {
     };
   }
 }
-

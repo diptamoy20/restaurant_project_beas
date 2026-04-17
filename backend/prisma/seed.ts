@@ -319,11 +319,7 @@ async function main() {
           ],
         },
         statusLogs: {
-          create: [
-            { status: 'PLACED' },
-            { status: 'CONFIRMED' },
-            { status: 'OUT_FOR_DELIVERY' },
-          ],
+          create: [{ status: 'PLACED' }, { status: 'CONFIRMED' }, { status: 'OUT_FOR_DELIVERY' }],
         },
         payments: {
           create: [
@@ -388,12 +384,12 @@ async function main() {
     });
   }
 
-  console.log('Seed complete');
-  console.log('Admin login: admin@example.com / password123');
-  console.log('Manager login: manager@example.com / password123');
-  console.log('Customer login: customer@example.com / password123');
-  console.log('Delivery login: delivery@example.com / password123');
-  console.log(`Admin user id: ${admin.id}`);
+  console.warn('Seed complete');
+  console.warn('Admin login: admin@example.com / password123');
+  console.warn('Manager login: manager@example.com / password123');
+  console.warn('Customer login: customer@example.com / password123');
+  console.warn('Delivery login: delivery@example.com / password123');
+  console.warn(`Admin user id: ${admin.id}`);
 }
 
 main()

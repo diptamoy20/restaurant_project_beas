@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -17,7 +18,10 @@ export class AdminService {
       totalOrders,
       totalUsers,
       totalRestaurants,
-      totalRevenue: payments.reduce((sum, payment) => sum + payment.amount, 0),
+      totalRevenue: payments.reduce(
+        (sum: number, payment: { amount: number }) => sum + payment.amount,
+        0,
+      ),
     };
   }
 }

@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
+
+import { CreateOrderDto } from './dto/create-order.dto';
+import { OrdersService } from './orders.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
-import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
 import { AuthenticatedUser } from '../auth/auth.types';
 
 @Controller('orders')
@@ -17,14 +18,10 @@ export class OrdersController {
 
   @Roles(Role.ADMIN, Role.CUSTOMER)
   @Post()
-  createOrder(
-    @Body() payload: CreateOrderDto,
-    @Req() request: { user: AuthenticatedUser },
-  ) {
-    const normalizedPayload =
-      request.user.roles.includes(Role.CUSTOMER)
-        ? { ...payload, userId: request.user.id }
-        : payload;
+  createOrder(@Body() payload: CreateOrderDto, @Req() request: { user: AuthenticatedUser }) {
+    const normalizedPayload = request.user.roles.includes(Role.CUSTOMER)
+      ? { ...payload, userId: request.user.id }
+      : payload;
 
     return this.ordersService.createOrder(normalizedPayload);
   }

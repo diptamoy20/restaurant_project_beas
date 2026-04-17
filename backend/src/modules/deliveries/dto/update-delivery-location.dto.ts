@@ -28,4 +28,3 @@ export class UpdateDeliveryLocationDto {
   @IsNumber()
   heading?: number;
 }
-

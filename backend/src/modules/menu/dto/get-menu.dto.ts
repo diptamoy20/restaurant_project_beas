@@ -6,4 +6,3 @@ export class GetMenuDto {
   @IsNumber()
   restaurantId!: number;
 }
-

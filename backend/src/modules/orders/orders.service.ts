@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+
 import { CreateOrderDto } from './dto/create-order.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class OrdersService {
@@ -31,10 +32,7 @@ export class OrdersService {
 
   async createOrder(payload: CreateOrderDto) {
     const orderNumber = `ORD-${Date.now()}`;
-    const totalAmount = payload.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    const totalAmount = payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     return this.prisma.order.create({
       data: {
@@ -69,4 +67,3 @@ export class OrdersService {
     });
   }
 }
-

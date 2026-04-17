@@ -1,7 +1,8 @@
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+
+import { NotificationsService } from './notifications.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
-import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
 @Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER, Role.DELIVERY_BOY)

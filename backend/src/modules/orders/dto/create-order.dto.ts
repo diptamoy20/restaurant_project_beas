@@ -1,12 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  ArrayMinSize,
-  IsArray,
-  IsIn,
-  IsNumber,
-  IsOptional,
-  ValidateNested,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsIn, IsNumber, IsOptional, ValidateNested } from 'class-validator';
 
 class OrderItemInputDto {
   @Type(() => Number)
@@ -60,4 +53,3 @@ export class CreateOrderDto {
   @Type(() => OrderItemInputDto)
   items!: OrderItemInputDto[];
 }
-
