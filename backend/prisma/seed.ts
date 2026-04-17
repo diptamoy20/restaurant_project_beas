@@ -1,7 +1,17 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
+import { Pool } from 'pg';
 
-const prisma = new PrismaClient();
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const prismaOptions = {
+  adapter: new PrismaPg(pool),
+} as unknown as Prisma.PrismaClientOptions;
+
+const prisma = new PrismaClient(prismaOptions);
 
 async function ensureRole(name: string): Promise<{ id: number; name: string }> {
   return prisma.roleMaster.upsert({
@@ -17,7 +27,7 @@ async function ensureUser(params: {
   phone: string;
   plainPassword: string;
   roleId: number;
-}): Promise<{ id: number; name: string; email: string; phone: string }> {
+}): Promise<{ id: number }> {
   const hashedPassword = await hash(params.plainPassword, 10);
 
   const user = await prisma.user.upsert({
@@ -52,7 +62,7 @@ async function ensureUser(params: {
     });
   }
 
-  return user;
+  return { id: user.id };
 }
 
 async function main(): Promise<void> {
