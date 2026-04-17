@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 
 import { AppService } from './app.service';
 import { Public } from './common/decorators/public.decorator';
+import { HealthResponseDto } from './dto/health-response.dto';
 
 @Controller()
 export class AppController {
@@ -9,7 +10,7 @@ export class AppController {
 
   @Public()
   @Get('health')
-  getHealth() {
+  getHealth(): HealthResponseDto {
     return this.appService.getHealth();
   }
 }

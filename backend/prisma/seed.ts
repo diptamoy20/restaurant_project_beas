@@ -3,7 +3,7 @@ import { hash } from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function ensureRole(name: string) {
+async function ensureRole(name: string): Promise<{ id: number; name: string }> {
   return prisma.roleMaster.upsert({
     where: { name },
     update: {},
@@ -17,7 +17,7 @@ async function ensureUser(params: {
   phone: string;
   plainPassword: string;
   roleId: number;
-}) {
+}): Promise<{ id: number; name: string; email: string; phone: string }> {
   const hashedPassword = await hash(params.plainPassword, 10);
 
   const user = await prisma.user.upsert({
@@ -55,7 +55,7 @@ async function ensureUser(params: {
   return user;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const legacyStaffRole = await prisma.roleMaster.findUnique({
     where: { name: 'staff' },
   });
