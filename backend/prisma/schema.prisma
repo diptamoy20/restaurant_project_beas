@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int                  @id @default(autoincrement())
+  name          String?
+  email         String?              @unique
+  phone         String?              @unique
+  password      String
+  isActive      Boolean              @default(true) @map("is_active")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  roles         UserRoleMapping[]
+  addresses     UserAddress[]
+  orders        Order[]
+  memberships   Membership[]
+  loyaltyTxns   LoyaltyTransaction[]
+  notifications Notification[]
+  payments      Payment[]
+  couponUsages  CouponUsage[]
+
+  @@map("users")
+}
+
+model RoleMaster {
+  id    Int               @id @default(autoincrement())
+  name  String            @unique
+  users UserRoleMapping[]
+
+  @@map("role_master")
+}
+
+model UserRoleMapping {
+  id     Int        @id @default(autoincrement())
+  userId Int        @map("user_id")
+  roleId Int        @map("role_id")
+  user   User       @relation(fields: [userId], references: [id])
+  role   RoleMaster @relation(fields: [roleId], references: [id])
+
+  @@map("user_role_mapping")
+}
+
+model UserAddress {
+  id        Int     @id @default(autoincrement())
+  userId    Int     @map("user_id")
+  address   String
+  city      String?
+  state     String?
+  latitude  Float
+  longitude Float
+  isDefault Boolean @default(false) @map("is_default")
+  user      User    @relation(fields: [userId], references: [id])
+  orders    Order[]
+
+  @@map("user_addresses")
+}
+
+model Restaurant {
+  id         Int     @id @default(autoincrement())
+  name       String
+  address    String
+  city       String?
+  latitude   Float
+  longitude  Float
+  isActive   Boolean @default(true) @map("is_active")
+  tables     RestaurantTable[]
+  categories Category[]
+  menuItems  MenuItem[]
+  orders     Order[]
+
+  @@map("restaurants")
+}
+
+model RestaurantTable {
+  id           Int    @id @default(autoincrement())
+  restaurantId Int    @map("restaurant_id")
+  tableNumber  String @map("table_number")
+  qrCode       String? @map("qr_code")
+  status       String?
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  orders       Order[]
+
+  @@map("restaurant_tables")
+}
+
+model Category {
+  id           Int    @id @default(autoincrement())
+  restaurantId Int    @map("restaurant_id")
+  name         String
+  description  String?
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  menuItems    MenuItem[]
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id              Int     @id @default(autoincrement())
+  restaurantId    Int     @map("restaurant_id")
+  categoryId      Int     @map("category_id")
+  name            String
+  description     String?
+  price           Float
+  isAvailable     Boolean @default(true) @map("is_available")
+  preparationTime Int?    @map("preparation_time")
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id])
+  category        Category   @relation(fields: [categoryId], references: [id])
+  variants        MenuItemVariant[]
+  orderItems      OrderItem[]
+
+  @@map("menu_items")
+}
+
+model MenuItemVariant {
+  id         Int    @id @default(autoincrement())
+  menuItemId Int    @map("menu_item_id")
+  name       String
+  price      Float
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  orderItems OrderItem[]
+
+  @@map("menu_item_variants")
+}
+
+model Order {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @map("user_id")
+  restaurantId   Int      @map("restaurant_id")
+  tableId        Int?     @map("table_id")
+  addressId      Int?     @map("address_id")
+  orderNumber    String   @unique @map("order_number")
+  status         String
+  orderType      String   @map("order_type")
+  totalAmount    Float    @map("total_amount")
+  discountAmount Float?   @map("discount_amount")
+  finalAmount    Float    @map("final_amount")
+  paymentStatus  String   @map("payment_status")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User             @relation(fields: [userId], references: [id])
+  restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
+  table          RestaurantTable? @relation(fields: [tableId], references: [id])
+  address        UserAddress?     @relation(fields: [addressId], references: [id])
+  items          OrderItem[]
+  statusLogs     OrderStatusLog[]
+  payments       Payment[]
+  delivery       Delivery?
+  coupons        CouponUsage[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         Int              @id @default(autoincrement())
+  orderId    Int              @map("order_id")
+  menuItemId Int              @map("menu_item_id")
+  variantId  Int?             @map("variant_id")
+  quantity   Int
+  price      Float
+  totalPrice Float            @map("total_price")
+  order      Order            @relation(fields: [orderId], references: [id])
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id])
+  variant    MenuItemVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderStatusLog {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @map("order_id")
+  status    String
+  changedAt DateTime @default(now()) @map("changed_at")
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@map("order_status_logs")
+}
+
+model DeliveryAgent {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String
+  isAvailable Boolean  @default(true) @map("is_available")
+  deliveries  Delivery[]
+
+  @@map("delivery_agents")
+}
+
+model Delivery {
+  id      Int            @id @default(autoincrement())
+  orderId Int            @unique @map("order_id")
+  agentId Int?           @map("agent_id")
+  status  String
+  order   Order          @relation(fields: [orderId], references: [id])
+  agent   DeliveryAgent? @relation(fields: [agentId], references: [id])
+  trackingLogs DeliveryTracking[]
+
+  @@map("deliveries")
+}
+
+model DeliveryTracking {
+  id        Int      @id @default(autoincrement())
+  deliveryId Int     @map("delivery_id")
+  latitude  Float
+  longitude Float
+  speed     Float?
+  heading   Float?
+  recordedAt DateTime @default(now()) @map("recorded_at")
+  delivery  Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@map("delivery_tracking")
+}
+
+model Payment {
+  id            Int    @id @default(autoincrement())
+  orderId       Int    @map("order_id")
+  userId        Int    @map("user_id")
+  transactionId String? @map("transaction_id")
+  amount        Float
+  status        String
+  method        String
+  order         Order  @relation(fields: [orderId], references: [id])
+  user          User   @relation(fields: [userId], references: [id])
+
+  @@map("payments")
+}
+
+model MembershipTier {
+  id          Int          @id @default(autoincrement())
+  name        String
+  features    String?
+  memberships Membership[]
+
+  @@map("membership_tiers")
+}
+
+model Membership {
+  id     Int            @id @default(autoincrement())
+  userId Int            @map("user_id")
+  tierId Int            @map("tier_id")
+  points Int            @default(0)
+  user   User           @relation(fields: [userId], references: [id])
+  tier   MembershipTier @relation(fields: [tierId], references: [id])
+
+  @@map("memberships")
+}
+
+model LoyaltyTransaction {
+  id      Int    @id @default(autoincrement())
+  userId  Int    @map("user_id")
+  points  Int
+  type    String
+  orderId Int?   @map("order_id")
+  user    User   @relation(fields: [userId], references: [id])
+
+  @@map("loyalty_transactions")
+}
+
+model Coupon {
+  id             Int           @id @default(autoincrement())
+  code           String        @unique
+  discountType   String        @map("discount_type")
+  discountValue  Float         @map("discount_value")
+  minOrderAmount Float?        @map("min_order_amount")
+  expiryDate     DateTime?     @map("expiry_date")
+  usages         CouponUsage[]
+
+  @@map("coupons")
+}
+
+model CouponUsage {
+  id       Int    @id @default(autoincrement())
+  couponId Int    @map("coupon_id")
+  userId   Int    @map("user_id")
+  orderId  Int    @map("order_id")
+  coupon   Coupon @relation(fields: [couponId], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
+  order    Order  @relation(fields: [orderId], references: [id])
+
+  @@map("coupon_usages")
+}
+
+model Notification {
+  id      Int     @id @default(autoincrement())
+  userId  Int     @map("user_id")
+  title   String
+  message String
+  isRead  Boolean @default(false) @map("is_read")
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
