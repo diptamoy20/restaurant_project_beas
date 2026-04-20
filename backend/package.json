@@ -2,6 +2,9 @@
   "name": "restaurant-backend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <25"
+  },
   "scripts": {
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -13,6 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:dbpush": "prisma db push",
+    "prisma:studio": "prisma studio --port 5555 --browser none",
     "seed": "ts-node prisma/seed.ts"
   },
   "lint-staged": {

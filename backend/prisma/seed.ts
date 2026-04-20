@@ -1,17 +1,11 @@
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Prisma, PrismaClient } from '@prisma/client';
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
-import { Pool } from 'pg';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+import { createPrismaClientOptions } from '../src/prisma/prisma-client-options';
 
-const prismaOptions = {
-  adapter: new PrismaPg(pool),
-} as unknown as Prisma.PrismaClientOptions;
-
-const prisma = new PrismaClient(prismaOptions);
+const { options, pool } = createPrismaClientOptions();
+const prisma = new PrismaClient(options);
 
 async function ensureRole(name: string): Promise<{ id: number; name: string }> {
   return prisma.roleMaster.upsert({
@@ -405,9 +399,11 @@ async function main(): Promise<void> {
 main()
   .then(async () => {
     await prisma.$disconnect();
+    await pool.end();
   })
   .catch(async (error) => {
     console.error(error);
     await prisma.$disconnect();
+    await pool.end();
     process.exit(1);
   });
