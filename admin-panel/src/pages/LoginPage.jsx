@@ -4,56 +4,65 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { ErrorState } from '../components/ui/ErrorState';
-import { SelectField } from '../components/ui/SelectField';
 import { TextField } from '../components/ui/TextField';
 import { setCredentials } from '../features/auth/authSlice';
 import { useLoginMutation } from '../services/authApi';
-import { inferUiRole, normalizePermissions, roleApiMap } from '../utils/auth';
+import { inferUiRole, normalizePermissions } from '../utils/auth';
 
-const roleOptions = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'staff', label: 'Staff' },
-];
+const ALLOWED_ADMIN_ROLES = new Set(['admin', 'manager', 'delivery_boy']);
 
 export function LoginPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const [login, { isLoading, error }] = useLoginMutation();
+  const [formError, setFormError] = useState('');
   const [form, setForm] = useState({
     email: 'admin@example.com',
     password: 'password123',
-    role: 'admin',
   });
 
   const handleChange = (event) => {
+    setFormError('');
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError('');
 
-    const response = await login({
-      email: form.email,
-      password: form.password,
-      role: roleApiMap[form.role] ?? form.role,
-    }).unwrap();
+    try {
+      const response = await login({
+        email: form.email,
+        password: form.password,
+      }).unwrap();
 
-    const authResponse = response?.data ?? response;
-    const userRoles = authResponse.user?.roles?.length ? authResponse.user.roles : [form.role];
-    const role = inferUiRole(userRoles);
+      const authResponse = response?.data ?? response;
+      const userRoles = Array.isArray(authResponse.user?.roles) ? authResponse.user.roles : [];
 
-    dispatch(
-      setCredentials({
-        user: authResponse.user,
-        token: authResponse.accessToken,
-        role,
-        permissions: normalizePermissions(authResponse.user?.permissions, role),
-      }),
-    );
+      const hasAdminAccess = userRoles.some((role) => ALLOWED_ADMIN_ROLES.has(role));
 
-    navigate(location.state?.from?.pathname ?? '/dashboard', { replace: true });
+      if (!hasAdminAccess) {
+        setFormError('Account is not authorized for admin portal.');
+        return;
+      }
+
+      const role = inferUiRole(userRoles);
+
+      dispatch(
+        setCredentials({
+          user: authResponse.user,
+          token: authResponse.accessToken,
+          role,
+          permissions: normalizePermissions(authResponse.user?.permissions, role),
+        }),
+      );
+
+      navigate(location.state?.from?.pathname ?? '/dashboard', { replace: true });
+    } catch (apiError) {
+      const message = apiError?.data?.message || apiError?.error || 'Unable to sign in with those credentials.';
+      setFormError(message);
+    }
   };
 
   return (
@@ -75,7 +84,7 @@ export function LoginPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Admin Login</p>
           <h2 className="mt-3 text-3xl font-semibold text-slate-950">Welcome back</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Use your existing role-based credentials to access the admin panel.
+            Use your credentials. Role is detected automatically from your account.
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -95,11 +104,10 @@ export function LoginPage() {
               type="password"
               value={form.password}
             />
-            <SelectField label="Role" name="role" onChange={handleChange} options={roleOptions} value={form.role} />
 
-            {error ? (
+            {formError || error ? (
               <ErrorState
-                message={error?.data?.message || error?.error || 'Unable to sign in with those credentials.'}
+                message={formError || error?.data?.message || error?.error || 'Unable to sign in with those credentials.'}
               />
             ) : null}
 
