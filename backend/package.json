@@ -29,7 +29,8 @@
     ],
     "*.{js,jsx,tsx,json,md,yml,yaml,mjs,cjs}": [
       "prettier --write"
-    ],
+    ]
+  },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
