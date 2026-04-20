@@ -15,7 +15,7 @@ async function request(path, options = {}) {
     throw new Error(data.message || 'Request failed');
   }
 
-  return data;
+  return data?.data ?? data;
 }
 
 export const api = {

@@ -40,13 +40,16 @@ export function LoginPage() {
       role: roleApiMap[form.role] ?? form.role,
     }).unwrap();
 
-    const role = inferUiRole(response.user?.roles?.length ? response.user.roles : [form.role]);
+    const authResponse = response?.data ?? response;
+    const userRoles = authResponse.user?.roles?.length ? authResponse.user.roles : [form.role];
+    const role = inferUiRole(userRoles);
+
     dispatch(
       setCredentials({
-        user: response.user,
-        token: response.accessToken,
+        user: authResponse.user,
+        token: authResponse.accessToken,
         role,
-        permissions: normalizePermissions(response.user?.permissions, role),
+        permissions: normalizePermissions(authResponse.user?.permissions, role),
       }),
     );
 

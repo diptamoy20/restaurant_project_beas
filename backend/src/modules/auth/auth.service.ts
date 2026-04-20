@@ -1,10 +1,20 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Prisma } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 
-import { AuthenticatedUser, JwtPayload } from './auth.types';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthSuccessResponse, AuthenticatedUser, JwtPayload } from './auth.types';
+import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LogoutDto } from './dto/logout.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -13,24 +23,56 @@ type PrismaUserWithRoles = {
   name: string | null;
   email: string | null;
   phone: string | null;
-  password?: string;
-  isActive?: boolean;
+  password: string;
+  isActive: boolean;
+  refreshToken: string | null;
+  refreshTokenExpiresAt: Date | null;
+  lastLoginAt: Date | null;
+  failedLoginAttempts: number;
+  lockUntil: Date | null;
   roles: { role: { name: string } }[];
 };
 
+type SessionOptions = {
+  message: string;
+  updateLoginMetadata: boolean;
+};
+
+const ACCESS_TOKEN_TYPE = 'access' as const;
+const REFRESH_TOKEN_TYPE = 'refresh' as const;
+const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = '15m';
+const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
+const DEFAULT_LOGIN_LOCK_THRESHOLD = 5;
+const DEFAULT_LOGIN_LOCK_DURATION_MINUTES = 15;
+const DEFAULT_BCRYPT_ROUNDS = 10;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly loginLockThreshold: number;
+  private readonly loginLockDurationMs: number;
+  private readonly bcryptRounds: number;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.loginLockThreshold =
+      this.configService.get<number>('LOGIN_LOCK_THRESHOLD') ?? DEFAULT_LOGIN_LOCK_THRESHOLD;
+    const lockDurationMinutes =
+      this.configService.get<number>('LOGIN_LOCK_DURATION_MINUTES') ??
+      DEFAULT_LOGIN_LOCK_DURATION_MINUTES;
+    this.loginLockDurationMs = lockDurationMinutes * 60 * 1000;
+    this.bcryptRounds = this.configService.get<number>('BCRYPT_ROUNDS') ?? DEFAULT_BCRYPT_ROUNDS;
+  }
 
-  async register(payload: RegisterDto): Promise<AuthResponseDto> {
+  async register(payload: RegisterDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
     if (!payload.email && !payload.phone) {
       throw new BadRequestException('Email or phone is required');
     }
 
-    const conditions = [];
+    const conditions: Array<{ email?: string; phone?: string }> = [];
     if (payload.email) conditions.push({ email: payload.email });
     if (payload.phone) conditions.push({ phone: payload.phone });
 
@@ -50,7 +92,7 @@ export class AuthService {
       throw new BadRequestException('Customer role is not configured');
     }
 
-    const password = await hash(payload.password, 10);
+    const password = await hash(payload.password, this.bcryptRounds);
 
     const user = await this.prisma.user.create({
       data: {
@@ -71,23 +113,25 @@ export class AuthService {
       },
     });
 
-    return this.buildAuthResponse(user);
+    this.logger.log(`User registered: ${user.id}`);
+
+    return this.issueSession(user, {
+      message: 'Registration successful',
+      updateLoginMetadata: true,
+    });
   }
 
-  async login(payload: LoginDto): Promise<AuthResponseDto> {
+  async login(payload: LoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
     if (!payload.email && !payload.phone) {
       throw new BadRequestException('Email or phone is required');
     }
 
-    const conditions = [];
+    const conditions: Array<{ email?: string; phone?: string }> = [];
     if (payload.email) conditions.push({ email: payload.email });
     if (payload.phone) conditions.push({ phone: payload.phone });
 
     const user = await this.prisma.user.findFirst({
-      where: {
-        OR: conditions,
-        isActive: true,
-      },
+      where: { OR: conditions },
       include: {
         roles: {
           include: {
@@ -98,20 +142,200 @@ export class AuthService {
     });
 
     if (!user) {
+      this.logger.warn('Login failed: unknown account');
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    await this.ensureLoginAllowed(user);
 
     const isPasswordValid = await compare(payload.password, user.password);
 
     if (!isPasswordValid) {
+      await this.handleFailedLogin(user);
+      this.logger.warn(`Login failed for user ${user.id}`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.buildAuthResponse(user);
+    this.logger.log(`Login successful for user ${user.id}`);
+
+    return this.issueSession(user, {
+      message: 'Login successful',
+      updateLoginMetadata: true,
+    });
+  }
+
+  async refresh(payload: RefreshTokenDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
+    const decoded = await this.verifyRefreshToken(payload.refreshToken);
+    const user = await this.loadAuthUser(decoded.sub);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    await this.ensureLoginAllowed(user);
+
+    if (!user.refreshToken || !user.refreshTokenExpiresAt) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    if (user.refreshTokenExpiresAt <= new Date()) {
+      await this.clearRefreshToken(user.id);
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    const tokenMatches = await compare(payload.refreshToken, user.refreshToken);
+
+    if (!tokenMatches) {
+      this.logger.warn(`Suspicious refresh token use for user ${user.id}`);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    this.logger.log(`Refresh token rotated for user ${user.id}`);
+
+    return this.issueSession(user, {
+      message: 'Token refreshed',
+      updateLoginMetadata: false,
+    });
+  }
+
+  async logout(
+    user: AuthenticatedUser,
+    payload?: LogoutDto,
+  ): Promise<AuthSuccessResponse<{ loggedOut: boolean }>> {
+    if (payload?.refreshToken) {
+      const decoded = await this.verifyRefreshToken(payload.refreshToken);
+
+      if (decoded.sub !== user.id) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const storedUser = await this.loadAuthUser(user.id);
+
+      if (!storedUser?.refreshToken) {
+        return this.buildStandardResponse('Logged out', { loggedOut: true });
+      }
+
+      const tokenMatches = await compare(payload.refreshToken, storedUser.refreshToken);
+
+      if (!tokenMatches) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+    }
+
+    await this.clearRefreshToken(user.id);
+    this.logger.log(`Logout completed for user ${user.id}`);
+
+    return this.buildStandardResponse('Logged out', { loggedOut: true });
+  }
+
+  async me(user: AuthenticatedUser): Promise<AuthSuccessResponse<AuthUserDto>> {
+    return this.buildStandardResponse('Profile loaded', {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      roles: user.roles,
+    });
   }
 
   async validateUserById(id: number): Promise<AuthenticatedUser | null> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.loadAuthUser(id);
+
+    if (!user || !user.isActive) {
+      return null;
+    }
+
+    return this.toAuthUser(user);
+  }
+
+  private async issueSession(
+    user: PrismaUserWithRoles,
+    options: SessionOptions,
+  ): Promise<AuthSuccessResponse<AuthResponseDto>> {
+    const accessToken = this.signAccessToken(user);
+    const refreshToken = this.signRefreshToken(user);
+    const refreshTokenExpiresAt = this.getRefreshTokenExpiryDate();
+    const hashedRefreshToken = await hash(refreshToken, this.bcryptRounds);
+
+    const updateData: Prisma.UserUpdateInput = {
+      refreshToken: hashedRefreshToken,
+      refreshTokenExpiresAt,
+    };
+
+    if (options.updateLoginMetadata) {
+      updateData.lastLoginAt = new Date();
+      updateData.failedLoginAttempts = 0;
+      updateData.lockUntil = null;
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: updateData,
+    });
+
+    return this.buildStandardResponse(options.message, {
+      accessToken,
+      refreshToken,
+      tokenType: 'Bearer',
+      refreshTokenExpiresAt: refreshTokenExpiresAt.toISOString(),
+      user: this.toAuthUser(user),
+    });
+  }
+
+  private buildStandardResponse<TData>(message: string, data: TData): AuthSuccessResponse<TData> {
+    return {
+      success: true,
+      message,
+      data,
+    };
+  }
+
+  private signAccessToken(user: PrismaUserWithRoles): string {
+    return this.jwtService.sign(this.buildJwtPayload(user, ACCESS_TOKEN_TYPE), {
+      secret: this.getAccessTokenSecret(),
+      expiresIn: this.getAccessTokenExpiresIn(),
+    });
+  }
+
+  private signRefreshToken(user: PrismaUserWithRoles): string {
+    return this.jwtService.sign(this.buildJwtPayload(user, REFRESH_TOKEN_TYPE), {
+      secret: this.getRefreshTokenSecret(),
+      expiresIn: this.getRefreshTokenExpiresIn(),
+    });
+  }
+
+  private buildJwtPayload(
+    user: PrismaUserWithRoles,
+    type: typeof ACCESS_TOKEN_TYPE | typeof REFRESH_TOKEN_TYPE,
+  ): JwtPayload {
+    return {
+      sub: user.id,
+      email: user.email,
+      phone: user.phone,
+      name: user.name,
+      roles: this.mapRoles(user),
+      type,
+    };
+  }
+
+  private async verifyRefreshToken(token: string): Promise<JwtPayload> {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+        secret: this.getRefreshTokenSecret(),
+      });
+
+      if (payload.type !== REFRESH_TOKEN_TYPE) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  private async loadAuthUser(id: number): Promise<PrismaUserWithRoles | null> {
+    return this.prisma.user.findUnique({
       where: { id },
       include: {
         roles: {
@@ -121,42 +345,116 @@ export class AuthService {
         },
       },
     });
+  }
 
-    if (!user || !user.isActive) {
-      return null;
+  private async ensureLoginAllowed(user: PrismaUserWithRoles): Promise<void> {
+    if (!user.isActive) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      throw new ForbiddenException('Account locked. Try again later.');
+    }
+
+    if (user.lockUntil && user.lockUntil <= new Date()) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lockUntil: null,
+        },
+      });
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
+    }
+  }
+
+  private async handleFailedLogin(user: PrismaUserWithRoles): Promise<void> {
+    const failedLoginAttempts = user.failedLoginAttempts + 1;
+    const isLocked = failedLoginAttempts >= this.loginLockThreshold;
+    const lockUntil = isLocked ? new Date(Date.now() + this.loginLockDurationMs) : user.lockUntil;
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts,
+        lockUntil,
+      },
+    });
+
+    if (isLocked) {
+      this.logger.warn(`Account locked after repeated failures for user ${user.id}`);
+    }
+  }
+
+  private async clearRefreshToken(userId: number): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      },
+    });
+  }
+
+  private toAuthUser(user: PrismaUserWithRoles): AuthenticatedUser {
     return {
       id: user.id,
+      name: user.name,
       email: user.email,
       phone: user.phone,
       roles: this.mapRoles(user),
     };
   }
 
-  private buildAuthResponse(user: PrismaUserWithRoles): AuthResponseDto {
-    const roles = this.mapRoles(user);
+  private getAccessTokenSecret(): string {
+    return this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');
+  }
 
-    const jwtPayload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      phone: user.phone,
-      roles,
-    };
+  private getRefreshTokenSecret(): string {
+    return this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
+  }
 
-    return {
-      accessToken: this.jwtService.sign(jwtPayload, {
-        expiresIn: '7d',
-      }),
-      tokenType: 'Bearer',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        roles,
-      },
-    };
+  private getAccessTokenExpiresIn(): string {
+    return (
+      this.configService.get<string>('ACCESS_TOKEN_EXPIRES_IN') ?? DEFAULT_ACCESS_TOKEN_EXPIRES_IN
+    );
+  }
+
+  private getRefreshTokenExpiresIn(): string {
+    return (
+      this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') ?? DEFAULT_REFRESH_TOKEN_EXPIRES_IN
+    );
+  }
+
+  private getRefreshTokenExpiryDate(): Date {
+    return new Date(Date.now() + this.parseDurationToMilliseconds(this.getRefreshTokenExpiresIn()));
+  }
+
+  private parseDurationToMilliseconds(duration: string): number {
+    const match = duration.trim().match(/^(\d+)(ms|s|m|h|d)$/i);
+
+    if (!match) {
+      throw new BadRequestException(`Invalid duration value: ${duration}`);
+    }
+
+    const value = Number(match[1]);
+    const unit = match[2].toLowerCase();
+
+    switch (unit) {
+      case 'ms':
+        return value;
+      case 's':
+        return value * 1000;
+      case 'm':
+        return value * 60 * 1000;
+      case 'h':
+        return value * 60 * 60 * 1000;
+      case 'd':
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        throw new BadRequestException(`Invalid duration value: ${duration}`);
+    }
   }
 
   private mapRoles(user: PrismaUserWithRoles): Role[] {
