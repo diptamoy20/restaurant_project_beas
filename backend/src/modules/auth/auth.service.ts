@@ -1,14 +1,22 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Role } from '../../common/enums/role.enum';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { compare, hash } from 'bcryptjs';
+
 import { AuthenticatedUser, JwtPayload } from './auth.types';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { Role } from '../../common/enums/role.enum';
+import { PrismaService } from '../../prisma/prisma.service';
+
+type PrismaUserWithRoles = {
+  id: number;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  password?: string;
+  isActive?: boolean;
+  roles: { role: { name: string } }[];
+};
 
 @Injectable()
 export class AuthService {
@@ -17,18 +25,17 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(payload: RegisterDto) {
+  async register(payload: RegisterDto): Promise<AuthResponseDto> {
     if (!payload.email && !payload.phone) {
       throw new BadRequestException('Email or phone is required');
     }
 
+    const conditions = [];
+    if (payload.email) conditions.push({ email: payload.email });
+    if (payload.phone) conditions.push({ phone: payload.phone });
+
     const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          payload.email ? { email: payload.email } : undefined,
-          payload.phone ? { phone: payload.phone } : undefined,
-        ].filter(Boolean) as { email?: string; phone?: string }[],
-      },
+      where: { OR: conditions },
     });
 
     if (existingUser) {
@@ -44,6 +51,7 @@ export class AuthService {
     }
 
     const password = await hash(payload.password, 10);
+
     const user = await this.prisma.user.create({
       data: {
         name: payload.name,
@@ -66,17 +74,18 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
-  async login(payload: LoginDto) {
+  async login(payload: LoginDto): Promise<AuthResponseDto> {
     if (!payload.email && !payload.phone) {
       throw new BadRequestException('Email or phone is required');
     }
 
+    const conditions = [];
+    if (payload.email) conditions.push({ email: payload.email });
+    if (payload.phone) conditions.push({ phone: payload.phone });
+
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          payload.email ? { email: payload.email } : undefined,
-          payload.phone ? { phone: payload.phone } : undefined,
-        ].filter(Boolean) as { email?: string; phone?: string }[],
+        OR: conditions,
         isActive: true,
       },
       include: {
@@ -121,18 +130,13 @@ export class AuthService {
       id: user.id,
       email: user.email,
       phone: user.phone,
-      roles: user.roles.map((entry) => entry.role.name as Role),
+      roles: this.mapRoles(user),
     };
   }
 
-  private buildAuthResponse(user: {
-    id: number;
-    name: string | null;
-    email: string | null;
-    phone: string | null;
-    roles: { role: { name: string } }[];
-  }) {
-    const roles = user.roles.map((entry) => entry.role.name as Role);
+  private buildAuthResponse(user: PrismaUserWithRoles): AuthResponseDto {
+    const roles = this.mapRoles(user);
+
     const jwtPayload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -141,7 +145,9 @@ export class AuthService {
     };
 
     return {
-      accessToken: this.jwtService.sign(jwtPayload),
+      accessToken: this.jwtService.sign(jwtPayload, {
+        expiresIn: '7d',
+      }),
       tokenType: 'Bearer',
       user: {
         id: user.id,
@@ -152,5 +158,8 @@ export class AuthService {
       },
     };
   }
-}
 
+  private mapRoles(user: PrismaUserWithRoles): Role[] {
+    return user.roles.map((entry) => entry.role.name as Role);
+  }
+}

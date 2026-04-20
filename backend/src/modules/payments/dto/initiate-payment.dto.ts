@@ -24,4 +24,3 @@ export class InitiatePaymentDto {
   @IsIn(['CASH', 'CARD', 'UPI', 'NETBANKING', 'WALLET'])
   method!: string;
 }
-

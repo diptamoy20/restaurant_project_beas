@@ -1,31 +1,40 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsDefined,
+  IsLatitude,
+  IsLongitude,
+  IsNumber,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class UpdateDeliveryLocationDto {
+  @IsDefined()
   @Type(() => Number)
   @IsNumber()
   deliveryId!: number;
 
+  @IsDefined()
   @Type(() => Number)
-  @IsNumber()
-  @Min(-90)
-  @Max(90)
+  @IsLatitude()
   latitude!: number;
 
+  @IsDefined()
   @Type(() => Number)
-  @IsNumber()
-  @Min(-180)
-  @Max(180)
+  @IsLongitude()
   longitude!: number;
 
-  @Type(() => Number)
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
+  @Min(0)
   speed?: number;
 
-  @Type(() => Number)
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
+  @Min(0)
+  @Max(360)
   heading?: number;
 }
-

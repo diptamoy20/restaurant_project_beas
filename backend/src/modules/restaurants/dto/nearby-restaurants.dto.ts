@@ -21,4 +21,3 @@ export class NearbyRestaurantsDto {
   @Max(100)
   radiusKm?: number = 10;
 }
-

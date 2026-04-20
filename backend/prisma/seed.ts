@@ -1,9 +1,13 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
 
-const prisma = new PrismaClient();
+import { createPrismaClientOptions } from '../src/prisma/prisma-client-options';
 
-async function ensureRole(name: string) {
+const { options, pool } = createPrismaClientOptions();
+const prisma = new PrismaClient(options);
+
+async function ensureRole(name: string): Promise<{ id: number; name: string }> {
   return prisma.roleMaster.upsert({
     where: { name },
     update: {},
@@ -17,7 +21,7 @@ async function ensureUser(params: {
   phone: string;
   plainPassword: string;
   roleId: number;
-}) {
+}): Promise<{ id: number }> {
   const hashedPassword = await hash(params.plainPassword, 10);
 
   const user = await prisma.user.upsert({
@@ -52,10 +56,10 @@ async function ensureUser(params: {
     });
   }
 
-  return user;
+  return { id: user.id };
 }
 
-async function main() {
+async function main(): Promise<void> {
   const legacyStaffRole = await prisma.roleMaster.findUnique({
     where: { name: 'staff' },
   });
@@ -319,11 +323,7 @@ async function main() {
           ],
         },
         statusLogs: {
-          create: [
-            { status: 'PLACED' },
-            { status: 'CONFIRMED' },
-            { status: 'OUT_FOR_DELIVERY' },
-          ],
+          create: [{ status: 'PLACED' }, { status: 'CONFIRMED' }, { status: 'OUT_FOR_DELIVERY' }],
         },
         payments: {
           create: [
@@ -388,20 +388,22 @@ async function main() {
     });
   }
 
-  console.log('Seed complete');
-  console.log('Admin login: admin@example.com / password123');
-  console.log('Manager login: manager@example.com / password123');
-  console.log('Customer login: customer@example.com / password123');
-  console.log('Delivery login: delivery@example.com / password123');
-  console.log(`Admin user id: ${admin.id}`);
+  console.warn('Seed complete');
+  console.warn('Admin login: admin@example.com / password123');
+  console.warn('Manager login: manager@example.com / password123');
+  console.warn('Customer login: customer@example.com / password123');
+  console.warn('Delivery login: delivery@example.com / password123');
+  console.warn(`Admin user id: ${admin.id}`);
 }
 
 main()
   .then(async () => {
     await prisma.$disconnect();
+    await pool.end();
   })
   .catch(async (error) => {
     console.error(error);
     await prisma.$disconnect();
+    await pool.end();
     process.exit(1);
   });

@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
+
+import { DashboardResponseDto } from './dto/dashboard-response.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDashboard() {
+  async getDashboard(): Promise<DashboardResponseDto> {
     const [totalOrders, totalUsers, totalRestaurants, payments] = await Promise.all([
       this.prisma.order.count(),
       this.prisma.user.count(),
@@ -17,7 +19,10 @@ export class AdminService {
       totalOrders,
       totalUsers,
       totalRestaurants,
-      totalRevenue: payments.reduce((sum, payment) => sum + payment.amount, 0),
+      totalRevenue: payments.reduce(
+        (sum: number, payment: { amount: number }) => sum + payment.amount,
+        0,
+      ),
     };
   }
 }

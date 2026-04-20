@@ -1,11 +1,13 @@
 import {
   IsEmail,
-  IsIn,
+  IsEnum,
   IsOptional,
   IsString,
   Matches,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
+
 import { Role } from '../../../common/enums/role.enum';
 
 export class RegisterDto {
@@ -13,11 +15,11 @@ export class RegisterDto {
   @IsString()
   name?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => !o.phone)
   @IsEmail()
   email?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => !o.email)
   @Matches(/^\+?[1-9]\d{7,14}$/)
   phone?: string;
 
@@ -27,11 +29,11 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @IsOptional()
+  @ValidateIf((o) => !o.phone)
   @IsEmail()
   email?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => !o.email)
   @Matches(/^\+?[1-9]\d{7,14}$/)
   phone?: string;
 
@@ -40,7 +42,6 @@ export class LoginDto {
 }
 
 export class RoleLoginDto extends LoginDto {
-  @IsString()
-  @IsIn([Role.ADMIN, Role.MANAGER, Role.CUSTOMER, Role.DELIVERY_BOY])
+  @IsEnum(Role)
   role!: Role;
 }
