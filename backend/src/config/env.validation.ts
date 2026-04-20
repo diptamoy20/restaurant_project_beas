@@ -45,6 +45,7 @@ function parseBoolean(rawValue: string | undefined, key: string, fallback: boole
 
 export function validateEnv(config: Record<string, unknown>): Record<string, unknown> {
   const env = config as EnvValues;
+  const nodeEnv = env.NODE_ENV ?? 'development';
 
   if (!env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required');
@@ -56,9 +57,10 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
 
   return {
     ...config,
-    NODE_ENV: env.NODE_ENV ?? 'development',
+    NODE_ENV: nodeEnv,
     PORT: parsePort(env.PORT),
     JWT_EXPIRES_IN: env.JWT_EXPIRES_IN ?? '7d',
+    DOCS_ENABLED: parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production'),
     DB_POOL_MAX: parsePositiveInt(env.DB_POOL_MAX, 'DB_POOL_MAX', 20),
     DB_POOL_IDLE_TIMEOUT_MS: parsePositiveInt(
       env.DB_POOL_IDLE_TIMEOUT_MS,
