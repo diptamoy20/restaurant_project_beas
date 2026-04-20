@@ -38,7 +38,15 @@ function readDatabaseUrl(): string {
 }
 
 function resolveSchema(databaseUrl: URL): string {
-  const schema = databaseUrl.searchParams.get('schema') ?? 'public';
+  const schema = databaseUrl.searchParams.get('schema');
+  if (!schema) {
+    throw new Error('DATABASE_URL must include schema=restaurant_management');
+  }
+
+  if (schema !== 'restaurant_management') {
+    throw new Error('DATABASE_URL schema must be restaurant_management');
+  }
+
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
     throw new Error('DATABASE_URL schema must be a valid PostgreSQL schema name');
   }
@@ -57,14 +65,14 @@ export function createPrismaClientOptions(): {
   pool: Pool;
   options: Prisma.PrismaClientOptions;
 } {
-  const databaseUrl = new URL(readDatabaseUrl());
+  const rawDatabaseUrl = readDatabaseUrl();
+  const databaseUrl = new URL(rawDatabaseUrl);
   const schema = resolveSchema(databaseUrl);
-  databaseUrl.searchParams.delete('schema');
 
   const { sslEnabled, rejectUnauthorized } = resolveSslConfig();
 
   const pool = new Pool({
-    connectionString: databaseUrl.toString(),
+    connectionString: rawDatabaseUrl,
     options: `-c search_path=${schema}`,
     max: parsePositiveInt(process.env.DB_POOL_MAX, 20),
     idleTimeoutMillis: parsePositiveInt(process.env.DB_POOL_IDLE_TIMEOUT_MS, 30000),
@@ -73,7 +81,7 @@ export function createPrismaClientOptions(): {
   });
 
   const options = {
-    adapter: new PrismaPg(pool),
+    adapter: new PrismaPg(pool, { schema }),
   } as unknown as Prisma.PrismaClientOptions;
 
   return { pool, options };
