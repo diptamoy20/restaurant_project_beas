@@ -1,0 +1,14 @@
+POST http://localhost:4000/api/auth/login/role
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "password123",
+  "role": "admin"
+}
+
+###
+
+GET http://localhost:4000/api/admin/dashboard
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJwaG9uZSI6Iis5MTk5MDAwMDAwMDIiLCJyb2xlcyI6WyJhZG1pbiJdLCJpYXQiOjE3NzY0MzE1MjgsImV4cCI6MTc3NzAzNjMyOH0.-OGN8_mZGUhXHjNsrlshj3qUPozgMUW_zFbnbtgvI1Q
