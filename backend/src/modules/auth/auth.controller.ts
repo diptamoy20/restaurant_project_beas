@@ -1,5 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, Post, Req, UseGuards } from '@nestjs/common';
+
 import { AuthService } from './auth.service';
+import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { LoginDto, RegisterDto, RoleLoginDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -10,19 +12,19 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  register(@Body() payload: RegisterDto) {
+  register(@Body() payload: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(payload);
   }
 
   @Public()
   @Post('login')
-  login(@Body() payload: LoginDto) {
+  login(@Body() payload: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(payload);
   }
 
   @Public()
   @Post('login/role')
-  async loginByRole(@Body() payload: RoleLoginDto) {
+  async loginByRole(@Body() payload: RoleLoginDto): Promise<AuthResponseDto> {
     const response = await this.authService.login(payload);
 
     if (!response.user.roles.includes(payload.role)) {
@@ -34,7 +36,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Req() request: { user: unknown }) {
+  me(@Req() request: { user: AuthUserDto }): AuthUserDto {
     return request.user;
   }
 }

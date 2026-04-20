@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class PaymentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  createPayment(payload: InitiatePaymentDto) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async createPayment(payload: InitiatePaymentDto): Promise<any> {
     return this.prisma.payment.create({
       data: {
         orderId: payload.orderId,
@@ -19,4 +21,3 @@ export class PaymentsService {
     });
   }
 }
-

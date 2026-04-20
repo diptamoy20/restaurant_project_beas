@@ -13,4 +13,3 @@ export type JwtPayload = {
   phone: string | null;
   roles: Role[];
 };
-

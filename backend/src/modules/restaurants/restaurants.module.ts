@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+
 import { RestaurantsController } from './restaurants.controller';
 import { RestaurantsService } from './restaurants.service';
 
@@ -7,4 +8,3 @@ import { RestaurantsService } from './restaurants.service';
   providers: [RestaurantsService],
 })
 export class RestaurantsModule {}
-
