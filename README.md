@@ -27,13 +27,18 @@ restaurant_project_beas/
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (current backend engines: >=20 <26)
 - npm 9+
 - PostgreSQL 14+
 
 ## Environment Setup
 
 Create `backend/.env` from `backend/.env.example`.
+
+Create frontend env files from their examples:
+
+- `web-app/.env` from `web-app/.env.example`
+- `admin-panel/.env` from `admin-panel/.env.example`
 
 Default backend environment:
 
@@ -44,6 +49,7 @@ WEB_APP_URL="http://localhost:5173"
 ADMIN_PANEL_URL="http://localhost:5174"
 JWT_SECRET="restaurant-app-super-secret"
 JWT_EXPIRES_IN="7d"
+DOCS_ENABLED=true
 DB_POOL_MAX=20
 DB_POOL_IDLE_TIMEOUT_MS=30000
 DB_POOL_CONNECTION_TIMEOUT_MS=5000
@@ -64,6 +70,8 @@ cd ../admin-panel && npm install
 ## Database Setup
 
 Make sure PostgreSQL is running locally and that the database in `DATABASE_URL` exists.
+
+This project expects `schema=restaurant_management` in backend `DATABASE_URL`.
 
 From `backend`:
 
@@ -101,6 +109,24 @@ Local endpoints:
 - Backend: `http://localhost:4000`
 - Web app: `http://localhost:5173`
 - Admin panel: `http://localhost:5174`
+
+## API Documentation
+
+When `DOCS_ENABLED=true`, OpenAPI docs are available at:
+
+- Swagger UI: `http://localhost:4000/api/docs`
+- OpenAPI JSON: `http://localhost:4000/api/openapi.json`
+
+Recommended production setting:
+
+- Set `DOCS_ENABLED=false` for public production environments unless you explicitly need docs exposed.
+
+Prisma Studio:
+
+```bash
+cd backend
+npm run prisma:studio
+```
 
 ## Backend Quality Tooling
 
@@ -142,4 +168,15 @@ Frontend apps:
 ```bash
 cd web-app && npm run build
 cd ../admin-panel && npm run build
+```
+
+## Troubleshooting
+
+If `npm run seed` fails after schema or env changes, run:
+
+```bash
+cd backend
+npm run prisma:generate
+npm run prisma:dbpush
+npm run seed
 ```

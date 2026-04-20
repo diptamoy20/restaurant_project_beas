@@ -1,25 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
+import {
+  RestaurantCategoryResponseDto,
+  RestaurantMenuItemResponseDto,
+  RestaurantResponseDto,
+  RestaurantTableResponseDto,
+} from './dto/restaurant-response.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class RestaurantsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getRestaurants(): Promise<any> {
-    return this.prisma.restaurant.findMany({
+  async getRestaurants(): Promise<RestaurantResponseDto[]> {
+    const restaurants = await this.prisma.restaurant.findMany({
       where: { isActive: true },
       include: {
         categories: true,
       },
       orderBy: { name: 'asc' },
     });
+
+    return restaurants.map((restaurant) => this.mapRestaurant(restaurant));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getRestaurant(id: number): Promise<any> {
-    return this.prisma.restaurant.findUnique({
+  async getRestaurant(id: number): Promise<RestaurantResponseDto> {
+    const restaurant = await this.prisma.restaurant.findUnique({
       where: { id },
       include: {
         categories: true,
@@ -27,10 +33,19 @@ export class RestaurantsService {
         menuItems: true,
       },
     });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    return this.mapRestaurant(restaurant);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async findNearbyRestaurants(latitude: number, longitude: number, radiusKm = 10): Promise<any> {
+  async findNearbyRestaurants(
+    latitude: number,
+    longitude: number,
+    radiusKm = 10,
+  ): Promise<RestaurantResponseDto[]> {
     const restaurants = await this.prisma.restaurant.findMany({
       where: { isActive: true },
       include: {
@@ -39,8 +54,8 @@ export class RestaurantsService {
     });
 
     return restaurants
-      .map((restaurant: (typeof restaurants)[number]) => ({
-        ...restaurant,
+      .map((restaurant) => ({
+        ...this.mapRestaurant(restaurant),
         distanceKm: this.calculateDistanceKm(
           latitude,
           longitude,
@@ -48,16 +63,106 @@ export class RestaurantsService {
           restaurant.longitude,
         ),
       }))
-      .filter(
-        (restaurant: (typeof restaurants)[number] & { distanceKm: number }) =>
-          restaurant.distanceKm <= radiusKm,
-      )
-      .sort(
-        (
-          a: (typeof restaurants)[number] & { distanceKm: number },
-          b: (typeof restaurants)[number] & { distanceKm: number },
-        ) => a.distanceKm - b.distanceKm,
-      );
+      .filter((restaurant) => restaurant.distanceKm <= radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+  }
+
+  private mapRestaurantCategory(category: {
+    id: number;
+    restaurantId: number;
+    name: string;
+    description: string | null;
+  }): RestaurantCategoryResponseDto {
+    return {
+      id: category.id,
+      restaurantId: category.restaurantId,
+      name: category.name,
+      description: category.description,
+    };
+  }
+
+  private mapRestaurantTable(table: {
+    id: number;
+    restaurantId: number;
+    tableNumber: string;
+    qrCode: string | null;
+    status: string | null;
+  }): RestaurantTableResponseDto {
+    return {
+      id: table.id,
+      restaurantId: table.restaurantId,
+      tableNumber: table.tableNumber,
+      qrCode: table.qrCode,
+      status: table.status,
+    };
+  }
+
+  private mapRestaurantMenuItem(menuItem: {
+    id: number;
+    restaurantId: number;
+    categoryId: number;
+    name: string;
+    description: string | null;
+    price: number;
+    isAvailable: boolean;
+    preparationTime: number | null;
+  }): RestaurantMenuItemResponseDto {
+    return {
+      id: menuItem.id,
+      restaurantId: menuItem.restaurantId,
+      categoryId: menuItem.categoryId,
+      name: menuItem.name,
+      description: menuItem.description,
+      price: menuItem.price,
+      isAvailable: menuItem.isAvailable,
+      preparationTime: menuItem.preparationTime,
+    };
+  }
+
+  private mapRestaurant(restaurant: {
+    id: number;
+    name: string;
+    address: string;
+    city: string | null;
+    latitude: number;
+    longitude: number;
+    isActive: boolean;
+    categories: {
+      id: number;
+      restaurantId: number;
+      name: string;
+      description: string | null;
+    }[];
+    tables?: {
+      id: number;
+      restaurantId: number;
+      tableNumber: string;
+      qrCode: string | null;
+      status: string | null;
+    }[];
+    menuItems?: {
+      id: number;
+      restaurantId: number;
+      categoryId: number;
+      name: string;
+      description: string | null;
+      price: number;
+      isAvailable: boolean;
+      preparationTime: number | null;
+    }[];
+  }): RestaurantResponseDto {
+    return {
+      id: restaurant.id,
+      name: restaurant.name,
+      address: restaurant.address,
+      city: restaurant.city,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      isActive: restaurant.isActive,
+      categories: restaurant.categories.map((category) => this.mapRestaurantCategory(category)),
+      tables: restaurant.tables?.map((table) => this.mapRestaurantTable(table)),
+      menuItems: restaurant.menuItems?.map((menuItem) => this.mapRestaurantMenuItem(menuItem)),
+    };
   }
 
   private calculateDistanceKm(
