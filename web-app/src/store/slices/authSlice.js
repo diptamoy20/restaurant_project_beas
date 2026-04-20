@@ -46,7 +46,13 @@ export const loginCustomer = createAsyncThunk(
   'auth/loginCustomer',
   async (payload, { rejectWithValue }) => {
     try {
-      const data = await api.post('/auth/login', payload);
+      const response = await api.post('/auth/login', payload);
+      const data = response?.data ?? response;
+
+      if (!data?.accessToken || !data?.user) {
+        return rejectWithValue('Invalid login response');
+      }
+
       return {
         user: data.user,
         token: data.accessToken,
