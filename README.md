@@ -38,7 +38,7 @@ Create `backend/.env` from `backend/.env.example`.
 Default backend environment:
 
 ```env
-DATABASE_URL="postgresql://postgres:root@localhost:5432/restaurant_db?schema=public"
+DATABASE_URL="postgresql://postgres:root@localhost:5432/restaurant_db?schema=restaurant_management"
 PORT=4000
 WEB_APP_URL="http://localhost:5173"
 ADMIN_PANEL_URL="http://localhost:5174"
