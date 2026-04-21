@@ -63,6 +63,12 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
   const env = config as EnvValues;
   const nodeEnv = env.NODE_ENV ?? 'development';
   const accessTokenSecret = env.ACCESS_TOKEN_SECRET ?? env.JWT_SECRET;
+  const docsEnabled = parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production');
+  const docsAllowInProduction = parseBoolean(
+    env.DOCS_ALLOW_IN_PRODUCTION,
+    'DOCS_ALLOW_IN_PRODUCTION',
+    false,
+  );
   const corsOrigins = (env.CORS_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
@@ -74,6 +80,14 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
 
   if (nodeEnv === 'production' && corsOrigins.length === 0) {
     throw new Error('CORS_ORIGINS is required in production');
+  }
+
+  if (nodeEnv === 'production' && !env.DB_SSL) {
+    throw new Error('DB_SSL must be explicitly set in production');
+  }
+
+  if (nodeEnv === 'production' && docsEnabled && !docsAllowInProduction) {
+    throw new Error('DOCS_ENABLED in production requires DOCS_ALLOW_IN_PRODUCTION=true');
   }
 
   if (!accessTokenSecret) {
@@ -103,9 +117,11 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     CORS_ALLOWED_HEADERS: env.CORS_ALLOWED_HEADERS ?? 'Content-Type, Authorization',
     CORS_EXPOSED_HEADERS: env.CORS_EXPOSED_HEADERS ?? '',
     CORS_MAX_AGE_SECONDS: parsePositiveInt(env.CORS_MAX_AGE_SECONDS, 'CORS_MAX_AGE_SECONDS', 600),
+    TRUST_PROXY: parseBoolean(env.TRUST_PROXY, 'TRUST_PROXY', false),
     JWT_SECRET: accessTokenSecret,
     JWT_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
-    DOCS_ENABLED: parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production'),
+    DOCS_ENABLED: docsEnabled,
+    DOCS_ALLOW_IN_PRODUCTION: docsAllowInProduction,
     DB_POOL_MAX: parsePositiveInt(env.DB_POOL_MAX, 'DB_POOL_MAX', 20),
     DB_POOL_IDLE_TIMEOUT_MS: parsePositiveInt(
       env.DB_POOL_IDLE_TIMEOUT_MS,
@@ -122,6 +138,12 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       env.DB_SSL_REJECT_UNAUTHORIZED,
       'DB_SSL_REJECT_UNAUTHORIZED',
       true,
+    ),
+    RATE_LIMIT_WINDOW_MS: parsePositiveInt(env.RATE_LIMIT_WINDOW_MS, 'RATE_LIMIT_WINDOW_MS', 60000),
+    RATE_LIMIT_MAX_REQUESTS: parsePositiveInt(
+      env.RATE_LIMIT_MAX_REQUESTS,
+      'RATE_LIMIT_MAX_REQUESTS',
+      120,
     ),
   };
 }

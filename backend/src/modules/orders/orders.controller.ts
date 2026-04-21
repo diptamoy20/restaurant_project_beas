@@ -30,8 +30,11 @@ export class OrdersController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiOkResponse({ type: OrderResponseDto })
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
-  getOrder(@Param('id', ParseIntPipe) id: number): Promise<OrderResponseDto> {
-    return this.ordersService.getOrder(id);
+  getOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<OrderResponseDto> {
+    return this.ordersService.getOrder(id, request.user);
   }
 
   @Roles(Role.ADMIN, Role.CUSTOMER)
