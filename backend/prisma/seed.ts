@@ -255,12 +255,36 @@ async function main(): Promise<void> {
       preparationTime: 5,
     },
     {
+      restaurantId: downtownBranch.id,
+      categoryId: mains.id,
+      name: 'Veg Biryani Bowl',
+      description: 'Aromatic basmati rice with vegetables and raita',
+      price: 219,
+      preparationTime: 20,
+    },
+    {
+      restaurantId: downtownBranch.id,
+      categoryId: beverages.id,
+      name: 'Masala Lemon Soda',
+      description: 'Refreshing lemon soda with chat masala',
+      price: 79,
+      preparationTime: 4,
+    },
+    {
       restaurantId: riversideBranch.id,
       categoryId: quickMeals.id,
       name: 'Branch Sample Item',
       description: 'Example item for nearby branch display',
       price: 129,
       preparationTime: 10,
+    },
+    {
+      restaurantId: riversideBranch.id,
+      categoryId: quickMeals.id,
+      name: 'Dummy Wrap Combo',
+      description: 'Paneer wrap combo meal for demo purposes',
+      price: 169,
+      preparationTime: 14,
     },
   ];
 

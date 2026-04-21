@@ -23,6 +23,13 @@ export async function baseQueryWithAuth(args, api, extraOptions) {
     api.dispatch(logout());
   }
 
+  if (result.data && typeof result.data === 'object' && result.data.success === true && 'data' in result.data) {
+    return {
+      ...result,
+      data: result.data.data,
+    };
+  }
+
   return result;
 }
 
