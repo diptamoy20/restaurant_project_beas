@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   BACKEND_DIR: backend
   SERVER_APP_DIR: ${{ vars.SERVER_APP_DIR != '' && vars.SERVER_APP_DIR || '/var/www/dev.beas.in/public_html/restaurant_project_beas' }}
   PM2_APP_NAME: ${{ vars.PM2_APP_NAME != '' && vars.PM2_APP_NAME || 'restaurant-backend' }}
