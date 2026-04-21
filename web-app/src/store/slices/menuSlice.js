@@ -8,15 +8,15 @@ export const fetchMenu = createAsyncThunk(
 
     if (!resolvedRestaurantId) {
       const restaurants = await api.get('/restaurants');
-      resolvedRestaurantId = restaurants?.[0]?.id;
+      resolvedRestaurantId = restaurants?.[0]?.id || '1';
     }
 
-    if (!resolvedRestaurantId) {
-      return {
-        restaurantId: null,
-        items: [],
-      };
-    }
+    // if (!resolvedRestaurantId) {
+    //   return {
+    //     restaurantId: null,
+    //     items: [],
+    //   };
+    // }
 
     const response = await api.get(`/menu/restaurant/${resolvedRestaurantId}`);
     return {

@@ -1,10 +1,12 @@
-import { store } from '../store';
-
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api').replace(/\/$/, '');
+let getAuthToken = () => null;
+
+export function setAuthTokenGetter(getToken) {
+  getAuthToken = typeof getToken === 'function' ? getToken : () => null;
+}
 
 async function request(path, options = {}) {
-  const state = store.getState();
-  const token = state.auth?.token;
+  const token = getAuthToken();
 
   const headers = {
     'Content-Type': 'application/json',
