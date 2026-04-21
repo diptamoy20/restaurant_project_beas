@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Restaurant, Category } from '@prisma/client';
 
 import {
   RestaurantCategoryResponseDto,
@@ -7,40 +8,29 @@ import {
   RestaurantTableResponseDto,
 } from './dto/restaurant-response.dto';
 import { PrismaService } from '../../prisma/prisma.service';
-
 @Injectable()
 export class RestaurantsService {
   constructor(private readonly prisma: PrismaService) {}
-
   async getRestaurants(): Promise<RestaurantResponseDto[]> {
     const restaurants = await this.prisma.restaurant.findMany({
       where: { isActive: true },
-      include: {
-        categories: true,
-      },
+      include: { categories: true },
       orderBy: { name: 'asc' },
     });
-
-    return restaurants.map((restaurant) => this.mapRestaurant(restaurant));
+    return restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
+      this.mapRestaurant(restaurant),
+    );
   }
-
   async getRestaurant(id: number): Promise<RestaurantResponseDto> {
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id },
-      include: {
-        categories: true,
-        tables: true,
-        menuItems: true,
-      },
+      include: { categories: true, tables: true, menuItems: true },
     });
-
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found');
     }
-
     return this.mapRestaurant(restaurant);
   }
-
   async findNearbyRestaurants(
     latitude: number,
     longitude: number,
@@ -48,13 +38,10 @@ export class RestaurantsService {
   ): Promise<RestaurantResponseDto[]> {
     const restaurants = await this.prisma.restaurant.findMany({
       where: { isActive: true },
-      include: {
-        categories: true,
-      },
+      include: { categories: true },
     });
-
     return restaurants
-      .map((restaurant) => ({
+      .map((restaurant: Restaurant & { categories: Category[] }) => ({
         ...this.mapRestaurant(restaurant),
         distanceKm: this.calculateDistanceKm(
           latitude,
@@ -63,10 +50,9 @@ export class RestaurantsService {
           restaurant.longitude,
         ),
       }))
-      .filter((restaurant) => restaurant.distanceKm <= radiusKm)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+      .filter((restaurant: RestaurantResponseDto) => restaurant.distanceKm! <= radiusKm)
+      .sort((a: RestaurantResponseDto, b: RestaurantResponseDto) => a.distanceKm! - b.distanceKm!);
   }
-
   private mapRestaurantCategory(category: {
     id: number;
     restaurantId: number;
@@ -80,7 +66,6 @@ export class RestaurantsService {
       description: category.description,
     };
   }
-
   private mapRestaurantTable(table: {
     id: number;
     restaurantId: number;
@@ -96,7 +81,6 @@ export class RestaurantsService {
       status: table.status,
     };
   }
-
   private mapRestaurantMenuItem(menuItem: {
     id: number;
     restaurantId: number;
@@ -118,7 +102,6 @@ export class RestaurantsService {
       preparationTime: menuItem.preparationTime,
     };
   }
-
   private mapRestaurant(restaurant: {
     id: number;
     name: string;
@@ -127,12 +110,7 @@ export class RestaurantsService {
     latitude: number;
     longitude: number;
     isActive: boolean;
-    categories: {
-      id: number;
-      restaurantId: number;
-      name: string;
-      description: string | null;
-    }[];
+    categories: { id: number; restaurantId: number; name: string; description: string | null }[];
     tables?: {
       id: number;
       restaurantId: number;
@@ -164,7 +142,6 @@ export class RestaurantsService {
       menuItems: restaurant.menuItems?.map((menuItem) => this.mapRestaurantMenuItem(menuItem)),
     };
   }
-
   private calculateDistanceKm(
     sourceLat: number,
     sourceLng: number,
@@ -175,14 +152,12 @@ export class RestaurantsService {
     const earthRadiusKm = 6371;
     const latDistance = toRadians(targetLat - sourceLat);
     const lngDistance = toRadians(targetLng - sourceLng);
-
     const a =
       Math.sin(latDistance / 2) * Math.sin(latDistance / 2) +
       Math.cos(toRadians(sourceLat)) *
         Math.cos(toRadians(targetLat)) *
         Math.sin(lngDistance / 2) *
         Math.sin(lngDistance / 2);
-
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Number((earthRadiusKm * c).toFixed(2));
   }
