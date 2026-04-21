@@ -1,0 +1,118 @@
+name: Simple Server Deploy
+
+on:
+  pull_request:
+    branches:
+      - main
+      - production
+    paths:
+      - backend/**
+      - .github/workflows/deploy.yml
+  push:
+    branches:
+      - main
+      - production
+    paths:
+      - backend/**
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  BACKEND_DIR: backend
+  SERVER_APP_DIR: ${{ vars.SERVER_APP_DIR != '' && vars.SERVER_APP_DIR || '/var/www/dev.beas.in/public_html/restaurant_project_beas' }}
+  PM2_APP_NAME: ${{ vars.PM2_APP_NAME != '' && vars.PM2_APP_NAME || 'restaurant-backend' }}
+
+jobs:
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: npm ci
+
+      - name: Lint backend
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: npm run lint
+
+      - name: Typecheck backend
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: npm run typecheck
+
+      - name: Build backend
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: npm run build
+
+  deploy:
+    name: Deploy To Server
+    needs: backend-ci
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: simple-server-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_DIR: ${{ env.SERVER_APP_DIR }}
+          BRANCH: ${{ github.ref_name }}
+          PM2_APP_NAME: ${{ env.PM2_APP_NAME }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script_stop: true
+          envs: APP_DIR,BRANCH,PM2_APP_NAME
+          script: |
+            set -e
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "Repo not found at $APP_DIR"
+              exit 1
+            fi
+
+            if [ ! -f "$APP_DIR/shared/backend.env" ]; then
+              echo "Missing env file: $APP_DIR/shared/backend.env"
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git pull --ff-only origin "$BRANCH"
+
+            cd "$APP_DIR/backend"
+            export HUSKY=0
+            npm ci --include=dev
+
+            set -a
+            . "$APP_DIR/shared/backend.env"
+            set +a
+
+            npm run prisma:generate
+            npm run prisma:migrate:deploy
+            npm run build
+
+            if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
+              pm2 restart ecosystem.config.cjs --only "$PM2_APP_NAME" --env production --update-env
+            else
+              pm2 start ecosystem.config.cjs --only "$PM2_APP_NAME" --env production
+            fi
+
+            pm2 save
+
+            HEALTH_PORT="${PORT:-4000}"
+            curl -fsS "http://127.0.0.1:${HEALTH_PORT}/api/health" >/dev/null
