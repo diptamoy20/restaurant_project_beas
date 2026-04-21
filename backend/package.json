@@ -19,9 +19,6 @@
     "prisma:studio": "prisma studio --port 5555 --browser none",
     "seed": "ts-node prisma/seed.ts"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
   "lint-staged": {
     "*.ts": [
       "eslint --fix --max-warnings=0",
