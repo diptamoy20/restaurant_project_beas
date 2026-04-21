@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { DeliveryLocationUpdateResponseDto, DeliveryTrackingResponseDto } from './dto';
 import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
+import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @Injectable()
 export class DeliveriesService {
@@ -43,7 +45,10 @@ export class DeliveriesService {
     };
   }
 
-  async getTrackingByOrder(orderId: number): Promise<DeliveryTrackingResponseDto> {
+  async getTrackingByOrder(
+    orderId: number,
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryTrackingResponseDto> {
     const delivery = await this.prisma.delivery.findUnique({
       where: { orderId },
       include: {
@@ -58,6 +63,10 @@ export class DeliveriesService {
 
     if (!delivery) {
       throw new NotFoundException('Delivery not found for this order');
+    }
+
+    if (requester.roles.includes(Role.CUSTOMER) && delivery.order.userId !== requester.id) {
+      throw new ForbiddenException('You do not have permission to access this delivery tracking');
     }
 
     return {

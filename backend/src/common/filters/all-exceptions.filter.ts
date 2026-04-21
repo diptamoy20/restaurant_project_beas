@@ -18,30 +18,40 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
+    const request = context.getRequest<{ requestId?: string; method?: string; url?: string }>();
     const response = context.getResponse<{
       status: (statusCode: number) => { json: (body: ApiErrorResponse) => void };
     }>();
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-    const message = this.extractMessage(exception);
+    const requestId = request?.requestId ?? 'unknown-request-id';
+    const message = this.extractMessage(exception, status);
+    const requestContext = `${request?.method ?? 'UNKNOWN'} ${request?.url ?? 'UNKNOWN_URL'} requestId=${requestId}`;
 
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      this.logger.error(message, exception instanceof Error ? exception.stack : undefined);
+      this.logger.error(
+        `${requestContext} ${message}`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
     } else if (
       exception instanceof UnauthorizedException ||
       exception instanceof ForbiddenException ||
       exception instanceof BadRequestException
     ) {
-      this.logger.warn(message);
+      this.logger.warn(`${requestContext} ${message}`);
     }
 
     response.status(status).json({
       success: false,
-      message,
+      message: `${message} (requestId: ${requestId})`,
     });
   }
 
-  private extractMessage(exception: unknown): string {
+  private extractMessage(exception: unknown, status: number): string {
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      return 'Internal server error';
+    }
+
     if (exception instanceof HttpException) {
       const response = exception.getResponse();
 
