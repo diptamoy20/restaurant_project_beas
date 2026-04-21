@@ -25,7 +25,7 @@ export class NotificationsService {
       orderBy: { id: 'desc' },
     });
 
-    return notifications.map((notification: Notification) => ({
+    return notifications.map((notification) => ({
       id: notification.id,
       userId: notification.userId,
       title: notification.title,
