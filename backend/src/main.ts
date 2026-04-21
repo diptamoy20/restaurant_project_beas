@@ -12,9 +12,28 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {
+  if (!value) {
+    return fallback;
+  }
+
+  return value.toLowerCase() === 'true';
+}
+
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  const httpAdapter = app.getHttpAdapter();
+  const httpServer = httpAdapter.getInstance();
+
+  if (typeof httpServer?.disable === 'function') {
+    httpServer.disable('x-powered-by');
+  }
+
+  if (parseBooleanEnv(process.env.TRUST_PROXY, false) && typeof httpServer?.set === 'function') {
+    httpServer.set('trust proxy', 1);
+  }
+
   app.enableShutdownHooks();
 
   app.use(helmet());
@@ -117,6 +136,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
+  logger.log(`Server started on port ${port} (${nodeEnv})`);
 }
 
 bootstrap();

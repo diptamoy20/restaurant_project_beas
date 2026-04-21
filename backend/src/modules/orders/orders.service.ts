@@ -1,14 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
+import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOrder(id: number): Promise<OrderResponseDto> {
+  async getOrder(id: number, requester: AuthenticatedUser): Promise<OrderResponseDto> {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
@@ -26,6 +28,10 @@ export class OrdersService {
 
     if (!order) {
       throw new NotFoundException('Order not found');
+    }
+
+    if (requester.roles.includes(Role.CUSTOMER) && order.userId !== requester.id) {
+      throw new ForbiddenException('You do not have permission to access this order');
     }
 
     return this.mapOrder(order);

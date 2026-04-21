@@ -170,6 +170,103 @@ cd web-app && npm run build
 cd ../admin-panel && npm run build
 ```
 
+## Production Hardening
+
+### API Access Classification
+
+- Public: `GET /health`, `POST /auth/register`, `POST /auth/login`, `POST /auth/login/role`, `POST /auth/refresh`
+- Authenticated + role: all other endpoints (global JWT guard + role guard)
+- Owner-only enforcement:
+  - `GET /orders/:id` (customers can only access their own order)
+  - `GET /membership/user/:userId` (customers can only access their own membership)
+  - `GET /notifications/user/:userId` (customers and delivery users can only access their own notifications)
+  - `GET /deliveries/order/:orderId/track` (customers can only access tracking for their own order)
+
+### Backend Production Environment (minimum)
+
+```env
+NODE_ENV=production
+PORT=4000
+DATABASE_URL="postgresql://<user>:<password>@<host>:5432/restaurant_db?schema=restaurant_management"
+CORS_ORIGINS="https://app.example.com,https://admin.example.com"
+ACCESS_TOKEN_SECRET="<strong-secret>"
+REFRESH_TOKEN_SECRET="<strong-secret>"
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=true
+DOCS_ENABLED=false
+TRUST_PROXY=true
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=120
+```
+
+### Security + Reliability Defaults
+
+- Helmet enabled globally
+- Strict CORS allowlist in production (required)
+- Global request validation (`whitelist`, `forbidNonWhitelisted`, `transform`)
+- Global exception filter with sanitized `5xx` responses and request ID tracing
+- Request ID middleware (`x-request-id`) and request logging interceptor
+- Global in-memory rate limiting middleware (`RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`)
+- Graceful shutdown hooks enabled
+
+### Prisma Production Commands
+
+Run on release:
+
+```bash
+cd backend
+npm ci
+npm run prisma:generate
+npx prisma migrate deploy
+npm run build
+```
+
+### No-Docker Deploy (PM2 + Nginx)
+
+```bash
+# backend
+cd /var/www/restaurant/backend
+npm ci
+npm run prisma:generate
+npx prisma migrate deploy
+npm run build
+pm2 describe restaurant-backend >/dev/null 2>&1 && pm2 restart restaurant-backend --update-env || pm2 start dist/main.js --name restaurant-backend
+pm2 save
+
+# frontend builds (run in CI or server)
+cd /var/www/restaurant/web-app && npm ci && npm run build
+cd /var/www/restaurant/admin-panel && npm ci && npm run build
+```
+
+Nginx should serve frontend `dist` directories and reverse-proxy `/api` to backend port.
+
+### CI Checks (recommended)
+
+```bash
+cd backend && npm ci && npm run prisma:generate && npm run lint && npm run build
+cd ../web-app && npm ci && npm run build
+cd ../admin-panel && npm ci && npm run build
+```
+
+### Go Live Checklist
+
+- Production env secrets set and validated
+- `DOCS_ENABLED=false`
+- `CORS_ORIGINS` only includes trusted domains
+- Prisma migration deploy successful
+- Health endpoint returns `ok`
+- PM2 process running and persisted
+- Nginx TLS + API proxy verified
+- Smoke test: login, browse menu, create order, payment flow, delivery tracking
+
+### Rollback Plan
+
+1. Revert to previous git release tag/commit on server.
+2. Reinstall dependencies and rebuild.
+3. Restart PM2 process with previous artifact.
+4. If schema change caused issue, apply prepared backward migration or restore DB snapshot.
+5. Re-run smoke checks and monitor logs.
+
 ## Troubleshooting
 
 If `npm run seed` fails after schema or env changes, run:

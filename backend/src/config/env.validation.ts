@@ -76,6 +76,14 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     throw new Error('CORS_ORIGINS is required in production');
   }
 
+  if (nodeEnv === 'production' && !env.DB_SSL) {
+    throw new Error('DB_SSL must be explicitly set in production');
+  }
+
+  if (nodeEnv === 'production' && env.DOCS_ENABLED?.toLowerCase() === 'true') {
+    throw new Error('DOCS_ENABLED must be false in production');
+  }
+
   if (!accessTokenSecret) {
     throw new Error('ACCESS_TOKEN_SECRET is required');
   }
@@ -103,6 +111,7 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     CORS_ALLOWED_HEADERS: env.CORS_ALLOWED_HEADERS ?? 'Content-Type, Authorization',
     CORS_EXPOSED_HEADERS: env.CORS_EXPOSED_HEADERS ?? '',
     CORS_MAX_AGE_SECONDS: parsePositiveInt(env.CORS_MAX_AGE_SECONDS, 'CORS_MAX_AGE_SECONDS', 600),
+    TRUST_PROXY: parseBoolean(env.TRUST_PROXY, 'TRUST_PROXY', false),
     JWT_SECRET: accessTokenSecret,
     JWT_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
     DOCS_ENABLED: parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production'),
@@ -122,6 +131,12 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       env.DB_SSL_REJECT_UNAUTHORIZED,
       'DB_SSL_REJECT_UNAUTHORIZED',
       true,
+    ),
+    RATE_LIMIT_WINDOW_MS: parsePositiveInt(env.RATE_LIMIT_WINDOW_MS, 'RATE_LIMIT_WINDOW_MS', 60000),
+    RATE_LIMIT_MAX_REQUESTS: parsePositiveInt(
+      env.RATE_LIMIT_MAX_REQUESTS,
+      'RATE_LIMIT_MAX_REQUESTS',
+      120,
     ),
   };
 }
