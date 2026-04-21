@@ -35,9 +35,17 @@ export class AuthResponseDto {
   @IsString()
   accessToken!: string;
 
+  @ApiProperty({ example: 'refresh-jwt-token' })
+  @IsString()
+  refreshToken!: string;
+
   @ApiProperty({ example: 'Bearer' })
   @IsString()
   tokenType!: string;
+
+  @ApiProperty({ example: '2026-04-27T12:00:00.000Z', format: 'date-time' })
+  @IsString()
+  refreshTokenExpiresAt!: string;
 
   @ApiProperty({ type: () => AuthUserDto })
   @Type(() => AuthUserDto)

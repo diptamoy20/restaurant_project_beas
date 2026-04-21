@@ -26,6 +26,22 @@ function parsePositiveInt(rawValue: string | undefined, key: string, fallback: n
   return parsed;
 }
 
+function parseIntInRange(
+  rawValue: string | undefined,
+  key: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const parsed = parsePositiveInt(rawValue, key, fallback);
+
+  if (parsed < min || parsed > max) {
+    throw new Error(`${key} must be between ${min} and ${max}`);
+  }
+
+  return parsed;
+}
+
 function parseBoolean(rawValue: string | undefined, key: string, fallback: boolean): boolean {
   if (!rawValue) {
     return fallback;
@@ -46,20 +62,49 @@ function parseBoolean(rawValue: string | undefined, key: string, fallback: boole
 export function validateEnv(config: Record<string, unknown>): Record<string, unknown> {
   const env = config as EnvValues;
   const nodeEnv = env.NODE_ENV ?? 'development';
+  const accessTokenSecret = env.ACCESS_TOKEN_SECRET ?? env.JWT_SECRET;
+  const corsOrigins = (env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   if (!env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required');
   }
 
-  if (!env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is required');
+  if (nodeEnv === 'production' && corsOrigins.length === 0) {
+    throw new Error('CORS_ORIGINS is required in production');
+  }
+
+  if (!accessTokenSecret) {
+    throw new Error('ACCESS_TOKEN_SECRET is required');
+  }
+
+  if (!env.REFRESH_TOKEN_SECRET) {
+    throw new Error('REFRESH_TOKEN_SECRET is required');
   }
 
   return {
     ...config,
     NODE_ENV: nodeEnv,
     PORT: parsePort(env.PORT),
-    JWT_EXPIRES_IN: env.JWT_EXPIRES_IN ?? '7d',
+    ACCESS_TOKEN_SECRET: accessTokenSecret,
+    REFRESH_TOKEN_SECRET: env.REFRESH_TOKEN_SECRET,
+    ACCESS_TOKEN_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
+    REFRESH_TOKEN_EXPIRES_IN: env.REFRESH_TOKEN_EXPIRES_IN ?? '7d',
+    LOGIN_LOCK_THRESHOLD: parsePositiveInt(env.LOGIN_LOCK_THRESHOLD, 'LOGIN_LOCK_THRESHOLD', 5),
+    LOGIN_LOCK_DURATION_MINUTES: parsePositiveInt(
+      env.LOGIN_LOCK_DURATION_MINUTES,
+      'LOGIN_LOCK_DURATION_MINUTES',
+      15,
+    ),
+    BCRYPT_ROUNDS: parseIntInRange(env.BCRYPT_ROUNDS, 'BCRYPT_ROUNDS', 10, 8, 14),
+    CORS_ORIGINS: corsOrigins.join(','),
+    CORS_ALLOWED_HEADERS: env.CORS_ALLOWED_HEADERS ?? 'Content-Type, Authorization',
+    CORS_EXPOSED_HEADERS: env.CORS_EXPOSED_HEADERS ?? '',
+    CORS_MAX_AGE_SECONDS: parsePositiveInt(env.CORS_MAX_AGE_SECONDS, 'CORS_MAX_AGE_SECONDS', 600),
+    JWT_SECRET: accessTokenSecret,
+    JWT_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
     DOCS_ENABLED: parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production'),
     DB_POOL_MAX: parsePositiveInt(env.DB_POOL_MAX, 'DB_POOL_MAX', 20),
     DB_POOL_IDLE_TIMEOUT_MS: parsePositiveInt(
