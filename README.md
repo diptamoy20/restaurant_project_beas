@@ -194,9 +194,23 @@ REFRESH_TOKEN_SECRET="<strong-secret>"
 DB_SSL=true
 DB_SSL_REJECT_UNAUTHORIZED=true
 DOCS_ENABLED=false
+DOCS_ALLOW_IN_PRODUCTION=false
 TRUST_PROXY=true
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=120
+```
+
+For LAN/deployed access from your current host, include:
+
+```env
+CORS_ORIGINS="http://192.168.1.18:7001"
+```
+
+If you need Swagger available on a pushed production server, set both:
+
+```env
+DOCS_ENABLED=true
+DOCS_ALLOW_IN_PRODUCTION=true
 ```
 
 ### Security + Reliability Defaults

@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { LogLevel, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -20,9 +20,25 @@ function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean 
   return value.toLowerCase() === 'true';
 }
 
+function resolveLogLevels(nodeEnv: string): LogLevel[] {
+  const fromEnv = parseCsvEnv(process.env.LOG_LEVELS);
+
+  if (fromEnv.length > 0) {
+    return fromEnv as LogLevel[];
+  }
+
+  return nodeEnv === 'production'
+    ? ['log', 'warn', 'error']
+    : ['log', 'warn', 'error', 'debug', 'verbose'];
+}
+
 async function bootstrap(): Promise<void> {
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: resolveLogLevels(nodeEnv),
+    bufferLogs: false,
+  });
   const httpAdapter = app.getHttpAdapter();
   const httpServer = httpAdapter.getInstance();
 
@@ -38,7 +54,6 @@ async function bootstrap(): Promise<void> {
 
   app.use(helmet());
 
-  const nodeEnv = process.env.NODE_ENV ?? 'development';
   const defaultOrigins =
     nodeEnv === 'production'
       ? []
