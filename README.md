@@ -170,45 +170,6 @@ cd web-app && npm run build
 cd ../admin-panel && npm run build
 ```
 
-## Production CI/CD (No Docker)
-
-This repository includes GitHub Actions workflows:
-
-- `.github/workflows/ci.yml` - Runs lint/build checks for backend, web app, and admin panel.
-- `.github/workflows/deploy-production.yml` - Deploys on push to `main` via SSH + PM2 (no Docker).
-
-### Required GitHub Secrets
-
-Set these repository/environment secrets before enabling production deploy:
-
-- `PROD_HOST` - Production server hostname or IP
-- `PROD_PORT` - SSH port (example: `22`)
-- `PROD_USER` - SSH username
-- `PROD_SSH_KEY` - Private SSH key (PEM/OpenSSH format)
-- `PROD_BACKEND_DIR` - Absolute server path for backend app
-- `PROD_WEB_DIR` - Absolute server path served for `web-app/dist`
-- `PROD_ADMIN_DIR` - Absolute server path served for `admin-panel/dist`
-- `BACKEND_ENV_PROD` - Full backend `.env` file content for production
-- `WEB_APP_ENV_PROD` - Full `web-app/.env` content for production build
-- `ADMIN_PANEL_ENV_PROD` - Full `admin-panel/.env` content for production build
-
-### Production Server Prerequisites
-
-Install and configure on the target Linux server:
-
-- Node.js 20+
-- npm
-- PM2 (`npm i -g pm2`)
-- PostgreSQL reachable by backend `DATABASE_URL`
-- Nginx (or equivalent) to serve static frontend directories and reverse-proxy backend API
-
-### First-time Setup Notes
-
-- Ensure `PROD_BACKEND_DIR`, `PROD_WEB_DIR`, and `PROD_ADMIN_DIR` already exist and are writable by `PROD_USER`.
-- PM2 process is created automatically as `restaurant-backend` on first deploy.
-- Backend migrations are applied during deploy with `prisma migrate deploy`.
-- Recommended: use GitHub Environment `production` with required reviewers for safer releases.
-
 ## Troubleshooting
 
 If `npm run seed` fails after schema or env changes, run:
