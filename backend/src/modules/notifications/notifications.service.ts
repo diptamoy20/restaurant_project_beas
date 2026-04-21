@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Notification } from '@prisma/client';
 
 import { NotificationResponseDto } from './dto/notification-response.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,7 +14,7 @@ export class NotificationsService {
       orderBy: { id: 'desc' },
     });
 
-    return notifications.map((notification) => ({
+    return notifications.map((notification: Notification) => ({
       id: notification.id,
       userId: notification.userId,
       title: notification.title,
