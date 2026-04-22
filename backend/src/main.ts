@@ -52,7 +52,17 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
 
-  app.use(helmet());
+  const enableHttpsUpgrade = parseBooleanEnv(process.env.ENABLE_HTTPS_UPGRADE, false);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          upgradeInsecureRequests: enableHttpsUpgrade ? [] : null,
+        },
+      },
+    }),
+  );
 
   const defaultOrigins =
     nodeEnv === 'production'
