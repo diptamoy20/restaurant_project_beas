@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { HomePage } from './pages/HomePage';
 import { MenuPage } from './pages/MenuPage';
 import { CartPage } from './pages/CartPage';
+import { PaymentPage } from './pages/PaymentPage';
 import { LoginPage } from './pages/LoginPage';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/menu" element={<MenuPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/payment/:orderId" element={<PaymentPage />} />
         </Route>
       </Routes>
     </Layout>

@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { LogLevel, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -12,14 +12,58 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {
+  if (!value) {
+    return fallback;
+  }
+
+  return value.toLowerCase() === 'true';
+}
+
+function resolveLogLevels(nodeEnv: string): LogLevel[] {
+  const fromEnv = parseCsvEnv(process.env.LOG_LEVELS);
+
+  if (fromEnv.length > 0) {
+    return fromEnv as LogLevel[];
+  }
+
+  return nodeEnv === 'production'
+    ? ['log', 'warn', 'error']
+    : ['log', 'warn', 'error', 'debug', 'verbose'];
+}
+
 async function bootstrap(): Promise<void> {
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: resolveLogLevels(nodeEnv),
+    bufferLogs: false,
+  });
+  const httpAdapter = app.getHttpAdapter();
+  const httpServer = httpAdapter.getInstance();
+
+  if (typeof httpServer?.disable === 'function') {
+    httpServer.disable('x-powered-by');
+  }
+
+  if (parseBooleanEnv(process.env.TRUST_PROXY, false) && typeof httpServer?.set === 'function') {
+    httpServer.set('trust proxy', 1);
+  }
+
   app.enableShutdownHooks();
 
-  app.use(helmet());
+  const enableHttpsUpgrade = parseBooleanEnv(process.env.ENABLE_HTTPS_UPGRADE, false);
 
-  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          upgradeInsecureRequests: enableHttpsUpgrade ? [] : null,
+        },
+      },
+    }),
+  );
+
   const defaultOrigins =
     nodeEnv === 'production'
       ? []
@@ -59,7 +103,7 @@ async function bootstrap(): Promise<void> {
       }
 
       logger.warn(`CORS blocked for origin: ${origin}`);
-      callback(new Error(`CORS blocked for origin: ${origin}`), false);
+      callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -117,6 +161,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
+  logger.log(`Server started on port ${port} (${nodeEnv})`);
 }
 
 bootstrap();
