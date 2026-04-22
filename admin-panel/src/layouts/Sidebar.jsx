@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { closeSidebar } from '../features/ui/uiSlice';
 import { getVisibleRoutes } from '../routes/accessControl';
 import { roleLabelMap } from '../utils/auth';
+import projectLogo from '../assets/project-logo.svg';
 
 export function Sidebar() {
   const dispatch = useDispatch();
@@ -16,7 +17,10 @@ export function Sidebar() {
       className={`fixed inset-y-0 left-0 z-40 w-72 transform border-r border-white/10 bg-slate-950 px-5 py-6 text-white transition lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
       <div className="rounded-[28px] bg-white/6 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300">Restaurant OS</p>
+        <div className="inline-flex h-30 w-full items-center justify-center rounded-2xl 0 p-2 shadow-lg shadow-emerald-950/35">
+          <img src={projectLogo} alt="Restaurant logo" className="h-full w-full object-contain" />
+        </div>
+        {/* <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300">Restaurant OS</p> */}
         <h1 className="mt-2 text-2xl font-semibold">Admin Panel</h1>
         <p className="mt-2 text-sm text-slate-300">
           Signed in as {roleLabelMap[role] ?? 'User'}
@@ -28,7 +32,7 @@ export function Sidebar() {
           <NavLink
             className={({ isActive }) =>
               `block rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                isActive ? 'bg-white text-slate-950' : 'text-slate-300 hover:bg-white/8 hover:text-white'
+                isActive ? 'bg-white/40 text-slate-950' : 'text-slate-300 hover:bg-white/20 hover:text-white'
               }`
             }
             key={route.path}
