@@ -153,10 +153,9 @@ jobs:
             npm run build
 
             if pm2 describe "$WEB_PM2_APP_NAME" >/dev/null 2>&1; then
-              pm2 restart "$WEB_PM2_APP_NAME" --update-env
-            else
-              pm2 serve "$APP_DIR/web-app/dist" "$WEB_APP_PORT" --name "$WEB_PM2_APP_NAME" --spa
+              pm2 delete "$WEB_PM2_APP_NAME"
             fi
+            pm2 serve "$APP_DIR/web-app/dist" "$WEB_APP_PORT" --name "$WEB_PM2_APP_NAME" --spa
 
             cd "$APP_DIR/admin-panel"
             export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
@@ -164,10 +163,9 @@ jobs:
             npm run build
 
             if pm2 describe "$ADMIN_PM2_APP_NAME" >/dev/null 2>&1; then
-              pm2 restart "$ADMIN_PM2_APP_NAME" --update-env
-            else
-              pm2 serve "$APP_DIR/admin-panel/dist" "$ADMIN_PANEL_PORT" --name "$ADMIN_PM2_APP_NAME" --spa
+              pm2 delete "$ADMIN_PM2_APP_NAME"
             fi
+            pm2 serve "$APP_DIR/admin-panel/dist" "$ADMIN_PANEL_PORT" --name "$ADMIN_PM2_APP_NAME" --spa
 
             pm2 save
 
