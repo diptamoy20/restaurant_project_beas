@@ -1,0 +1,8 @@
+{
+  "name": "restaurant-project-beas",
+  "private": true,
+  "scripts": {
+    "dev": "node ./scripts/dev-all.mjs",
+    "dev:all": "node ./scripts/dev-all.mjs"
+  }
+}

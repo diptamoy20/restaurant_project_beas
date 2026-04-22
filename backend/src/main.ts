@@ -52,7 +52,17 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
 
-  app.use(helmet());
+  const enableHttpsUpgrade = parseBooleanEnv(process.env.ENABLE_HTTPS_UPGRADE, false);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          upgradeInsecureRequests: enableHttpsUpgrade ? [] : null,
+        },
+      },
+    }),
+  );
 
   const defaultOrigins =
     nodeEnv === 'production'
@@ -93,7 +103,7 @@ async function bootstrap(): Promise<void> {
       }
 
       logger.warn(`CORS blocked for origin: ${origin}`);
-      callback(new Error(`CORS blocked for origin: ${origin}`), false);
+      callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
