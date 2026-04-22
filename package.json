@@ -2,6 +2,7 @@
   "name": "restaurant-project-beas",
   "private": true,
   "scripts": {
+    "install:all": "node ./scripts/install-all.mjs",
     "dev": "node ./scripts/dev-all.mjs",
     "dev:all": "node ./scripts/dev-all.mjs"
   }

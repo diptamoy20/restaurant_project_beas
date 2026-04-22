@@ -1,9 +1,12 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
 const backendPort = process.env.PORT ?? '4000';
+const frontendPort = process.env.FRONTEND_PORT ?? '5173';
+const adminPanelPort = process.env.ADMIN_PANEL_PORT ?? '5174';
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? `http://localhost:${backendPort}/api`;
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
@@ -42,6 +45,34 @@ const services = [
 
 const children = [];
 let shuttingDown = false;
+
+const requiredFiles = [
+  {
+    label: 'backend dependencies',
+    path: path.join(rootDir, 'backend', 'node_modules', '.bin', process.platform === 'win32' ? 'nest.cmd' : 'nest'),
+  },
+  {
+    label: 'web-app dependencies',
+    path: path.join(rootDir, 'web-app', 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite'),
+  },
+  {
+    label: 'admin-panel dependencies',
+    path: path.join(rootDir, 'admin-panel', 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite'),
+  },
+];
+
+const missingFiles = requiredFiles.filter((entry) => !fs.existsSync(entry.path));
+
+if (missingFiles.length > 0) {
+  process.stderr.write('Missing local dependencies:\n');
+
+  for (const entry of missingFiles) {
+    process.stderr.write(`- ${entry.label}\n`);
+  }
+
+  process.stderr.write('\nRun `npm run install:all` from the repo root, then retry `npm run dev`.\n');
+  process.exit(1);
+}
 
 function quoteWindowsArg(value) {
   if (/[\s"]/u.test(value)) {
@@ -109,7 +140,7 @@ function killChild(child) {
     const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
       stdio: 'ignore',
     });
-    killer.on('error', () => {});
+    killer.on('error', () => { });
     return;
   }
 
@@ -164,8 +195,8 @@ process.stdout.write(
   [
     'Starting local stack...',
     `- backend: http://localhost:${backendPort}`,
-    '- web-app: http://localhost:5173',
-    '- admin-panel: http://localhost:5174',
+    `- web-app: http://localhost:${frontendPort}`,
+    `- admin-panel: http://localhost:${adminPanelPort}`,
     `- API base URL: ${apiBaseUrl}`,
     'Press Ctrl+C to stop all three.',
     '',
