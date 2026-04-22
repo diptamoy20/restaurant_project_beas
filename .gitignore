@@ -10,3 +10,5 @@ Thumbs.db
 *.log
 .turbo/
 .vite/
+artifacts/
+deploy-temp/

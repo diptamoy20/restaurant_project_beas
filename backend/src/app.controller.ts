@@ -10,7 +10,7 @@ export class AppController {
 
   @Public()
   @Get('health')
-  getHealth(): HealthResponseDto {
+  async getHealth(): Promise<HealthResponseDto> {
     return this.appService.getHealth();
   }
 }
