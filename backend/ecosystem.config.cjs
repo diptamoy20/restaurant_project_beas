@@ -1,12 +1,9 @@
-const fs = require('fs');
 const path = require('path');
 
 const instances = process.env.PM2_INSTANCES ?? '1';
 const execMode = instances === '1' ? 'fork' : 'cluster';
 const envFile = process.env.PM2_ENV_FILE ?? path.join(__dirname, '..', 'shared', 'backend.env');
-const primaryScript = path.join(__dirname, 'dist', 'main.js');
-const fallbackScript = path.join(__dirname, 'dist', 'src', 'main.js');
-const script = fs.existsSync(primaryScript) ? primaryScript : fallbackScript;
+const script = path.join(__dirname, 'dist', 'main.js');
 
 module.exports = {
   apps: [

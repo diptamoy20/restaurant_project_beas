@@ -93,7 +93,7 @@ async function bootstrap(): Promise<void> {
       }
 
       logger.warn(`CORS blocked for origin: ${origin}`);
-      callback(new Error(`CORS blocked for origin: ${origin}`), false);
+      callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
