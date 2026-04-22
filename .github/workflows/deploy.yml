@@ -132,6 +132,8 @@ jobs:
             fi
 
             cd "$APP_DIR"
+            rm -f backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo
+            git restore --source=HEAD --staged --worktree backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo || true
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git pull --ff-only origin "$BRANCH"
