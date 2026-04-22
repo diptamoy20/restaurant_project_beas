@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import projectLogo from '../assets/project-logo.svg';
 import { Button } from '../components/ui/Button';
 import { ErrorState } from '../components/ui/ErrorState';
 import { TextField } from '../components/ui/TextField';
@@ -68,16 +69,14 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.24),_transparent_28%),linear-gradient(135deg,#0f172a,#1e293b_55%,#334155)] px-4 py-10">
       <div className="grid w-full max-w-5xl gap-6 overflow-hidden rounded-[36px] bg-white shadow-[0_30px_100px_rgba(15,23,42,0.35)] lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="hidden bg-slate-950 p-10 text-white lg:block">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Restaurant OS</p>
-          <h1 className="mt-4 max-w-sm text-4xl font-semibold leading-tight">
+        <div className="hidden bg-slate-950 p-10 text-white lg:flex flex-col items-center justify-center">
+          {/* <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Restaurant OS</p> */}
+          <span className="brand-mark" aria-hidden="true">
+              <img src={projectLogo} alt="" />
+            </span>
+          {/* <h1 className="mt-4 max-w-sm text-4xl font-semibold leading-tight">
             Keep service, menu, and staff decisions in one calm workspace.
-          </h1>
-          <div className="mt-10 space-y-4 text-sm text-slate-300">
-            <p>Role-aware navigation</p>
-            <p>RTK Query API orchestration</p>
-            <p>Responsive panels for live operations</p>
-          </div>
+          </h1> */}
         </div>
 
         <div className="p-6 sm:p-10">

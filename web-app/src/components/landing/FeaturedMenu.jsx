@@ -2,7 +2,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { addToCart } from '../../store/slices/cartSlice';
 import { RevealSection } from './RevealSection';
-
 export function FeaturedMenu() {
   const dispatch = useDispatch();
   const items = useSelector((state) => state.menu.items.slice(0, 4));

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { createTableAwarePath, resolveTableId } from '../lib/tableSession';
+import projectLogo from '../assets/project-logo.svg';
 
 export function Layout({ children }) {
   const location = useLocation();
@@ -50,10 +51,13 @@ export function Layout({ children }) {
       >
         <div className="topbar-inner">
           <Link className="brand" to={homePath}>
-            <span className="brand-mark">RQ</span>
+            {/* <span className="brand-mark">FoodyPly</span> */}
+            <span className="brand-mark" aria-hidden="true">
+              <img src={projectLogo} alt="" />
+            </span>
             <div>
               <p className="eyebrow">QR Ordering & Payment</p>
-              <strong>Restaurant Web App</strong>
+              {/* <strong>FoodyPly</strong> */}
             </div>
           </Link>
 

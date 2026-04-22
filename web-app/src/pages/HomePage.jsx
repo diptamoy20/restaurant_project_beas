@@ -12,7 +12,7 @@ export function HomePage() {
       <HeroSection />
       <FeaturesGrid />
       <HowItWorks />
-      <FeaturedMenu />
+      {/* <FeaturedMenu /> */}
       <Testimonials />
       <CTABanner />
       <Footer />
