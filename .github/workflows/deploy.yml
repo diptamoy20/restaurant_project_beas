@@ -30,7 +30,7 @@ env:
   PM2_APP_NAME: ${{ vars.PM2_APP_NAME != '' && vars.PM2_APP_NAME || 'restaurant-backend' }}
   WEB_PM2_APP_NAME: ${{ vars.WEB_PM2_APP_NAME != '' && vars.WEB_PM2_APP_NAME || 'restaurant-web-app' }}
   ADMIN_PM2_APP_NAME: ${{ vars.ADMIN_PM2_APP_NAME != '' && vars.ADMIN_PM2_APP_NAME || 'restaurant-admin-panel' }}
-  PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL != '' && vars.PUBLIC_API_BASE_URL || 'http://192.168.1.18:7001/api' }}
+  PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
   WEB_APP_PORT: ${{ vars.WEB_APP_PORT != '' && vars.WEB_APP_PORT || '7002' }}
   ADMIN_PANEL_PORT: ${{ vars.ADMIN_PANEL_PORT != '' && vars.ADMIN_PANEL_PORT || '7003' }}
 
@@ -40,10 +40,17 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_db?schema=restaurant_management
-      VITE_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL != '' && vars.PUBLIC_API_BASE_URL || 'http://192.168.1.18:7001/api' }}
+      VITE_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate required frontend API URL
+        run: |
+          if [ -z "${VITE_API_BASE_URL}" ]; then
+            echo "PUBLIC_API_BASE_URL GitHub variable is required"
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -137,14 +144,25 @@ jobs:
             . "$APP_DIR/shared/backend.env"
             set +a
 
+            if [ -z "$PUBLIC_API_BASE_URL" ]; then
+              echo "PUBLIC_API_BASE_URL is required"
+              exit 1
+            fi
+
+            rm -rf dist
             npm run prisma:generate
             npm run prisma:migrate:deploy
             npm run build
+            if [ ! -f "$APP_DIR/backend/dist/main.js" ]; then
+              echo "Backend build output missing: $APP_DIR/backend/dist/main.js"
+              exit 1
+            fi
 
             if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
-              pm2 delete "$PM2_APP_NAME"
+              pm2 startOrReload ecosystem.config.cjs --only "$PM2_APP_NAME" --env production --update-env
+            else
+              pm2 start ecosystem.config.cjs --only "$PM2_APP_NAME" --env production
             fi
-            pm2 start ecosystem.config.cjs --only "$PM2_APP_NAME" --env production
 
             cd "$APP_DIR/web-app"
             export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
