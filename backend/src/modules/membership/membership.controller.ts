@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 
 import { MembershipResponseDto } from './dto';
@@ -6,6 +6,7 @@ import { MembershipService } from './membership.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @Controller('membership')
 @Roles(Role.ADMIN, Role.CUSTOMER)
@@ -20,7 +21,10 @@ export class MembershipController {
   @ApiParam({ name: 'userId', type: Number, example: 3 })
   @ApiOkResponse({ type: MembershipResponseDto })
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
-  getMembership(@Param('userId', ParseIntPipe) userId: number): Promise<MembershipResponseDto> {
-    return this.membershipService.getMembership(userId);
+  getMembership(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<MembershipResponseDto> {
+    return this.membershipService.getMembership(userId, request.user);
   }
 }

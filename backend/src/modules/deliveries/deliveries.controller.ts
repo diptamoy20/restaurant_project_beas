@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -17,6 +17,7 @@ import {
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @Controller('deliveries')
 @ApiTags('Deliveries')
@@ -45,7 +46,8 @@ export class DeliveriesController {
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
   async getTracking(
     @Param('orderId', ParseIntPipe) orderId: number,
+    @Req() request: { user: AuthenticatedUser },
   ): Promise<DeliveryTrackingResponseDto> {
-    return this.deliveriesService.getTrackingByOrder(orderId);
+    return this.deliveriesService.getTrackingByOrder(orderId, request.user);
   }
 }

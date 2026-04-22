@@ -170,6 +170,214 @@ cd web-app && npm run build
 cd ../admin-panel && npm run build
 ```
 
+## Production Hardening
+
+### API Access Classification
+
+- Public: `GET /api/health`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/login/role`, `POST /api/auth/refresh`
+- Authenticated + role: all other endpoints (global JWT guard + role guard)
+- Owner-only enforcement:
+  - `GET /orders/:id` (customers can only access their own order)
+  - `GET /membership/user/:userId` (customers can only access their own membership)
+  - `GET /notifications/user/:userId` (customers and delivery users can only access their own notifications)
+  - `GET /deliveries/order/:orderId/track` (customers can only access tracking for their own order)
+
+### Backend Production Environment (minimum)
+
+```env
+NODE_ENV=production
+PORT=4000
+DATABASE_URL="postgresql://<user>:<password>@<host>:5432/restaurant_db?schema=restaurant_management"
+CORS_ORIGINS="https://app.example.com,https://admin.example.com"
+ACCESS_TOKEN_SECRET="<strong-secret>"
+REFRESH_TOKEN_SECRET="<strong-secret>"
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=true
+DOCS_ENABLED=false
+DOCS_ALLOW_IN_PRODUCTION=false
+TRUST_PROXY=true
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=120
+```
+
+For LAN/deployed access from your current host, include:
+
+```env
+CORS_ORIGINS="http://192.168.1.18:7001"
+```
+
+If you need Swagger available on a pushed production server, set both:
+
+```env
+DOCS_ENABLED=true
+DOCS_ALLOW_IN_PRODUCTION=true
+```
+
+### Security + Reliability Defaults
+
+- Helmet enabled globally
+- Strict CORS allowlist in production (required)
+- Global request validation (`whitelist`, `forbidNonWhitelisted`, `transform`)
+- Global exception filter with sanitized `5xx` responses and request ID tracing
+- Request ID middleware (`x-request-id`) and request logging interceptor
+- Global in-memory rate limiting middleware (`RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`)
+- Graceful shutdown hooks enabled
+
+### Backend Release Runtime
+
+Production release now uses:
+
+- GitHub Actions or local packaging to create immutable backend tarball
+- Server release directories under `/var/www/dev.beas.in/public_html/restaurant_project_beas/releases/<release-id>`
+- `current` symlink switch only after Prisma migrate + PM2 reload + `/api/health` passes
+- Auto rollback to previous release if health check fails
+- PM2 runtime config from `backend/ecosystem.config.cjs`
+
+One-time server prep:
+
+```bash
+mkdir -p /var/www/dev.beas.in/public_html/restaurant_project_beas/{incoming,releases,shared}
+cp backend/.env.example /var/www/dev.beas.in/public_html/restaurant_project_beas/shared/backend.env
+```
+
+Use `shared/backend.env` for production values. Health check default reads `PORT` from that file and probes `http://127.0.0.1:<PORT>/api/health`.
+
+### No-Docker Runtime (PM2 + Nginx)
+
+PM2 runs backend from versioned `current` release:
+
+```bash
+cd /var/www/dev.beas.in/public_html/restaurant_project_beas/current
+PM2_ENV_FILE=/var/www/dev.beas.in/public_html/restaurant_project_beas/shared/backend.env pm2 startOrReload ecosystem.config.cjs --env production --update-env
+pm2 save
+```
+
+Nginx should reverse-proxy `/api` to backend port and serve frontend assets separately.
+
+## Automated Deployment
+
+Current default flow is simple GitHub-to-server deploy: GitHub checks backend, SSHes into server, runs `git pull`, migrates DB, builds backend, restarts PM2, then checks `/api/health`.
+
+### Option 1: GitHub Actions (Easy Auto-Deploy)
+
+The `.github/workflows/deploy.yml` workflow:
+
+1. Runs backend lint, typecheck, and build on PRs and pushes
+2. On push to `main` or `production`, SSHes into server
+3. Runs `git pull`
+4. Runs `npm ci`, `npm run prisma:generate`, `npm run prisma:migrate:deploy`, `npm run build`
+5. Restarts PM2
+6. Verifies `GET /api/health`
+
+**Setup:**
+
+1. Push this repo to GitHub
+2. Add these secrets to your GitHub repo (Settings > Secrets and variables > Actions):
+   - `SERVER_HOST` - Server IP/domain (e.g., `192.168.1.18` or `vps.example.com`)
+   - `SERVER_USER` - SSH username (e.g., `deploy`)
+   - `SERVER_SSH_KEY` - Private SSH key (paste the content of `~/.ssh/id_rsa`)
+   - `SERVER_PORT` - SSH port (default: `22`)
+
+   GitHub repository variables:
+   - `SERVER_APP_DIR` - `/var/www/dev.beas.in/public_html/restaurant_project_beas`
+   - `PM2_APP_NAME` - `restaurant-backend`
+
+3. On your server, ensure:
+   - Repo already cloned at deploy root
+   - Production env stored at `/var/www/dev.beas.in/public_html/restaurant_project_beas/shared/backend.env`
+   - SSH key authentication configured
+   - `node`, `npm`, `pm2`, `curl` available for deploy user
+
+**Usage:**
+
+```bash
+git push origin main  # Automatically triggers workflow
+# OR manually trigger: GitHub Actions > Simple Server Deploy > Run workflow
+```
+
+**Deploy Status:** Check GitHub > Actions tab for deployment logs
+
+### Option 2: Local Deployment Script (Manual Control)
+
+Use local scripts to build and deploy from your machine.
+
+#### Linux/Mac:
+
+```bash
+bash scripts/deploy-local.sh
+# OR with flags:
+bash scripts/deploy-local.sh full      # Build + package + deploy
+bash scripts/deploy-local.sh build     # Build only
+bash scripts/deploy-local.sh deploy    # Deploy latest packaged artifact
+```
+
+#### Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1
+# OR with flags:
+powershell deploy.ps1 full      # Build + Deploy
+powershell deploy.ps1 build     # Build only
+powershell deploy.ps1 deploy    # Deploy only
+```
+
+**Configuration (before first deploy):**
+
+Edit config in `scripts/deploy-local.sh` or `scripts/deploy.ps1`:
+
+```bash
+SERVER_HOST="dev.beas.in"       # Your server IP/domain
+SERVER_USER="deploy"            # SSH user
+SERVER_PORT="22"                # SSH port
+```
+
+**Requirements:**
+
+- SSH access to your server
+- `tar`, `scp`, and `ssh` commands available
+- Node.js 20+ installed locally
+
+**What it does:**
+
+1. Builds backend locally
+2. Runs lint + typecheck + build before packaging
+3. Connects to server over SSH
+4. Pulls latest code on server
+5. Runs Prisma migrations on server
+6. Restarts PM2 and verifies `/api/health`
+
+### Deployment Workflow Comparison
+
+| Method         | Trigger        | Speed | Logs      | Best For                  |
+| -------------- | -------------- | ----- | --------- | ------------------------- |
+| GitHub Actions | Git push       | Auto  | GitHub UI | Easy auto-deploy          |
+| Local Script   | Manual command | Fast  | Terminal  | Controlled manual release |
+
+### CI Checks (recommended)
+
+```bash
+cd backend && npm ci && npm run lint && npm run typecheck && npm run build
+```
+
+### Go Live Checklist
+
+- Production env secrets set and validated
+- `DOCS_ENABLED=false`
+- `CORS_ORIGINS` only includes trusted domains
+- Prisma migration deploy successful
+- `GET /api/health` returns `200` and includes `database: "up"`
+- PM2 process running and persisted
+- Nginx TLS + API proxy verified
+- Smoke test: login, browse menu, create order, payment flow, delivery tracking
+
+### Rollback Plan
+
+1. SSH into server.
+2. `cd /var/www/dev.beas.in/public_html/restaurant_project_beas && git log --oneline -n 5`
+3. `git checkout <good-commit-or-branch>`
+4. `cd backend && npm ci && npm run prisma:generate && npm run build`
+5. `pm2 restart restaurant-backend --update-env`
+
 ## Troubleshooting
 
 If `npm run seed` fails after schema or env changes, run:
