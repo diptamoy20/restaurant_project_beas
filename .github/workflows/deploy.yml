@@ -7,6 +7,8 @@ on:
       - production
     paths:
       - backend/**
+      - web-app/**
+      - admin-panel/**
       - .github/workflows/deploy.yml
   push:
     branches:
@@ -14,21 +16,31 @@ on:
       - production
     paths:
       - backend/**
+      - web-app/**
+      - admin-panel/**
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
 env:
   NODE_VERSION: '22'
   BACKEND_DIR: backend
+  WEB_APP_DIR: web-app
+  ADMIN_PANEL_DIR: admin-panel
   SERVER_APP_DIR: ${{ vars.SERVER_APP_DIR != '' && vars.SERVER_APP_DIR || '/var/www/dev.beas.in/public_html/restaurant_project_beas' }}
   PM2_APP_NAME: ${{ vars.PM2_APP_NAME != '' && vars.PM2_APP_NAME || 'restaurant-backend' }}
+  WEB_PM2_APP_NAME: ${{ vars.WEB_PM2_APP_NAME != '' && vars.WEB_PM2_APP_NAME || 'restaurant-web-app' }}
+  ADMIN_PM2_APP_NAME: ${{ vars.ADMIN_PM2_APP_NAME != '' && vars.ADMIN_PM2_APP_NAME || 'restaurant-admin-panel' }}
+  PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL != '' && vars.PUBLIC_API_BASE_URL || 'http://192.168.1.18:7001/api' }}
+  WEB_APP_PORT: ${{ vars.WEB_APP_PORT != '' && vars.WEB_APP_PORT || '7002' }}
+  ADMIN_PANEL_PORT: ${{ vars.ADMIN_PANEL_PORT != '' && vars.ADMIN_PANEL_PORT || '7003' }}
 
 jobs:
   backend-ci:
-    name: Backend CI
+    name: Build All Apps
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_db?schema=restaurant_management
+      VITE_API_BASE_URL: ${{ env.PUBLIC_API_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,8 +68,24 @@ jobs:
         working-directory: ${{ env.BACKEND_DIR }}
         run: npm run build
 
+      - name: Install web-app dependencies
+        working-directory: ${{ env.WEB_APP_DIR }}
+        run: npm ci
+
+      - name: Build web-app
+        working-directory: ${{ env.WEB_APP_DIR }}
+        run: npm run build
+
+      - name: Install admin-panel dependencies
+        working-directory: ${{ env.ADMIN_PANEL_DIR }}
+        run: npm ci
+
+      - name: Build admin-panel
+        working-directory: ${{ env.ADMIN_PANEL_DIR }}
+        run: npm run build
+
   deploy:
-    name: Deploy To Server
+    name: Deploy All Apps To Server
     needs: backend-ci
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -71,13 +99,18 @@ jobs:
           APP_DIR: ${{ env.SERVER_APP_DIR }}
           BRANCH: ${{ github.ref_name }}
           PM2_APP_NAME: ${{ env.PM2_APP_NAME }}
+          WEB_PM2_APP_NAME: ${{ env.WEB_PM2_APP_NAME }}
+          ADMIN_PM2_APP_NAME: ${{ env.ADMIN_PM2_APP_NAME }}
+          PUBLIC_API_BASE_URL: ${{ env.PUBLIC_API_BASE_URL }}
+          WEB_APP_PORT: ${{ env.WEB_APP_PORT }}
+          ADMIN_PANEL_PORT: ${{ env.ADMIN_PANEL_PORT }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
-          envs: APP_DIR,BRANCH,PM2_APP_NAME
+          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,PUBLIC_API_BASE_URL,WEB_APP_PORT,ADMIN_PANEL_PORT
           script: |
             set -e
 
@@ -114,7 +147,31 @@ jobs:
               pm2 start ecosystem.config.cjs --only "$PM2_APP_NAME" --env production
             fi
 
+            cd "$APP_DIR/web-app"
+            export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
+            npm ci
+            npm run build
+
+            if pm2 describe "$WEB_PM2_APP_NAME" >/dev/null 2>&1; then
+              pm2 restart "$WEB_PM2_APP_NAME" --update-env
+            else
+              pm2 serve "$APP_DIR/web-app/dist" "$WEB_APP_PORT" --name "$WEB_PM2_APP_NAME" --spa
+            fi
+
+            cd "$APP_DIR/admin-panel"
+            export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
+            npm ci
+            npm run build
+
+            if pm2 describe "$ADMIN_PM2_APP_NAME" >/dev/null 2>&1; then
+              pm2 restart "$ADMIN_PM2_APP_NAME" --update-env
+            else
+              pm2 serve "$APP_DIR/admin-panel/dist" "$ADMIN_PANEL_PORT" --name "$ADMIN_PM2_APP_NAME" --spa
+            fi
+
             pm2 save
 
             HEALTH_PORT="${PORT:-4000}"
             curl -fsS "http://127.0.0.1:${HEALTH_PORT}/api/health" >/dev/null
+            curl -fsS "http://127.0.0.1:${WEB_APP_PORT}/" >/dev/null
+            curl -fsS "http://127.0.0.1:${ADMIN_PANEL_PORT}/" >/dev/null
