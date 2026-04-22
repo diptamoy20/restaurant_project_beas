@@ -27,6 +27,8 @@ jobs:
   backend-ci:
     name: Backend CI
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_db?schema=restaurant_management
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
