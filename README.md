@@ -1,107 +1,189 @@
 # Restaurant App Project
 
-Monorepo for a restaurant platform with a shared NestJS backend, a customer-facing web app, and an admin panel.
-
-## Apps
+Monorepo for a restaurant platform with:
 
 - `backend` - NestJS API with Prisma and PostgreSQL
 - `web-app` - React + Vite customer ordering app
 - `admin-panel` - React + Vite admin operations app
 
-## Tech Stack
+## Repo Inspection Summary
 
-- Backend: NestJS, TypeScript, Prisma, PostgreSQL, JWT
-- Frontend: React, Vite, Redux Toolkit, React Router
-- Tooling: ESLint, Prettier, Husky, lint-staged
+- Package manager detected: `npm`
+- `package.json` locations:
+  - `backend/package.json`
+  - `web-app/package.json`
+  - `admin-panel/package.json`
+- Backend entrypoint: `backend/src/main.ts`
+- Customer frontend setup: Vite (`web-app`)
+- Admin frontend setup: Vite (`admin-panel`)
+- Table ID / QR flow:
+  - URL query param: `?table=<id>`
+  - Parsed in `web-app/src/lib/tableSession.js`
+  - Persisted in `sessionStorage`
+- Existing order APIs:
+  - `POST /api/orders`
+  - `GET /api/orders/:id`
+- Existing DB setup:
+  - Prisma + PostgreSQL
+  - Order persistence already existed in `backend/prisma/schema.prisma`
+  - No MongoDB is used by this repo
+
+## Realtime Tracking Added
+
+- Socket.IO attached to the existing NestJS HTTP server
+- Admin room and table rooms for realtime order updates
+- Persistent order status flow:
+  - `PLACED`
+  - `CONFIRMED`
+  - `PREPARING`
+  - `READY`
+  - `SERVED`
+- Customer live tracking on the payment page
+- Admin live order queue with instant updates and optional sound notifications
+- Prisma migration for `orders.updated_at`
+
+## Packages Installed
+
+- `backend`
+  - `socket.io`
+  - `cors` was not added because Nest already handles CORS in the existing server
+  - `zod` / `joi` were not added because the repo already uses `class-validator` and `class-transformer`
+- `web-app`
+  - `socket.io-client`
+- `admin-panel`
+  - `socket.io-client`
 
 ## Project Structure
 
 ```text
 restaurant_project_beas/
-├─ backend/
-│  ├─ prisma/
-│  └─ src/
-├─ web-app/
-└─ admin-panel/
+|- backend/
+|  |- prisma/
+|  \- src/
+|- web-app/
+\- admin-panel/
 ```
 
 ## Prerequisites
 
-- Node.js 20+ (current backend engines: >=20 <26)
+- Node.js 20+ (backend engines: `>=20 <26`)
 - npm 9+
 - PostgreSQL 14+
 
 ## Environment Setup
 
-Create `backend/.env` from `backend/.env.example`.
+Create these files from the examples:
 
-Create frontend env files from their examples:
-
+- `backend/.env` from `backend/.env.example`
 - `web-app/.env` from `web-app/.env.example`
 - `admin-panel/.env` from `admin-panel/.env.example`
 
-Default backend environment:
+Backend example:
 
 ```env
 DATABASE_URL="postgresql://postgres:root@localhost:5432/restaurant_db?schema=restaurant_management"
 PORT=4000
+CLIENT_ORIGIN="http://localhost:5173,http://localhost:5174"
 WEB_APP_URL="http://localhost:5173"
 ADMIN_PANEL_URL="http://localhost:5174"
+CORS_ORIGINS="http://localhost:4000,http://localhost:5173,http://localhost:5174"
+CORS_ALLOWED_HEADERS="Content-Type, Authorization"
+CORS_EXPOSED_HEADERS=""
+CORS_MAX_AGE_SECONDS=600
+ADMIN_SOCKET_TOKEN=""
 JWT_SECRET="restaurant-app-super-secret"
 JWT_EXPIRES_IN="7d"
+ACCESS_TOKEN_SECRET="restaurant-app-access-secret"
+ACCESS_TOKEN_EXPIRES_IN="15m"
+REFRESH_TOKEN_SECRET="restaurant-app-refresh-secret"
+REFRESH_TOKEN_EXPIRES_IN="7d"
+LOGIN_LOCK_THRESHOLD=5
+LOGIN_LOCK_DURATION_MINUTES=15
+BCRYPT_ROUNDS=10
 DOCS_ENABLED=true
 DB_POOL_MAX=20
 DB_POOL_IDLE_TIMEOUT_MS=30000
 DB_POOL_CONNECTION_TIMEOUT_MS=5000
 DB_SSL=false
 DB_SSL_REJECT_UNAUTHORIZED=true
+MONGO_URI=""
 ```
 
-## Installation
+Customer frontend example:
 
-Install dependencies in each app:
-
-```bash
-cd backend && npm install
-cd ../web-app && npm install
-cd ../admin-panel && npm install
+```env
+VITE_API_URL="http://localhost:4000"
+VITE_API_BASE_URL="http://localhost:4000/api"
 ```
 
-## Database Setup
+Admin frontend example:
 
-Make sure PostgreSQL is running locally and that the database in `DATABASE_URL` exists.
-
-This project expects `schema=restaurant_management` in backend `DATABASE_URL`.
-
-From `backend`:
-
-```bash
-npm run prisma:generate
-npm run prisma:dbpush
-npm run seed
+```env
+VITE_API_URL="http://localhost:4000"
+VITE_API_BASE_URL="http://localhost:4000/api"
+VITE_ADMIN_SOCKET_TOKEN=""
 ```
 
-## Run Locally
+## Install Commands (PowerShell)
 
-Start the backend:
+Full app installs:
 
-```bash
-cd backend
-npm run start:dev
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd install
+
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\web-app"
+npm.cmd install
+
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\admin-panel"
+npm.cmd install
 ```
 
-Start the customer app:
+Realtime-specific installs:
 
-```bash
-cd web-app
-npm run dev
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd install socket.io
+
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\web-app"
+npm.cmd install socket.io-client
+
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\admin-panel"
+npm.cmd install socket.io-client
 ```
 
-Start the admin panel:
+## Database Setup (PowerShell)
 
-```bash
-cd admin-panel
-npm run dev
+Make sure PostgreSQL is running and the database in `DATABASE_URL` exists.
+
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd run prisma:generate
+npm.cmd run prisma:migrate
+npm.cmd run seed
+```
+
+## Run Commands (PowerShell)
+
+Start backend:
+
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd run start:dev
+```
+
+Start customer app:
+
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\web-app"
+npm.cmd run dev
+```
+
+Start admin panel:
+
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\admin-panel"
+npm.cmd run dev
 ```
 
 Local endpoints:
@@ -110,112 +192,70 @@ Local endpoints:
 - Web app: `http://localhost:5173`
 - Admin panel: `http://localhost:5174`
 
+## Manual Test Plan
+
+1. Start backend, web app, and admin panel with the PowerShell commands above.
+2. Open the admin panel at `http://localhost:5174` and sign in as an admin or manager.
+3. Open customer tab A at `http://localhost:5173/menu?table=1`.
+4. Open customer tab B at `http://localhost:5173/menu?table=2`.
+5. In customer tab A, place an order.
+6. Confirm the admin panel receives the new order instantly without a refresh.
+7. Confirm the customer payment page shows the live tracker with `Placed`.
+8. In the admin panel, move the order through `Confirmed`, `Preparing`, `Ready`, and `Served`.
+9. Confirm customer tab A updates immediately for every status change.
+10. Confirm customer tab B does not receive table 1 updates.
+11. Place another order from table 2 and confirm it appears instantly in the admin queue.
+12. Enable sound in the admin panel and place a new order to verify the notification tone.
+13. Refresh the admin panel and confirm it reconnects and still shows recent orders.
+14. Refresh the customer payment page and confirm it reconnects to the table room and resumes live updates.
+
 ## API Documentation
 
-When `DOCS_ENABLED=true`, OpenAPI docs are available at:
+When `DOCS_ENABLED=true`:
 
 - Swagger UI: `http://localhost:4000/api/docs`
 - OpenAPI JSON: `http://localhost:4000/api/openapi.json`
 
-Recommended production setting:
+## Prisma Studio
 
-- Set `DOCS_ENABLED=false` for public production environments unless you explicitly need docs exposed.
-
-Prisma Studio:
-
-```bash
-cd backend
-npm run prisma:studio
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd run prisma:studio
 ```
 
-## Backend Quality Tooling
+## Quality / Build Commands
 
-From `backend`:
+Backend linting:
 
-```bash
-npm run lint
-npm run lint:fix
-npm run format
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd run lint
+npm.cmd run lint:fix
+npm.cmd run format
 ```
 
-Pre-commit checks run with Husky and lint-staged on staged files only.
+Build backend:
 
-## Backend Modules
-
-Current backend structure includes:
-
-- `auth`
-- `admin`
-- `restaurants`
-- `menu`
-- `orders`
-- `payments`
-- `deliveries`
-- `notifications`
-- `membership`
-
-## Build
-
-Backend:
-
-```bash
-cd backend
-npm run build
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\backend"
+npm.cmd run build
 ```
 
-Frontend apps:
+Build frontends:
 
-```bash
-cd web-app && npm run build
-cd ../admin-panel && npm run build
+```powershell
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\web-app"
+npm.cmd run build
+
+Set-Location "c:\Users\BeasDev\Desktop\Project\restaurant_project_beas\admin-panel"
+npm.cmd run build
 ```
 
-## Production CI/CD (No Docker)
+## Verification Run
 
-This repository includes GitHub Actions workflows:
+These checks were run successfully after the implementation:
 
-- `.github/workflows/ci.yml` - Runs lint/build checks for backend, web app, and admin panel.
-- `.github/workflows/deploy-production.yml` - Deploys on push to `main` via SSH + PM2 (no Docker).
-
-### Required GitHub Secrets
-
-Set these repository/environment secrets before enabling production deploy:
-
-- `PROD_HOST` - Production server hostname or IP
-- `PROD_PORT` - SSH port (example: `22`)
-- `PROD_USER` - SSH username
-- `PROD_SSH_KEY` - Private SSH key (PEM/OpenSSH format)
-- `PROD_BACKEND_DIR` - Absolute server path for backend app
-- `PROD_WEB_DIR` - Absolute server path served for `web-app/dist`
-- `PROD_ADMIN_DIR` - Absolute server path served for `admin-panel/dist`
-- `BACKEND_ENV_PROD` - Full backend `.env` file content for production
-- `WEB_APP_ENV_PROD` - Full `web-app/.env` content for production build
-- `ADMIN_PANEL_ENV_PROD` - Full `admin-panel/.env` content for production build
-
-### Production Server Prerequisites
-
-Install and configure on the target Linux server:
-
-- Node.js 20+
-- npm
-- PM2 (`npm i -g pm2`)
-- PostgreSQL reachable by backend `DATABASE_URL`
-- Nginx (or equivalent) to serve static frontend directories and reverse-proxy backend API
-
-### First-time Setup Notes
-
-- Ensure `PROD_BACKEND_DIR`, `PROD_WEB_DIR`, and `PROD_ADMIN_DIR` already exist and are writable by `PROD_USER`.
-- PM2 process is created automatically as `restaurant-backend` on first deploy.
-- Backend migrations are applied during deploy with `prisma migrate deploy`.
-- Recommended: use GitHub Environment `production` with required reviewers for safer releases.
-
-## Troubleshooting
-
-If `npm run seed` fails after schema or env changes, run:
-
-```bash
-cd backend
-npm run prisma:generate
-npm run prisma:dbpush
-npm run seed
-```
+- `backend`: `npm.cmd run build`
+- `backend`: `npm.cmd run prisma:generate`
+- `web-app`: `npm.cmd run build`
+- `admin-panel`: `npm.cmd run build`

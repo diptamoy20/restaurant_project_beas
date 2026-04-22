@@ -108,9 +108,13 @@ export function CartPage() {
         LAST_ORDER_STORAGE_KEY,
         JSON.stringify({
           orderId,
-          tableId: order.tableId,
-          totalAmount: order.totalAmount,
-          paymentStatus: order.paymentStatus,
+          tableId: response.tableId ?? order.tableId,
+          orderNumber: response.orderNumber,
+          totalAmount: response.finalAmount ?? order.totalAmount,
+          paymentStatus: response.paymentStatus ?? order.paymentStatus,
+          status: response.status,
+          createdAt: response.createdAt,
+          updatedAt: response.updatedAt,
         }),
       );
       setStatusMessage('Order placed successfully. Redirecting to payment...');

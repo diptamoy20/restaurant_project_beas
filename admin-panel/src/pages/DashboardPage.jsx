@@ -5,11 +5,18 @@ import { Loader } from '../components/ui/Loader';
 import { useGetDashboardAnalyticsQuery } from '../services/analyticsApi';
 
 function formatCurrency(value = 0) {
+  const amount = Number(value);
+
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
+
+function toSafeNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 export function DashboardPage() {
@@ -27,17 +34,22 @@ export function DashboardPage() {
     return <EmptyState description="Analytics data has not been returned by the API yet." title="No dashboard data" />;
   }
 
+  const totalOrders = toSafeNumber(data.totalOrders);
+  const totalRevenue = toSafeNumber(data.totalRevenue);
+  const totalUsers = toSafeNumber(data.totalUsers);
+  const totalRestaurants = toSafeNumber(data.totalRestaurants);
+
   const cards = [
-    { label: 'Total Orders', value: data.totalOrders },
-    { label: 'Revenue', value: formatCurrency(data.totalRevenue) },
-    { label: 'Customers', value: data.totalUsers },
-    { label: 'Restaurants', value: data.totalRestaurants },
+    { label: 'Total Orders', value: totalOrders },
+    { label: 'Revenue', value: formatCurrency(totalRevenue) },
+    { label: 'Customers', value: totalUsers },
+    { label: 'Restaurants', value: totalRestaurants },
   ];
 
   const derivedPopularItems = [
-    { name: 'Chef Specials', share: `${Math.max(12, Math.round(data.totalOrders / 8))}% of recent orders` },
-    { name: 'Combo Meals', share: `${Math.max(8, Math.round(data.totalOrders / 10))}% of recent orders` },
-    { name: 'Beverages', share: `${Math.max(6, Math.round(data.totalOrders / 12))}% upsell conversion` },
+    { name: 'Chef Specials', share: `${Math.max(12, Math.round(totalOrders / 8))}% of recent orders` },
+    { name: 'Combo Meals', share: `${Math.max(8, Math.round(totalOrders / 10))}% of recent orders` },
+    { name: 'Beverages', share: `${Math.max(6, Math.round(totalOrders / 12))}% upsell conversion` },
   ];
 
   return (
@@ -56,15 +68,15 @@ export function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-3xl bg-amber-50 p-4">
               <p className="text-sm text-slate-500">Order health</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">{Math.round(data.totalOrders * 0.78)} active</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{Math.round(totalOrders * 0.78)} active</p>
             </div>
             <div className="rounded-3xl bg-emerald-50 p-4">
               <p className="text-sm text-slate-500">Revenue pace</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">{formatCurrency(data.totalRevenue / 30)}</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{formatCurrency(totalRevenue / 30)}</p>
             </div>
             <div className="rounded-3xl bg-sky-50 p-4">
               <p className="text-sm text-slate-500">Daily average</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">{Math.max(1, Math.round(data.totalOrders / 7))}</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{Math.max(1, Math.round(totalOrders / 7))}</p>
             </div>
           </div>
         </Card>

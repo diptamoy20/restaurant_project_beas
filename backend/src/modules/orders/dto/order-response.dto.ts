@@ -197,6 +197,10 @@ export class OrderResponseDto {
   @IsDate()
   createdAt!: Date;
 
+  @ApiProperty({ example: '2026-04-20T00:10:00.000Z' })
+  @IsDate()
+  updatedAt!: Date;
+
   @ApiProperty({ type: () => OrderItemResponseDto, isArray: true })
   @IsArray()
   @ValidateNested({ each: true })

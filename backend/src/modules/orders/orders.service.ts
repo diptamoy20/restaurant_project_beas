@@ -1,27 +1,36 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CreateOrderDto } from './dto/create-order.dto';
+import {
+  ORDER_STATUSES,
+  ORDER_STATUS_TRANSITIONS,
+  type OrderStatus,
+} from './constants/order-status.constants';
 import { OrderResponseDto } from './dto/order-response.dto';
+import { OrdersRealtimeService } from './orders-realtime.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ordersRealtimeService: OrdersRealtimeService,
+  ) {}
+
+  async listOrders(limit = 25): Promise<OrderResponseDto[]> {
+    const orders = await this.prisma.order.findMany({
+      take: limit,
+      orderBy: [{ createdAt: 'desc' }],
+      include: this.orderInclude,
+    });
+
+    return orders.map((order) => this.mapOrder(order));
+  }
 
   async getOrder(id: number): Promise<OrderResponseDto> {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: {
-        items: {
-          include: {
-            menuItem: true,
-            variant: true,
-          },
-        },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: this.orderInclude,
     });
 
     if (!order) {
@@ -61,14 +70,71 @@ export class OrdersService {
           create: [{ status: 'PLACED' }],
         },
       },
-      include: {
-        items: true,
-        statusLogs: true,
-      },
+      include: this.orderInclude,
     });
 
-    return this.mapOrder(order);
+    const mappedOrder = this.mapOrder(order);
+    this.ordersRealtimeService.emitNewOrder(mappedOrder);
+    return mappedOrder;
   }
+
+  async updateOrderStatus(orderId: number, status: OrderStatus): Promise<OrderResponseDto> {
+    if (!ORDER_STATUSES.includes(status)) {
+      throw new BadRequestException('Unsupported order status');
+    }
+
+    const existingOrder = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: this.orderInclude,
+    });
+
+    if (!existingOrder) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const currentStatus = existingOrder.status as OrderStatus;
+
+    if (currentStatus === status) {
+      return this.mapOrder(existingOrder);
+    }
+
+    const allowedNextStatuses = ORDER_STATUS_TRANSITIONS[currentStatus];
+
+    if (!allowedNextStatuses?.includes(status)) {
+      throw new BadRequestException(`Status cannot change from ${currentStatus} to ${status}`);
+    }
+
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status,
+        statusLogs: {
+          create: [{ status }],
+        },
+      },
+      include: this.orderInclude,
+    });
+
+    const mappedOrder = this.mapOrder(updatedOrder);
+    this.ordersRealtimeService.emitOrderUpdate(mappedOrder);
+    return mappedOrder;
+  }
+
+  private readonly orderInclude = {
+    items: {
+      include: {
+        menuItem: true,
+        variant: true,
+      },
+    },
+    statusLogs: {
+      orderBy: {
+        changedAt: 'asc' as const,
+      },
+    },
+    payments: true,
+    restaurant: true,
+  };
 
   private mapOrder(order: {
     id: number;
@@ -84,6 +150,7 @@ export class OrdersService {
     finalAmount: number;
     paymentStatus: string;
     createdAt: Date;
+    updatedAt?: Date;
     items: {
       id: number;
       orderId: number;
@@ -139,6 +206,7 @@ export class OrdersService {
       finalAmount: order.finalAmount,
       paymentStatus: order.paymentStatus,
       createdAt: order.createdAt,
+      updatedAt: order.updatedAt ?? order.createdAt,
       items: order.items.map((item) => ({
         id: item.id,
         orderId: item.orderId,

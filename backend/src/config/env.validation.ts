@@ -67,13 +67,18 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const clientOrigins = (env.CLIENT_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const resolvedOrigins = corsOrigins.length > 0 ? corsOrigins : clientOrigins;
 
   if (!env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required');
   }
 
-  if (nodeEnv === 'production' && corsOrigins.length === 0) {
-    throw new Error('CORS_ORIGINS is required in production');
+  if (nodeEnv === 'production' && resolvedOrigins.length === 0) {
+    throw new Error('CORS_ORIGINS or CLIENT_ORIGIN is required in production');
   }
 
   if (!accessTokenSecret) {
@@ -99,10 +104,13 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       15,
     ),
     BCRYPT_ROUNDS: parseIntInRange(env.BCRYPT_ROUNDS, 'BCRYPT_ROUNDS', 10, 8, 14),
-    CORS_ORIGINS: corsOrigins.join(','),
+    CORS_ORIGINS: resolvedOrigins.join(','),
+    CLIENT_ORIGIN: clientOrigins.join(','),
     CORS_ALLOWED_HEADERS: env.CORS_ALLOWED_HEADERS ?? 'Content-Type, Authorization',
     CORS_EXPOSED_HEADERS: env.CORS_EXPOSED_HEADERS ?? '',
     CORS_MAX_AGE_SECONDS: parsePositiveInt(env.CORS_MAX_AGE_SECONDS, 'CORS_MAX_AGE_SECONDS', 600),
+    ADMIN_SOCKET_TOKEN: env.ADMIN_SOCKET_TOKEN ?? '',
+    MONGO_URI: env.MONGO_URI ?? '',
     JWT_SECRET: accessTokenSecret,
     JWT_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
     DOCS_ENABLED: parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production'),

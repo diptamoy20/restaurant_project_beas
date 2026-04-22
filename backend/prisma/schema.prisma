@@ -146,6 +146,7 @@ model Order {
   finalAmount    Float            @map("final_amount")
   paymentStatus  String           @map("payment_status")
   createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
   user           User             @relation(fields: [userId], references: [id])
   restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
   table          RestaurantTable? @relation(fields: [tableId], references: [id])
