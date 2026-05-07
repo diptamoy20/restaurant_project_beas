@@ -43,23 +43,59 @@ Create frontend env files from their examples:
 Default backend environment:
 
 ```env
+NODE_ENV=development
 DATABASE_URL="postgresql://postgres:root@localhost:5432/restaurant_db?schema=restaurant_management"
 PORT=4000
 WEB_APP_URL="http://localhost:5173"
 ADMIN_PANEL_URL="http://localhost:5174"
-JWT_SECRET="restaurant-app-super-secret"
-JWT_EXPIRES_IN="7d"
+
+CORS_ORIGINS="http://localhost:5173,http://localhost:5174"
+CORS_ALLOWED_HEADERS="Content-Type,Authorization"
+CORS_EXPOSED_HEADERS=""
+CORS_MAX_AGE_SECONDS=600
+TRUST_PROXY=false
+
+ACCESS_TOKEN_SECRET="restaurant-app-local-access-secret"
+ACCESS_TOKEN_EXPIRES_IN=15m
+REFRESH_TOKEN_SECRET="restaurant-app-local-refresh-secret"
+REFRESH_TOKEN_EXPIRES_IN=7d
+JWT_SECRET="restaurant-app-local-access-secret"
+JWT_EXPIRES_IN=15m
+
+LOGIN_LOCK_THRESHOLD=5
+LOGIN_LOCK_DURATION_MINUTES=15
+BCRYPT_ROUNDS=10
+
 DOCS_ENABLED=true
+DOCS_ALLOW_IN_PRODUCTION=false
+
 DB_POOL_MAX=20
 DB_POOL_IDLE_TIMEOUT_MS=30000
 DB_POOL_CONNECTION_TIMEOUT_MS=5000
 DB_SSL=false
 DB_SSL_REJECT_UNAUTHORIZED=true
+
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=120
+
+LOG_LEVELS="log,warn,error,debug,verbose"
 ```
 
 ## Installation
 
-Install dependencies in each app:
+Quick install from repo root:
+
+```bash
+npm run install:all
+```
+
+This installs dependencies for:
+
+- `backend`
+- `web-app`
+- `admin-panel`
+
+Manual install in each app also works:
 
 ```bash
 cd backend && npm install
@@ -82,6 +118,39 @@ npm run seed
 ```
 
 ## Run Locally
+
+Recommended single-command local startup from repo root:
+
+```bash
+npm run dev
+```
+
+What it starts:
+
+- Backend on `http://localhost:4000`
+- Web app on `http://localhost:5173`
+- Admin panel on `http://localhost:5174`
+
+The root dev runner also injects:
+
+```env
+VITE_API_BASE_URL=http://localhost:4000/api
+```
+
+One-time requirement before first run:
+
+```bash
+npm run install:all
+```
+
+Optional overrides:
+
+```bash
+PORT=7001 npm run dev
+VITE_API_BASE_URL=http://localhost:7001/api npm run dev
+```
+
+If you prefer running each app separately, use:
 
 Start the backend:
 

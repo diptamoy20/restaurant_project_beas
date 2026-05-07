@@ -104,7 +104,7 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     PORT: parsePort(env.PORT),
     ACCESS_TOKEN_SECRET: accessTokenSecret,
     REFRESH_TOKEN_SECRET: env.REFRESH_TOKEN_SECRET,
-    ACCESS_TOKEN_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
+    ACCESS_TOKEN_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '7d',
     REFRESH_TOKEN_EXPIRES_IN: env.REFRESH_TOKEN_EXPIRES_IN ?? '7d',
     LOGIN_LOCK_THRESHOLD: parsePositiveInt(env.LOGIN_LOCK_THRESHOLD, 'LOGIN_LOCK_THRESHOLD', 5),
     LOGIN_LOCK_DURATION_MINUTES: parsePositiveInt(
@@ -119,7 +119,12 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     CORS_MAX_AGE_SECONDS: parsePositiveInt(env.CORS_MAX_AGE_SECONDS, 'CORS_MAX_AGE_SECONDS', 600),
     TRUST_PROXY: parseBoolean(env.TRUST_PROXY, 'TRUST_PROXY', false),
     JWT_SECRET: accessTokenSecret,
-    JWT_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '15m',
+    JWT_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '7d',
+    RESET_PASSWORD_TOKEN_EXPIRES_MINUTES: parsePositiveInt(
+      env.RESET_PASSWORD_TOKEN_EXPIRES_MINUTES,
+      'RESET_PASSWORD_TOKEN_EXPIRES_MINUTES',
+      60,
+    ),
     DOCS_ENABLED: docsEnabled,
     DOCS_ALLOW_IN_PRODUCTION: docsAllowInProduction,
     DB_POOL_MAX: parsePositiveInt(env.DB_POOL_MAX, 'DB_POOL_MAX', 20),

@@ -1,9 +1,15 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RevealSection } from './RevealSection';
+import { createTableAwarePath, resolveTableId } from '../../lib/tableSession';
+
+const DEFAULT_TABLE_ID = '1';
 
 export function HeroSection() {
+  const location = useLocation();
   const user = useSelector((state) => state.auth.user);
+  const tableId = resolveTableId(location.search) || DEFAULT_TABLE_ID;
+  const menuPath = createTableAwarePath('/menu', tableId);
 
   return (
     <RevealSection as="section" className="hero-section">
@@ -19,7 +25,7 @@ export function HeroSection() {
             effortless taps from any phone.
           </p>
           <div className="hero-actions">
-            <Link className="cta-button cta-button-primary" to="/menu">
+            <Link className="cta-button cta-button-primary" to={menuPath}>
               Browse Menu
             </Link>
             <a className="cta-button cta-button-secondary" href="#featured-menu">

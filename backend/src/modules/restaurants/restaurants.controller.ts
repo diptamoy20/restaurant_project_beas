@@ -1,25 +1,15 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { NearbyRestaurantsDto } from './dto/nearby-restaurants.dto';
 import { RestaurantResponseDto } from './dto/restaurant-response.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '../../common/enums/role.enum';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('restaurants')
-@Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER)
+@Public()
 @ApiTags('Restaurants')
-@ApiBearerAuth('access-token')
-@ApiStandardErrorResponses({ unauthorized: true, forbidden: true })
 export class RestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
 

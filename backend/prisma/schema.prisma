@@ -15,6 +15,8 @@ model User {
   isActive              Boolean              @default(true) @map("is_active")
   refreshToken          String?              @map("refresh_token")
   refreshTokenExpiresAt DateTime?            @map("refresh_token_expires_at")
+  resetPasswordToken    String?              @map("reset_password_token")
+  resetPasswordExpiresAt DateTime?           @map("reset_password_expires_at")
   lastLoginAt           DateTime?            @map("last_login_at")
   failedLoginAttempts   Int                  @default(0) @map("failed_login_attempts")
   lockUntil             DateTime?            @map("lock_until")

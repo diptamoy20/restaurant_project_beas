@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from 'crypto';
+
 import {
   BadRequestException,
   ForbiddenException,
@@ -9,10 +11,11 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
+import nodemailer from 'nodemailer';
 
 import { AuthSuccessResponse, AuthenticatedUser, JwtPayload } from './auth.types';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Role } from '../../common/enums/role.enum';
@@ -40,11 +43,12 @@ type SessionOptions = {
 
 const ACCESS_TOKEN_TYPE = 'access' as const;
 const REFRESH_TOKEN_TYPE = 'refresh' as const;
-const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = '15m';
+const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = '7d';
 const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
 const DEFAULT_LOGIN_LOCK_THRESHOLD = 5;
 const DEFAULT_LOGIN_LOCK_DURATION_MINUTES = 15;
 const DEFAULT_BCRYPT_ROUNDS = 10;
+const DEFAULT_RESET_TOKEN_EXPIRES_MINUTES = 60;
 
 @Injectable()
 export class AuthService {
@@ -164,6 +168,78 @@ export class AuthService {
     });
   }
 
+  async forgotPassword(
+    payload: ForgotPasswordDto,
+  ): Promise<AuthSuccessResponse<{ resetRequested: boolean }>> {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    const response = this.buildStandardResponse(
+      'If an account exists, password reset instructions have been sent.',
+      { resetRequested: true },
+    );
+
+    if (!user || !user.isActive) {
+      return response;
+    }
+
+    const resetToken = randomBytes(32).toString('hex');
+    const resetPasswordToken = this.hashResetToken(resetToken);
+    const resetPasswordExpiresAt = new Date(
+      Date.now() + this.getResetTokenExpiryMinutes() * 60 * 1000,
+    );
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken,
+        resetPasswordExpiresAt,
+      },
+    });
+
+    await this.sendPasswordResetEmail(normalizedEmail, resetToken);
+
+    return response;
+  }
+
+  async resetPassword(
+    payload: ResetPasswordDto,
+  ): Promise<AuthSuccessResponse<{ passwordReset: boolean }>> {
+    const resetPasswordToken = this.hashResetToken(payload.token.trim());
+    const user = await this.prisma.user.findFirst({
+      where: {
+        resetPasswordToken,
+        resetPasswordExpiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const password = await hash(payload.password, this.bcryptRounds);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password,
+        resetPasswordToken: null,
+        resetPasswordExpiresAt: null,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+        failedLoginAttempts: 0,
+        lockUntil: null,
+      },
+    });
+
+    return this.buildStandardResponse('Password reset successful. You can sign in now.', {
+      passwordReset: true,
+    });
+  }
+
   async refresh(payload: RefreshTokenDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
     const decoded = await this.verifyRefreshToken(payload.refreshToken);
     const user = await this.loadAuthUser(decoded.sub);
@@ -274,6 +350,7 @@ export class AuthService {
     });
 
     return this.buildStandardResponse(options.message, {
+      token: accessToken,
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
@@ -308,14 +385,55 @@ export class AuthService {
     user: PrismaUserWithRoles,
     type: typeof ACCESS_TOKEN_TYPE | typeof REFRESH_TOKEN_TYPE,
   ): JwtPayload {
+    const roles = this.mapRoles(user);
+
     return {
       sub: user.id,
+      userId: user.id,
       email: user.email,
       phone: user.phone,
       name: user.name,
-      roles: this.mapRoles(user),
+      roles,
+      role: roles[0] ?? null,
       type,
     };
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async sendPasswordResetEmail(email: string, token: string): Promise<void> {
+    const resetUrl = `${this.getWebAppUrl().replace(/\/$/, '')}/reset-password?token=${token}`;
+    const smtpHost = this.configService.get<string>('SMTP_HOST');
+    const smtpPort = this.configService.get<number>('SMTP_PORT') ?? 587;
+    const smtpUser = this.configService.get<string>('SMTP_USER');
+    const smtpPass = this.configService.get<string>('SMTP_PASS');
+    const mailFrom =
+      this.configService.get<string>('MAIL_FROM') ??
+      'Restaurant Support <no-reply@restaurant.local>';
+
+    if (!smtpHost) {
+      this.logger.warn(
+        `SMTP_HOST is not configured. Password reset link for ${email}: ${resetUrl}`,
+      );
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
+    });
+
+    await transporter.sendMail({
+      from: mailFrom,
+      to: email,
+      subject: 'Reset your restaurant account password',
+      text: `Use this secure link to reset your password: ${resetUrl}`,
+      html: `<p>Use this secure link to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    });
   }
 
   private async verifyRefreshToken(token: string): Promise<JwtPayload> {
@@ -419,6 +537,17 @@ export class AuthService {
     return (
       this.configService.get<string>('ACCESS_TOKEN_EXPIRES_IN') ?? DEFAULT_ACCESS_TOKEN_EXPIRES_IN
     );
+  }
+
+  private getResetTokenExpiryMinutes(): number {
+    return (
+      this.configService.get<number>('RESET_PASSWORD_TOKEN_EXPIRES_MINUTES') ??
+      DEFAULT_RESET_TOKEN_EXPIRES_MINUTES
+    );
+  }
+
+  private getWebAppUrl(): string {
+    return this.configService.get<string>('WEB_APP_URL') ?? 'http://localhost:5173';
   }
 
   private getRefreshTokenExpiresIn(): string {

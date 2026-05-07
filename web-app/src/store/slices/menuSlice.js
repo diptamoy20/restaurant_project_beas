@@ -1,33 +1,37 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../lib/api';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { api } from "../../lib/api";
 
 export const fetchMenu = createAsyncThunk(
-  'menu/fetchMenu',
-  async (restaurantId) => {
-    let resolvedRestaurantId = restaurantId;
+  "menu/fetchMenu",
+  async (restaurantId, { rejectWithValue }) => {
+    try {
+      let resolvedRestaurantId = restaurantId;
 
-    if (!resolvedRestaurantId) {
-      const restaurants = await api.get('/restaurants');
-      resolvedRestaurantId = restaurants?.[0]?.id || '1';
+      if (!resolvedRestaurantId) {
+        const restaurants = await api.get("/restaurants");
+        resolvedRestaurantId = restaurants?.[0]?.id || "1";
+      }
+
+      const response = await api.get(
+        `/menu/restaurant/${resolvedRestaurantId}`,
+      );
+
+      return {
+        restaurantId: response?.restaurantId ?? resolvedRestaurantId,
+        items: response?.items ?? [],
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error.sessionExpired
+          ? "Session expired. Please login again."
+          : error.message,
+      );
     }
-
-    // if (!resolvedRestaurantId) {
-    //   return {
-    //     restaurantId: null,
-    //     items: [],
-    //   };
-    // }
-
-    const response = await api.get(`/menu/restaurant/${resolvedRestaurantId}`);
-    return {
-      restaurantId: response?.restaurantId ?? resolvedRestaurantId,
-      items: response?.items ?? [],
-    };
-  }
+  },
 );
 
 const menuSlice = createSlice({
-  name: 'menu',
+  name: "menu",
   initialState: {
     restaurantId: null,
     items: [],
@@ -48,7 +52,7 @@ const menuSlice = createSlice({
       })
       .addCase(fetchMenu.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       });
   },
 });

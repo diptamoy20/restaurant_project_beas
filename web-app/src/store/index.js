@@ -17,4 +17,4 @@ export const store = configureStore({
 });
 
 setAuthTokenGetter(() => store.getState().auth?.token ?? null);
-
+setUnauthorizedHandler(() => store.dispatch(logout()));
