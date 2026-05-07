@@ -1,10 +1,19 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { api } from "../../lib/api";
+import { getRestaurantMenuWithLocation } from "../../services/locationApi";
 
 export const fetchMenu = createAsyncThunk(
   "menu/fetchMenu",
-  async (restaurantId, { rejectWithValue }) => {
+  async (payload, { rejectWithValue, signal }) => {
     try {
+      const restaurantId =
+        typeof payload === "object" && payload !== null
+          ? payload.restaurantId
+          : payload;
+      const coordinates =
+        typeof payload === "object" && payload !== null
+          ? payload.coordinates
+          : null;
       let resolvedRestaurantId = restaurantId;
 
       if (!resolvedRestaurantId) {
@@ -12,13 +21,23 @@ export const fetchMenu = createAsyncThunk(
         resolvedRestaurantId = restaurants?.[0]?.id || "1";
       }
 
-      const response = await api.get(
-        `/menu/restaurant/${resolvedRestaurantId}`,
-      );
+      const response = coordinates
+        ? await getRestaurantMenuWithLocation({
+            restaurantId: resolvedRestaurantId,
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            signal,
+          })
+        : await api.get(`/menu/restaurant/${resolvedRestaurantId}`, { signal });
 
       return {
         restaurantId: response?.restaurantId ?? resolvedRestaurantId,
         items: response?.items ?? [],
+        delivery: response?.delivery ?? null,
+        deliveryAvailable: response?.deliveryAvailable,
+        distanceKm: response?.distanceKm,
+        estimatedDeliveryTimeMinutes: response?.estimatedDeliveryTimeMinutes,
+        deliveryFee: response?.deliveryFee,
       };
     } catch (error) {
       return rejectWithValue(
@@ -35,6 +54,7 @@ const menuSlice = createSlice({
   initialState: {
     restaurantId: null,
     items: [],
+    delivery: null,
     loading: false,
     error: null,
   },
@@ -49,6 +69,7 @@ const menuSlice = createSlice({
         state.loading = false;
         state.restaurantId = action.payload.restaurantId;
         state.items = action.payload.items;
+        state.delivery = action.payload.delivery;
       })
       .addCase(fetchMenu.rejected, (state, action) => {
         state.loading = false;

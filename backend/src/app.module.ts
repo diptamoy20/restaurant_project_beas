@@ -11,6 +11,7 @@ import { RequestLoggingInterceptor } from './common/interceptors/request-logging
 import { StandardResponseInterceptor } from './common/interceptors/standard-response.interceptor';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { GeoCacheModule } from './common/cache/geo-cache.module';
 import { validateEnv } from './config/env.validation';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -18,6 +19,7 @@ import { CartModule } from './modules/cart/cart.module';
 import { DeliveriesModule } from './modules/deliveries/deliveries.module';
 import { MembershipModule } from './modules/membership/membership.module';
 import { MenuModule } from './modules/menu/menu.module';
+import { LocationModule } from './modules/location/location.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
@@ -30,10 +32,12 @@ import { PrismaModule } from './prisma/prisma.module';
       isGlobal: true,
       validate: validateEnv,
     }),
+    GeoCacheModule,
     PrismaModule,
     AuthModule,
     RestaurantsModule,
     MenuModule,
+    LocationModule,
     CartModule,
     OrdersModule,
     MembershipModule,

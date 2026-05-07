@@ -1,23 +1,35 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { addToCart, addToCartAsync, clearError } from '../store/slices/cartSlice';
-import { fetchMenu } from '../store/slices/menuSlice';
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  persistRestaurantId,
-  persistTableId,
-} from '../lib/tableSession';
+  addToCart,
+  addToCartAsync,
+  clearError,
+} from "../store/slices/cartSlice";
+import { fetchMenu } from "../store/slices/menuSlice";
+import { persistRestaurantId, persistTableId } from "../lib/tableSession";
+import { getCachedUserLocation } from "../hooks/useUserLocation";
 
-const HARDCODED_RESTAURANT_ID = '1';
-const HARDCODED_TABLE_ID = '1';
+const HARDCODED_RESTAURANT_ID = "1";
+const HARDCODED_TABLE_ID = "1";
 
 export function MenuPage() {
   const dispatch = useDispatch();
-  const { items, loading, error, restaurantId: menuRestaurantId } = useSelector((state) => state.menu);
-  const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
+  const {
+    items,
+    loading,
+    error,
+    restaurantId: menuRestaurantId,
+    delivery,
+  } = useSelector((state) => state.menu);
+  const { loading: cartLoading, error: cartError } = useSelector(
+    (state) => state.cart,
+  );
   const isAuthenticated = useSelector((state) => !!state.auth.token);
   const [quantities, setQuantities] = useState({});
-  const [cartMessage, setCartMessage] = useState('');
-  const [resolvedRestaurantId, setResolvedRestaurantId] = useState(HARDCODED_RESTAURANT_ID);
+  const [cartMessage, setCartMessage] = useState("");
+  const [resolvedRestaurantId, setResolvedRestaurantId] = useState(
+    HARDCODED_RESTAURANT_ID,
+  );
   const tableId = HARDCODED_TABLE_ID;
 
   useEffect(() => {
@@ -27,20 +39,29 @@ export function MenuPage() {
   }, [tableId]);
 
   useEffect(() => {
-    // Temporarily hardcoded for local testing.
-    // Dynamic URL/session/table-to-restaurant resolution is intentionally disabled.
-    setResolvedRestaurantId(HARDCODED_RESTAURANT_ID);
-    persistRestaurantId(HARDCODED_RESTAURANT_ID);
+    const params = new URLSearchParams(window.location.search);
+    const restaurantIdFromUrl = params.get("restaurantId");
+    const nextRestaurantId = restaurantIdFromUrl || HARDCODED_RESTAURANT_ID;
+
+    setResolvedRestaurantId(nextRestaurantId);
+    persistRestaurantId(nextRestaurantId);
   }, []);
 
   useEffect(() => {
     if (resolvedRestaurantId) {
-      dispatch(fetchMenu(Number(resolvedRestaurantId)));
+      dispatch(
+        fetchMenu({
+          restaurantId: Number(resolvedRestaurantId),
+          coordinates: getCachedUserLocation(),
+        }),
+      );
     }
   }, [dispatch, resolvedRestaurantId]);
 
   const activeRestaurantId = useMemo(
-    () => menuRestaurantId ?? (resolvedRestaurantId ? Number(resolvedRestaurantId) : null),
+    () =>
+      menuRestaurantId ??
+      (resolvedRestaurantId ? Number(resolvedRestaurantId) : null),
     [menuRestaurantId, resolvedRestaurantId],
   );
 
@@ -55,15 +76,15 @@ export function MenuPage() {
 
   useEffect(() => {
     if (cartError) {
-      setCartMessage('');
+      setCartMessage("");
     }
   }, [cartError]);
 
   const handleAddToCart = async (item) => {
     const quantity = getQuantity(item.id);
-    setCartMessage('');
+    setCartMessage("");
     dispatch(clearError());
-    
+
     try {
       if (isAuthenticated) {
         await dispatch(
@@ -85,7 +106,7 @@ export function MenuPage() {
     }
 
     setCartMessage(`${item.name} added to cart.`);
-    
+
     setQuantities((current) => ({
       ...current,
       [item.id]: 1,
@@ -99,7 +120,10 @@ export function MenuPage() {
           <div>
             <p className="eyebrow">Menu</p>
             <h2>Restaurant not selected</h2>
-            <p>Please open menu using a table QR that includes table and restaurant context.</p>
+            <p>
+              Please open menu using a table QR that includes table and
+              restaurant context.
+            </p>
           </div>
         </div>
       </section>
@@ -140,26 +164,57 @@ export function MenuPage() {
           <p className="eyebrow">Menu</p>
           <h2>Today's favorites</h2>
           <p>
-            {tableId ? `Table ${tableId}` : 'No table selected'} - Restaurant {activeRestaurantId}
+            {tableId ? `Table ${tableId}` : "No table selected"} - Restaurant{" "}
+            {activeRestaurantId}
           </p>
         </div>
-        {cartMessage ? <div className="order-status-banner success">{cartMessage}</div> : null}
-        {cartError ? <div className="order-status-banner error">{cartError}</div> : null}
+        {delivery ? (
+          <div
+            className={
+              delivery.deliveryAvailable
+                ? "delivery-quote success"
+                : "delivery-quote warning"
+            }
+          >
+            <strong>
+              {delivery.deliveryAvailable
+                ? "Delivery available"
+                : "Outside delivery area"}
+            </strong>
+            <span>
+              {delivery.distanceKm} km - {delivery.estimatedDeliveryTimeMinutes}{" "}
+              min - ${Number(delivery.deliveryFee ?? 0).toFixed(2)} fee
+            </span>
+          </div>
+        ) : null}
+        {cartMessage ? (
+          <div className="order-status-banner success">{cartMessage}</div>
+        ) : null}
+        {cartError ? (
+          <div className="order-status-banner error">{cartError}</div>
+        ) : null}
       </div>
 
       <div className="menu-grid">
         {items.map((item) => (
           <article key={item.id} className="menu-card">
-            <span className="pill">{item.category?.name || 'Uncategorized'}</span>
+            <span className="pill">
+              {item.category?.name || "Uncategorized"}
+            </span>
             <h3>{item.name}</h3>
             <p>${item.price.toFixed(2)}</p>
             <div className="menu-card-actions">
-              <div className="quantity-selector" aria-label={`Quantity for ${item.name}`}>
+              <div
+                className="quantity-selector"
+                aria-label={`Quantity for ${item.name}`}
+              >
                 <button
                   type="button"
                   className="quantity-button"
                   aria-label={`Decrease quantity for ${item.name}`}
-                  onClick={() => updateQuantity(item.id, getQuantity(item.id) - 1)}
+                  onClick={() =>
+                    updateQuantity(item.id, getQuantity(item.id) - 1)
+                  }
                 >
                   -
                 </button>
@@ -168,7 +223,9 @@ export function MenuPage() {
                   type="button"
                   className="quantity-button"
                   aria-label={`Increase quantity for ${item.name}`}
-                  onClick={() => updateQuantity(item.id, getQuantity(item.id) + 1)}
+                  onClick={() =>
+                    updateQuantity(item.id, getQuantity(item.id) + 1)
+                  }
                 >
                   +
                 </button>
@@ -178,7 +235,7 @@ export function MenuPage() {
                 disabled={cartLoading}
                 onClick={() => handleAddToCart(item)}
               >
-                {cartLoading ? 'Adding...' : 'Add to cart'}
+                {cartLoading ? "Adding..." : "Add to cart"}
               </button>
             </div>
           </article>
@@ -187,4 +244,3 @@ export function MenuPage() {
     </section>
   );
 }
-

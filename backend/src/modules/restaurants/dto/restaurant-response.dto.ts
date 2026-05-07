@@ -142,4 +142,39 @@ export class RestaurantResponseDto {
   @IsOptional()
   @IsNumber()
   distanceKm?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  deliveryAvailable?: boolean;
+
+  @ApiPropertyOptional({ example: 32 })
+  @IsOptional()
+  @IsNumber()
+  estimatedDeliveryTimeMinutes?: number;
+
+  @ApiPropertyOptional({ example: 38 })
+  @IsOptional()
+  @IsNumber()
+  deliveryFee?: number;
+
+  @ApiPropertyOptional({ example: 199, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  minimumOrderAmount?: number | null;
+
+  @ApiPropertyOptional({ example: 8 })
+  @IsOptional()
+  @IsNumber()
+  deliveryRadiusKm?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  isLocationEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 12 })
+  @IsOptional()
+  @IsNumber()
+  availableMenuItemsCount?: number;
 }
