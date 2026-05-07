@@ -8,7 +8,7 @@ import {
   removeItem as removeItemAction,
   setLastOrderId,
 } from '../store/slices/cartSlice';
-import { api } from '../lib/api';
+import { createOrder } from '../store/slices/orderSlice';
 import {
   createSessionAwarePath,
   persistRestaurantId,
@@ -24,8 +24,8 @@ export function CartPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const items = useSelector((state) => state.cart.items);
-  const token = useSelector((state) => state.auth.token);
   const user = useSelector((state) => state.auth.user);
+  const { loading: orderLoading, error: orderError } = useSelector((state) => state.orders);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -45,6 +45,13 @@ export function CartPage() {
       persistRestaurantId(restaurantId);
     }
   }, [restaurantId]);
+
+  useEffect(() => {
+    if (orderError) {
+      setErrorMessage(orderError);
+      setPlacingOrder(false);
+    }
+  }, [orderError]);
 
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -73,7 +80,7 @@ export function CartPage() {
       return;
     }
 
-    if (!token || !user) {
+    if (!user) {
       setErrorMessage('Please sign in before placing an order.');
       return;
     }
@@ -90,63 +97,45 @@ export function CartPage() {
 
     setPlacingOrder(true);
 
-    const order = {
-      tableId: tableId ? Number(tableId) : null,
-      items: items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      totalAmount,
-      orderStatus: 'pending',
-      paymentStatus: 'unpaid',
-      createdAt: new Date().toISOString(),
-    };
-
     const payload = {
       userId: user.id,
       restaurantId: Number(restaurantId),
-      tableId: order.tableId ?? undefined,
-      orderType: order.tableId ? 'DINE_IN' : 'TAKEAWAY',
+      tableId: tableId ? Number(tableId) : undefined,
+      orderType: tableId ? 'DINE_IN' : 'TAKEAWAY',
+      discountAmount: 0,
       items: items.map((item) => ({
-        menuItemId: item.id,
+        menuItemId: item.menuItemId || item.id,
+        variantId: item.variantId,
         quantity: item.quantity,
         price: item.price,
       })),
     };
 
     try {
-      const response = await api.post('/orders', payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const result = await dispatch(createOrder(payload)).unwrap();
 
-      const orderId = response.id;
-
-      dispatch(setLastOrderId(orderId));
+      dispatch(setLastOrderId(result.id));
       dispatch(clearCart());
       sessionStorage.setItem(
         LAST_ORDER_STORAGE_KEY,
         JSON.stringify({
-          orderId,
-          tableId: order.tableId,
-          totalAmount: order.totalAmount,
-          paymentStatus: order.paymentStatus,
+          orderId: result.id,
+          tableId: result.tableId,
+          totalAmount: result.finalAmount,
+          paymentStatus: result.paymentStatus,
         }),
       );
       setStatusMessage('Order placed successfully. Redirecting to payment...');
-      navigate(createSessionAwarePath(`/payment/${orderId}`, tableId, restaurantId));
+      setTimeout(() => {
+        navigate(createSessionAwarePath(`/payment/${result.id}`, tableId, restaurantId));
+      }, 1000);
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to place order right now.');
-    } finally {
+      setErrorMessage(error || 'Unable to place order right now.');
       setPlacingOrder(false);
     }
   };
 
-  console.log(items,'items');
-  
+  console.log(items, 'items');
 
   return (
     <section className="cart-page">
@@ -171,7 +160,7 @@ export function CartPage() {
               const itemSubtotal = item.price * item.quantity;
 
               return (
-                <article key={item.id} className="cart-item-card">
+                <article key={item.id || item.menuItemId} className="cart-item-card">
                   <div className="cart-item-main">
                     <div>
                       <span className="pill">{item.category?.name}</span>
@@ -181,7 +170,7 @@ export function CartPage() {
                     <button
                       type="button"
                       className="cart-remove-button"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => removeItem(item.id || item.menuItemId)}
                     >
                       Remove
                     </button>
@@ -193,7 +182,7 @@ export function CartPage() {
                         type="button"
                         className="quantity-button"
                         aria-label={`Decrease quantity for ${item.name}`}
-                        onClick={() => decreaseQuantity(item.id)}
+                        onClick={() => decreaseQuantity(item.id || item.menuItemId)}
                       >
                         -
                       </button>
@@ -202,7 +191,7 @@ export function CartPage() {
                         type="button"
                         className="quantity-button"
                         aria-label={`Increase quantity for ${item.name}`}
-                        onClick={() => increaseQuantity(item.id)}
+                        onClick={() => increaseQuantity(item.id || item.menuItemId)}
                       >
                         +
                       </button>
@@ -241,10 +230,10 @@ export function CartPage() {
           <button
             type="button"
             className="place-order-button"
-            disabled={placingOrder || items.length === 0}
+            disabled={placingOrder || orderLoading || items.length === 0}
             onClick={placeOrder}
           >
-            {placingOrder ? 'Placing order...' : 'Place Order'}
+            {placingOrder || orderLoading ? 'Placing order...' : 'Place Order'}
           </button>
         </aside>
       </div>

@@ -14,6 +14,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { validateEnv } from './config/env.validation';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CartModule } from './modules/cart/cart.module';
 import { DeliveriesModule } from './modules/deliveries/deliveries.module';
 import { MembershipModule } from './modules/membership/membership.module';
 import { MenuModule } from './modules/menu/menu.module';
@@ -33,6 +34,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     RestaurantsModule,
     MenuModule,
+    CartModule,
     OrdersModule,
     MembershipModule,
     PaymentsModule,
