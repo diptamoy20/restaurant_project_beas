@@ -1,20 +1,12 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiProperty,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber } from 'class-validator';
 
 import { MenuResponseDto } from './dto';
 import { MenuService } from './menu.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { Role } from '../../common/enums/role.enum';
+import { Public } from '../../common/decorators/public.decorator';
 
 class GetMenuDto {
   @ApiProperty({ example: 1 })
@@ -24,10 +16,8 @@ class GetMenuDto {
 }
 
 @Controller('menu')
-@Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER)
+@Public()
 @ApiTags('Menu')
-@ApiBearerAuth('access-token')
-@ApiStandardErrorResponses({ unauthorized: true, forbidden: true })
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 

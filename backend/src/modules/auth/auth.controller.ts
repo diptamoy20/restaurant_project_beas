@@ -21,7 +21,13 @@ import {
 import { AuthService } from './auth.service';
 import { AuthenticatedUser, AuthSuccessResponse } from './auth.types';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
-import { LoginDto, RegisterDto, RoleLoginDto } from './dto/auth.dto';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+  RoleLoginDto,
+} from './dto/auth.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
@@ -55,6 +61,30 @@ export class AuthController {
   @ApiStandardErrorResponses({ badRequest: true })
   login(@Body() payload: LoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
     return this.authService.login(payload);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request a customer password reset link' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiStandardErrorResponses({ badRequest: true })
+  forgotPassword(
+    @Body() payload: ForgotPasswordDto,
+  ): Promise<AuthSuccessResponse<{ resetRequested: boolean }>> {
+    return this.authService.forgotPassword(payload);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reset customer password with a secure token' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiStandardErrorResponses({ badRequest: true, unauthorized: true })
+  resetPassword(
+    @Body() payload: ResetPasswordDto,
+  ): Promise<AuthSuccessResponse<{ passwordReset: boolean }>> {
+    return this.authService.resetPassword(payload);
   }
 
   @Public()

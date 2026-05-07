@@ -65,6 +65,13 @@ button:focus-visible {
   box-shadow: 0 16px 32px rgba(197, 140, 47, 0.28);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
 input {
   width: 100%;
   padding: 0.95rem 1rem;
@@ -186,7 +193,8 @@ h4 {
 .nav {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 .nav a,
@@ -196,16 +204,36 @@ h4 {
   justify-content: center;
   gap: 0.45rem;
   min-height: 2.9rem;
-  padding: 0.75rem 1rem;
+  padding: 0.7rem 0.9rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   color: var(--color-primary-strong);
+  line-height: 1;
+  white-space: nowrap;
   transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+}
+
+.nav a.nav-cta,
+.drawer-nav a.nav-cta {
+  min-height: 2.9rem;
+  padding: 0.72rem 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #255b37 100%);
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 12px 26px rgba(16, 48, 28, 0.18);
 }
 
 .topbar-solid .nav a,
 .topbar-solid .ghost-button {
   background: rgba(26, 71, 42, 0.06);
+}
+
+.topbar-solid .nav a.nav-cta {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #255b37 100%);
+  color: #fff;
 }
 
 .nav a:hover,
@@ -214,6 +242,16 @@ h4 {
 .ghost-button:focus-visible {
   transform: translateY(-2px);
   box-shadow: var(--shadow-soft);
+}
+
+.nav a.nav-cta:hover,
+.nav a.nav-cta:focus-visible,
+.drawer-nav a.nav-cta:hover,
+.drawer-nav a.nav-cta:focus-visible {
+  background: linear-gradient(135deg, var(--color-primary-strong) 0%, var(--color-primary) 100%);
+  color: #fff;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 16px 32px rgba(16, 48, 28, 0.24);
 }
 
 .nav a.active {
@@ -730,11 +768,16 @@ h4 {
   display: grid;
   place-items: center;
   min-height: calc(100vh - 5.5rem);
+  padding-block: 2rem;
 }
 
 .auth-card {
   width: min(480px, 100%);
   padding: 1.75rem;
+}
+
+.auth-card-wide {
+  width: min(720px, 100%);
 }
 
 .auth-form {
@@ -748,11 +791,99 @@ h4 {
   font-weight: 600;
 }
 
+.auth-field-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.auth-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.auth-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.checkbox-label {
+  display: inline-flex !important;
+  width: fit-content;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem !important;
+  color: var(--color-copy-muted);
+  font-weight: 600;
+}
+
+.checkbox-label input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-primary);
+}
+
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap input {
+  padding-right: 5rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: rgba(26, 71, 42, 0.08);
+  color: var(--color-primary);
+  box-shadow: none;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  transform: translateY(-50%);
+}
+
+.password-toggle {
+  transform: translateY(-50%);
+}
+
 .form-error {
   color: #8d1f1f;
   background: #ffe6e6;
   border-radius: var(--radius-sm);
   padding: 0.8rem 1rem;
+}
+
+.form-success {
+  color: #166534;
+  background: rgba(22, 101, 52, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1rem;
+}
+
+.field-error {
+  color: #8d1f1f;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.auth-switch {
+  margin: 0;
+  text-align: center;
+  color: var(--color-copy-muted);
+}
+
+.auth-switch a {
+  color: var(--color-primary);
+  font-weight: 800;
 }
 
 .section-header {
@@ -836,6 +967,23 @@ h4 {
 .cart-summary-card,
 .payment-card {
   padding: 1.25rem;
+}
+
+.profile-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.profile-card div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.profile-card span {
+  color: var(--color-copy-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .cart-summary-card {
@@ -1051,6 +1199,7 @@ h4 {
   .featured-menu-grid,
   .menu-grid,
   .footer-grid,
+  .auth-form-grid,
   .cart-layout {
     grid-template-columns: 1fr;
   }

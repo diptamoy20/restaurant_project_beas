@@ -54,3 +54,20 @@ export class RoleLoginDto extends LoginDto {
   @IsEnum(Role)
   role!: Role;
 }
+
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'customer@example.com' })
+  @IsEmail()
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ example: 'secure-reset-token' })
+  @IsString()
+  token!: string;
+
+  @ApiProperty({ example: 'newPassword123', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  password!: string;
+}
