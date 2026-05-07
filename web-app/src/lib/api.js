@@ -29,6 +29,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  request,
   post(path, body, options = {}) {
     return request(path, {
       method: 'POST',
@@ -39,6 +40,13 @@ export const api = {
   get(path, options = {}) {
     return request(path, {
       method: 'GET',
+      ...options,
+    });
+  },
+  put(path, body, options = {}) {
+    return request(path, {
+      method: 'PUT',
+      body: JSON.stringify(body),
       ...options,
     });
   },

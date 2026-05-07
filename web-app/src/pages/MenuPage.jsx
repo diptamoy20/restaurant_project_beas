@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { addToCart } from '../store/slices/cartSlice';
+import { addToCart, addToCartAsync } from '../store/slices/cartSlice';
 import { fetchMenu } from '../store/slices/menuSlice';
 import {
   persistRestaurantId,
@@ -13,6 +13,7 @@ const HARDCODED_TABLE_ID = '1';
 export function MenuPage() {
   const dispatch = useDispatch();
   const { items, loading, error, restaurantId: menuRestaurantId } = useSelector((state) => state.menu);
+  const isAuthenticated = useSelector((state) => !!state.auth.token);
   const [quantities, setQuantities] = useState({});
   const [resolvedRestaurantId, setResolvedRestaurantId] = useState(HARDCODED_RESTAURANT_ID);
   const tableId = HARDCODED_TABLE_ID;
@@ -47,6 +48,35 @@ export function MenuPage() {
     setQuantities((current) => ({
       ...current,
       [itemId]: Math.max(1, nextQuantity),
+    }));
+  };
+
+  const handleAddToCart = (item) => {
+    const quantity = getQuantity(item.id);
+    
+    if (isAuthenticated) {
+      // Use async API when authenticated
+      dispatch(
+        addToCartAsync({
+          menuItemId: item.id,
+          quantity,
+          price: item.price,
+        }),
+      );
+    } else {
+      // Use local Redux for offline/demo mode
+      dispatch(
+        addToCart({
+          item,
+          quantity,
+        }),
+      );
+    }
+    
+    // Reset quantity
+    setQuantities((current) => ({
+      ...current,
+      [item.id]: 1,
     }));
   };
 
@@ -131,14 +161,7 @@ export function MenuPage() {
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  dispatch(
-                    addToCart({
-                      item,
-                      quantity: getQuantity(item.id),
-                    }),
-                  )
-                }
+                onClick={() => handleAddToCart(item)}
               >
                 Add to cart
               </button>
