@@ -171,6 +171,10 @@ export class OrdersService {
       discountAmount: order.discountAmount,
       finalAmount: order.finalAmount,
       paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      razorpayOrderId: order.razorpayOrderId,
+      razorpayPaymentId: order.razorpayPaymentId,
+      paymentRetryCount: order.paymentRetryCount,
       createdAt: order.createdAt,
       items: order.items.map((item) => ({
         id: item.id,

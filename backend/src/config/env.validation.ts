@@ -98,6 +98,14 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     throw new Error('REFRESH_TOKEN_SECRET is required');
   }
 
+  if (!env.RAZORPAY_KEY_ID) {
+    throw new Error('RAZORPAY_KEY_ID is required');
+  }
+
+  if (!env.RAZORPAY_KEY_SECRET) {
+    throw new Error('RAZORPAY_KEY_SECRET is required');
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -150,5 +158,7 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       'RATE_LIMIT_MAX_REQUESTS',
       120,
     ),
+    RAZORPAY_KEY_ID: env.RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET: env.RAZORPAY_KEY_SECRET,
   };
 }

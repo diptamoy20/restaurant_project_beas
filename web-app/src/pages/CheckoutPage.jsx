@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { clearCart, setLastOrderId } from '../store/slices/cartSlice';
 import { createOrder } from '../store/slices/orderSlice';
-import { initiatePayment } from '../store/slices/paymentSlice';
+import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
+import { paymentApi } from '../services/paymentApi';
 import {
   createSessionAwarePath,
   resolveRestaurantId,
@@ -29,11 +30,12 @@ export function CheckoutPage() {
   const items = useSelector((state) => state.cart.items);
   const user = useSelector((state) => state.auth.user);
   const orderLoading = useSelector((state) => state.orders.loading);
-  const paymentLoading = useSelector((state) => state.payments.loading);
+  const { startRazorpayPayment } = useRazorpayPayment();
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [customerNote, setCustomerNote] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [isPaying, setIsPaying] = useState(false);
 
   const tableId = resolveTableId(location.search) || HARDCODED_TABLE_ID;
   const restaurantId = resolveRestaurantId(location.search) || HARDCODED_RESTAURANT_ID;
@@ -42,7 +44,7 @@ export function CheckoutPage() {
     [items],
   );
   const totalAmount = subtotal + TAXES_AND_FEES;
-  const isSubmitting = orderLoading || paymentLoading;
+  const isSubmitting = orderLoading || isPaying;
 
   const submitCheckout = async () => {
     setErrorMessage('');
@@ -78,23 +80,22 @@ export function CheckoutPage() {
     };
 
     try {
+      setIsPaying(true);
       setStatusMessage('Creating your order...');
       const order = await dispatch(createOrder(orderPayload)).unwrap();
-      const paymentStatus = paymentMethod === 'CASH' ? 'PENDING' : 'SUCCESS';
-      const transactionId =
-        paymentStatus === 'SUCCESS' ? `WEB-${order.id}-${Date.now()}` : undefined;
 
-      setStatusMessage('Confirming payment...');
-      const payment = await dispatch(
-        initiatePayment({
-          orderId: order.id,
-          userId: user.id,
-          transactionId,
-          amount: order.finalAmount,
-          status: paymentStatus,
-          method: paymentMethod,
-        }),
-      ).unwrap();
+      if (paymentMethod === 'CASH') {
+        setStatusMessage('Confirming cash on delivery...');
+        await paymentApi.confirmCodPayment(order.id);
+      } else {
+        setStatusMessage('Opening secure payment...');
+        await startRazorpayPayment({
+          order,
+          user,
+          onSuccess: () => setStatusMessage('Payment successful. Finalizing order...'),
+          onFailure: (message) => setErrorMessage(message),
+        });
+      }
 
       dispatch(setLastOrderId(order.id));
       dispatch(clearCart());
@@ -104,8 +105,7 @@ export function CheckoutPage() {
           orderId: order.id,
           tableId: order.tableId,
           totalAmount: order.finalAmount,
-          paymentStatus: paymentStatus === 'SUCCESS' ? 'PAID' : order.paymentStatus,
-          paymentId: payment.id,
+          paymentStatus: paymentMethod === 'CASH' ? 'PENDING' : 'PAID',
           paymentMethod,
           customerNote,
         }),
@@ -117,6 +117,8 @@ export function CheckoutPage() {
     } catch (error) {
       setErrorMessage(error || 'Unable to complete checkout right now.');
       setStatusMessage('');
+    } finally {
+      setIsPaying(false);
     }
   };
 

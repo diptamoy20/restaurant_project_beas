@@ -1,14 +1,20 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getOrder } from '../store/slices/orderSlice';
+import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
 
 const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
 
 export function PaymentPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { orderId } = useParams();
+  const { startRazorpayPayment } = useRazorpayPayment();
+  const user = useSelector((state) => state.auth.user);
   const { currentOrder, loading, error } = useSelector((state) => state.orders);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const orderSnapshot = useMemo(() => {
     const raw = sessionStorage.getItem(LAST_ORDER_STORAGE_KEY);
 
@@ -34,6 +40,30 @@ export function PaymentPage() {
       dispatch(getOrder(orderId));
     }
   }, [dispatch, orderId]);
+
+  const retryPayment = async () => {
+    if (!order || !user) {
+      return;
+    }
+
+    setPaymentLoading(true);
+    setStatusMessage('Opening payment gateway...');
+    try {
+      await startRazorpayPayment({
+        order,
+        user,
+        onSuccess: () => setStatusMessage('Payment successful. Refreshing status...'),
+        onFailure: (message) => setStatusMessage(message),
+      });
+      await dispatch(getOrder(order.id)).unwrap();
+      setStatusMessage('Payment successful.');
+      navigate(`/orders`, { replace: true });
+    } catch (paymentError) {
+      setStatusMessage(paymentError?.message || 'Unable to complete payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   return (
     <section className="payment-page">
@@ -61,6 +91,17 @@ export function PaymentPage() {
           <span>Amount to pay</span>
           <strong>${displayAmount.toFixed(2)}</strong>
         </div>
+        {displayStatus !== 'PAID' ? (
+          <button
+            type="button"
+            className="place-order-button"
+            disabled={paymentLoading || loading}
+            onClick={retryPayment}
+          >
+            {paymentLoading ? 'Retrying...' : 'Retry payment'}
+          </button>
+        ) : null}
+        {statusMessage ? <div className="order-status-banner success">{statusMessage}</div> : null}
       </div>
     </section>
   );

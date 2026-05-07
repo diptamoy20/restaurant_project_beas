@@ -1,33 +1,42 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNumber, IsString } from 'class-validator';
 
-export class PaymentResponseDto {
-  @ApiProperty({ example: 1 })
-  @IsNumber()
-  id!: number;
-
-  @ApiProperty({ example: 1 })
+export class RazorpayOrderResponseDto {
+  @ApiProperty({ example: 101 })
   @IsNumber()
   orderId!: number;
 
-  @ApiProperty({ example: 3 })
-  @IsNumber()
-  userId!: number;
-
-  @ApiPropertyOptional({ example: 'TXN-20260417-001', nullable: true })
-  @IsOptional()
+  @ApiProperty({ example: 'order_Q1W2E3R4T5Y6' })
   @IsString()
-  transactionId!: string | null;
+  razorpayOrderId!: string;
 
-  @ApiProperty({ example: 268 })
+  @ApiProperty({ example: 49900, description: 'Amount in paise' })
   @IsNumber()
   amount!: number;
 
-  @ApiProperty({ example: 'SUCCESS' })
+  @ApiProperty({ example: 'INR' })
+  @IsString()
+  currency!: string;
+
+  @ApiProperty({ example: 'created' })
   @IsString()
   status!: string;
+}
 
-  @ApiProperty({ example: 'UPI' })
+export class VerifyPaymentResponseDto {
+  @ApiProperty({ example: 101 })
+  @IsNumber()
+  orderId!: number;
+
+  @ApiProperty({ example: 'PAID' })
   @IsString()
-  method!: string;
+  paymentStatus!: string;
+
+  @ApiProperty({ example: 'RAZORPAY' })
+  @IsString()
+  paymentMethod!: string;
+
+  @ApiProperty({ example: 'Payment verified successfully' })
+  @IsString()
+  message!: string;
 }
