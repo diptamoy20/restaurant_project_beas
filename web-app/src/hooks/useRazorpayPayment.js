@@ -4,6 +4,11 @@ import { loadRazorpayScript, openRazorpayCheckout } from '../utils/razorpay';
 
 export function useRazorpayPayment() {
   const startRazorpayPayment = useCallback(async ({ order, user, onSuccess, onFailure }) => {
+    const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+    if (!razorpayKeyId) {
+      throw new Error('Payment configuration missing: VITE_RAZORPAY_KEY_ID');
+    }
+
     const sdkLoaded = await loadRazorpayScript();
     if (!sdkLoaded) {
       throw new Error('Unable to load payment gateway. Please try again.');
@@ -13,7 +18,7 @@ export function useRazorpayPayment() {
 
     await new Promise((resolve, reject) => {
       const checkout = openRazorpayCheckout({
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKeyId,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
         order_id: razorpayOrder.razorpayOrderId,
