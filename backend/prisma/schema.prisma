@@ -7,30 +7,30 @@ datasource db {
 }
 
 model User {
-  id                    Int                  @id @default(autoincrement())
-  name                  String?
-  email                 String?              @unique
-  phone                 String?              @unique
-  password              String
-  isActive              Boolean              @default(true) @map("is_active")
-  refreshToken          String?              @map("refresh_token")
-  refreshTokenExpiresAt DateTime?            @map("refresh_token_expires_at")
-  resetPasswordToken    String?              @map("reset_password_token")
-  resetPasswordExpiresAt DateTime?           @map("reset_password_expires_at")
-  lastLoginAt           DateTime?            @map("last_login_at")
-  failedLoginAttempts   Int                  @default(0) @map("failed_login_attempts")
-  lockUntil             DateTime?            @map("lock_until")
-  createdAt             DateTime             @default(now()) @map("created_at")
-  updatedAt             DateTime             @updatedAt @map("updated_at")
-  roles                 UserRoleMapping[]
-  addresses             UserAddress[]
-  orders                Order[]
-  cartItems             CartItem[]
-  memberships           Membership[]
-  loyaltyTxns           LoyaltyTransaction[]
-  notifications         Notification[]
-  payments              Payment[]
-  couponUsages          CouponUsage[]
+  id                     Int                  @id @default(autoincrement())
+  name                   String?
+  email                  String?              @unique
+  phone                  String?              @unique
+  password               String
+  isActive               Boolean              @default(true) @map("is_active")
+  refreshToken           String?              @map("refresh_token")
+  refreshTokenExpiresAt  DateTime?            @map("refresh_token_expires_at")
+  resetPasswordToken     String?              @map("reset_password_token")
+  resetPasswordExpiresAt DateTime?            @map("reset_password_expires_at")
+  lastLoginAt            DateTime?            @map("last_login_at")
+  failedLoginAttempts    Int                  @default(0) @map("failed_login_attempts")
+  lockUntil              DateTime?            @map("lock_until")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+  roles                  UserRoleMapping[]
+  addresses              UserAddress[]
+  orders                 Order[]
+  cartItems              CartItem[]
+  memberships            Membership[]
+  loyaltyTxns            LoyaltyTransaction[]
+  notifications          Notification[]
+  payments               Payment[]
+  couponUsages           CouponUsage[]
 
   @@map("users")
 }
@@ -69,19 +69,36 @@ model UserAddress {
 }
 
 model Restaurant {
-  id         Int               @id @default(autoincrement())
-  name       String
-  address    String
-  city       String?
-  latitude   Float
-  longitude  Float
-  isActive   Boolean           @default(true) @map("is_active")
-  tables     RestaurantTable[]
-  categories Category[]
-  menuItems  MenuItem[]
-  orders     Order[]
+  id                Int                                   @id @default(autoincrement())
+  name              String
+  address           String
+  city              String?
+  latitude          Float
+  longitude         Float
+  location          Unsupported("geography(Point,4326)")?
+  deliveryRadiusKm  Float                                 @default(8) @map("delivery_radius_km")
+  isLocationEnabled Boolean                               @default(true) @map("is_location_enabled")
+  isActive          Boolean                               @default(true) @map("is_active")
+  tables            RestaurantTable[]
+  categories        Category[]
+  menuItems         MenuItem[]
+  orders            Order[]
+  deliveryZones     DeliveryZone[]
 
   @@map("restaurants")
+}
+
+model DeliveryZone {
+  id                 Int                                   @id @default(autoincrement())
+  restaurantId       Int                                   @map("restaurant_id")
+  polygon            Unsupported("geometry(Polygon,4326)")
+  minimumOrderAmount Float                                 @default(0) @map("minimum_order_amount")
+  deliveryFee        Float                                 @default(0) @map("delivery_fee")
+  createdAt          DateTime                              @default(now()) @map("created_at")
+  updatedAt          DateTime                              @updatedAt @map("updated_at")
+  restaurant         Restaurant                            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_zones")
 }
 
 model RestaurantTable {
@@ -301,16 +318,16 @@ model CouponUsage {
 }
 
 model CartItem {
-  id         Int       @id @default(autoincrement())
-  userId     Int       @map("user_id")
-  menuItemId Int       @map("menu_item_id")
-  variantId  Int?      @map("variant_id")
+  id         Int              @id @default(autoincrement())
+  userId     Int              @map("user_id")
+  menuItemId Int              @map("menu_item_id")
+  variantId  Int?             @map("variant_id")
   quantity   Int
   price      Float
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  menuItem   MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   variant    MenuItemVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@unique([userId, menuItemId, variantId])
