@@ -22,7 +22,7 @@ import { AuthenticatedUser } from '../auth/auth.types';
 @Controller('carts')
 @ApiTags('Cart')
 @ApiBearerAuth('access-token')
-@ApiStandardErrorResponses({ unauthorized: true })
+@ApiStandardErrorResponses({ unauthorized: true, forbidden: true })
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 

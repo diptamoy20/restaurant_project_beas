@@ -6,10 +6,11 @@
     "node": ">=20 <26"
   },
   "scripts": {
+    "clean": "node ./scripts/clean-dist.cjs",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
-    "prebuild": "npm run prisma:generate",
+    "prebuild": "npm run clean && npm run prisma:generate",
     "build": "nest build",
     "lint": "eslint \"{src,prisma}/**/*.ts\"",
     "lint:fix": "eslint \"{src,prisma}/**/*.ts\" --fix",
