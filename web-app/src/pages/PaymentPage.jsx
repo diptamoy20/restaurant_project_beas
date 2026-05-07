@@ -1,10 +1,14 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { getOrder } from '../store/slices/orderSlice';
 
 const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
 
 export function PaymentPage() {
+  const dispatch = useDispatch();
   const { orderId } = useParams();
+  const { currentOrder, loading, error } = useSelector((state) => state.orders);
   const orderSnapshot = useMemo(() => {
     const raw = sessionStorage.getItem(LAST_ORDER_STORAGE_KEY);
 
@@ -18,6 +22,18 @@ export function PaymentPage() {
       return null;
     }
   }, []);
+  const order = currentOrder?.id === Number(orderId) ? currentOrder : null;
+  const displayStatus =
+    order?.paymentStatus === 'PENDING' && orderSnapshot?.paymentStatus
+      ? orderSnapshot.paymentStatus
+      : order?.paymentStatus ?? orderSnapshot?.paymentStatus ?? 'PENDING';
+  const displayAmount = order?.finalAmount ?? orderSnapshot?.totalAmount ?? 0;
+
+  useEffect(() => {
+    if (orderId) {
+      dispatch(getOrder(orderId));
+    }
+  }, [dispatch, orderId]);
 
   return (
     <section className="payment-page">
@@ -26,24 +42,24 @@ export function PaymentPage() {
           <p className="eyebrow">Payment</p>
           <h2>Order #{orderId}</h2>
           <p className="cart-supporting-copy">
-            Payment integration is ready for the next step. The order ID is already stored
-            so `paymentStatus` can be updated to paid later.
+            {loading ? 'Refreshing order status...' : 'Your checkout details are confirmed.'}
           </p>
         </div>
       </div>
 
+      {error ? <div className="order-status-banner error">{error}</div> : null}
       <div className="payment-card">
         <div className="total-row">
           <span>Order ID</span>
-          <strong>{orderId}</strong>
+          <strong>{order?.orderNumber || orderId}</strong>
         </div>
         <div className="total-row">
           <span>Current payment status</span>
-          <strong>{orderSnapshot?.paymentStatus ?? 'unpaid'}</strong>
+          <strong>{displayStatus}</strong>
         </div>
         <div className="total-row total-row-highlighted">
           <span>Amount to pay</span>
-          <strong>${(orderSnapshot?.totalAmount ?? 0).toFixed(2)}</strong>
+          <strong>${displayAmount.toFixed(2)}</strong>
         </div>
       </div>
     </section>

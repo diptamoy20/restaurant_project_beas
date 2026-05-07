@@ -7,6 +7,7 @@ export function setAuthTokenGetter(getToken) {
 
 async function request(path, options = {}) {
   const token = getAuthToken();
+  const normalizedPath = normalizePath(path);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -14,7 +15,7 @@ async function request(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
     headers,
     ...options,
   });
@@ -26,6 +27,16 @@ async function request(path, options = {}) {
   }
 
   return data?.data ?? data;
+}
+
+function normalizePath(path) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  if (API_BASE_URL.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+    return normalizedPath.replace(/^\/api/, '');
+  }
+
+  return normalizedPath;
 }
 
 export const api = {

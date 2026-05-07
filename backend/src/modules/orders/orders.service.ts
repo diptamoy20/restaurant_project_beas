@@ -1,10 +1,25 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
+
+type OrderWithRelations = Prisma.OrderGetPayload<{
+  include: {
+    items: {
+      include: {
+        menuItem: true;
+        variant: true;
+      };
+    };
+    statusLogs: true;
+    payments: true;
+    restaurant: true;
+  };
+}>;
 
 @Injectable()
 export class OrdersService {
@@ -38,99 +53,111 @@ export class OrdersService {
   }
 
   async createOrder(payload: CreateOrderDto): Promise<OrderResponseDto> {
-    const orderNumber = `ORD-${Date.now()}`;
-    const totalAmount = payload.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const order = await this.prisma.$transaction(async (transaction) => {
+      if (payload.tableId) {
+        const table = await transaction.restaurantTable.findUnique({
+          where: { id: payload.tableId },
+        });
 
-    const order = await this.prisma.order.create({
-      data: {
-        userId: payload.userId,
-        restaurantId: payload.restaurantId,
-        tableId: payload.tableId,
-        addressId: payload.addressId,
-        orderNumber,
-        status: 'PLACED',
-        orderType: payload.orderType,
-        totalAmount,
-        discountAmount: payload.discountAmount ?? 0,
-        finalAmount: totalAmount - (payload.discountAmount ?? 0),
-        paymentStatus: 'PENDING',
-        items: {
-          create: payload.items.map((item) => ({
-            menuItemId: item.menuItemId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            price: item.price,
-            totalPrice: item.price * item.quantity,
-          })),
+        if (!table || table.restaurantId !== payload.restaurantId) {
+          throw new BadRequestException('Selected table does not belong to this restaurant');
+        }
+      }
+
+      const menuItemIds = [...new Set(payload.items.map((item) => item.menuItemId))];
+      const menuItems = await transaction.menuItem.findMany({
+        where: {
+          id: {
+            in: menuItemIds,
+          },
         },
-        statusLogs: {
-          create: [{ status: 'PLACED' }],
+        include: {
+          variants: true,
         },
-      },
-      include: {
-        items: true,
-        statusLogs: true,
-      },
+      });
+      const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
+      const orderItems = payload.items.map((item) => {
+        const menuItem = menuItemById.get(item.menuItemId);
+
+        if (!menuItem || !menuItem.isAvailable) {
+          throw new BadRequestException(`Menu item ${item.menuItemId} is not available`);
+        }
+
+        if (menuItem.restaurantId !== payload.restaurantId) {
+          throw new BadRequestException('Cart contains menu items from another restaurant');
+        }
+
+        const variant = item.variantId
+          ? menuItem.variants.find((candidate) => candidate.id === item.variantId)
+          : null;
+
+        if (item.variantId && !variant) {
+          throw new BadRequestException(`Variant ${item.variantId} is not valid for this item`);
+        }
+
+        const price = variant?.price ?? menuItem.price;
+
+        return {
+          menuItemId: item.menuItemId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price,
+          totalPrice: price * item.quantity,
+        };
+      });
+      const totalAmount = orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      const discountAmount = payload.discountAmount ?? 0;
+
+      if (discountAmount < 0 || discountAmount > totalAmount) {
+        throw new BadRequestException('Discount amount is not valid for this order');
+      }
+
+      const createdOrder = await transaction.order.create({
+        data: {
+          userId: payload.userId,
+          restaurantId: payload.restaurantId,
+          tableId: payload.tableId,
+          addressId: payload.addressId,
+          orderNumber: `ORD-${Date.now()}`,
+          status: 'PLACED',
+          orderType: payload.orderType,
+          totalAmount,
+          discountAmount,
+          finalAmount: totalAmount - discountAmount,
+          paymentStatus: 'PENDING',
+          items: {
+            create: orderItems,
+          },
+          statusLogs: {
+            create: [{ status: 'PLACED' }],
+          },
+        },
+        include: {
+          items: {
+            include: {
+              menuItem: true,
+              variant: true,
+            },
+          },
+          statusLogs: true,
+          payments: true,
+          restaurant: true,
+        },
+      });
+
+      await transaction.cartItem.deleteMany({
+        where: {
+          userId: payload.userId,
+        },
+      });
+
+      return createdOrder;
     });
 
     return this.mapOrder(order);
   }
 
-  private mapOrder(order: {
-    id: number;
-    userId: number;
-    restaurantId: number;
-    tableId: number | null;
-    addressId: number | null;
-    orderNumber: string;
-    status: string;
-    orderType: string;
-    totalAmount: number;
-    discountAmount: number | null;
-    finalAmount: number;
-    paymentStatus: string;
-    createdAt: Date;
-    items: {
-      id: number;
-      orderId: number;
-      menuItemId: number;
-      variantId: number | null;
-      quantity: number;
-      price: number;
-      totalPrice: number;
-      menuItem?: {
-        id: number;
-        name: string;
-        price: number;
-      };
-      variant?: {
-        id: number;
-        name: string;
-        price: number;
-      } | null;
-    }[];
-    statusLogs: {
-      id: number;
-      orderId: number;
-      status: string;
-      changedAt: Date;
-    }[];
-    payments?: {
-      id: number;
-      orderId: number;
-      userId: number;
-      transactionId: string | null;
-      amount: number;
-      status: string;
-      method: string;
-    }[];
-    restaurant?: {
-      id: number;
-      name: string;
-      address: string;
-      city: string | null;
-    };
-  }): OrderResponseDto {
+  private mapOrder(order: OrderWithRelations): OrderResponseDto {
     return {
       id: order.id,
       userId: order.userId,

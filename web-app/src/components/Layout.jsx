@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
+import { fetchCart } from '../store/slices/cartSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { createTableAwarePath, resolveTableId } from '../lib/tableSession';
 import projectLogo from '../assets/project-logo.svg';
@@ -10,6 +11,7 @@ export function Layout({ children }) {
   const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
+  const token = useSelector((state) => state.auth.token);
   const cartItems = useSelector((state) => state.cart.items);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -34,6 +36,12 @@ export function Layout({ children }) {
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCart());
+    }
+  }, [dispatch, token]);
 
   useEffect(() => {
     document.body.classList.toggle('drawer-open', menuOpen);

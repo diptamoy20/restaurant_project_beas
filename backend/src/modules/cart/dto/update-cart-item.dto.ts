@@ -1,15 +1,20 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, Min } from 'class-validator';
 
 export class UpdateCartItemDto {
   @ApiProperty({ example: 2 })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   quantity!: number;
 
-  @ApiProperty({ example: 189 })
+  @ApiPropertyOptional({
+    example: 189,
+    description: 'Accepted for backward compatibility. Server menu pricing is authoritative.',
+  })
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  price!: number;
+  price?: number;
 }

@@ -1,51 +1,65 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsIn, IsNumber, IsOptional, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 
 class OrderItemInputDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   menuItemId!: number;
 
   @ApiPropertyOptional({ example: 1 })
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   variantId?: number;
 
   @ApiProperty({ example: 2 })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   quantity!: number;
 
-  @ApiProperty({ example: 189 })
+  @ApiPropertyOptional({
+    example: 189,
+    description: 'Accepted for backward compatibility. Server menu pricing is authoritative.',
+  })
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
-  price!: number;
+  price?: number;
 }
 
 export class CreateOrderDto {
   @ApiProperty({ example: 3 })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   userId!: number;
 
   @ApiProperty({ example: 1 })
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   restaurantId!: number;
 
   @ApiPropertyOptional({ example: 1 })
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   tableId?: number;
 
   @ApiPropertyOptional({ example: 1 })
   @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   addressId?: number;
 
   @ApiProperty({ enum: ['DINE_IN', 'DELIVERY', 'TAKEAWAY'], example: 'DELIVERY' })
@@ -56,6 +70,7 @@ export class CreateOrderDto {
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
+  @Min(0)
   discountAmount?: number;
 
   @ApiProperty({ type: () => OrderItemInputDto, isArray: true })

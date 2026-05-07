@@ -5,10 +5,19 @@ class MenuItemDto {
   id!: number;
 
   @ApiProperty()
+  restaurantId!: number;
+
+  @ApiProperty()
   name!: string;
 
   @ApiProperty()
   price!: number;
+
+  @ApiPropertyOptional()
+  category?: {
+    id: number;
+    name: string;
+  };
 }
 
 class MenuItemVariantDto {
@@ -33,7 +42,7 @@ export class CartItemResponseDto {
   menuItemId!: number;
 
   @ApiPropertyOptional()
-  variantId?: number;
+  variantId!: number | null;
 
   @ApiProperty()
   quantity!: number;
@@ -51,5 +60,5 @@ export class CartItemResponseDto {
   menuItem?: MenuItemDto;
 
   @ApiPropertyOptional()
-  variant?: MenuItemVariantDto;
+  variant!: MenuItemVariantDto | null;
 }

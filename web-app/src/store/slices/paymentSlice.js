@@ -11,7 +11,7 @@ export const initiatePayment = createAsyncThunk(
   'payments/initiate',
   async (payload, { rejectWithValue }) => {
     try {
-      const response = await api.post('/api/payments/initiate', payload);
+      const response = await api.post('/payments/initiate', payload);
       return response;
     } catch (error) {
       return rejectWithValue(error.message);

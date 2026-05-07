@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class InitiatePaymentDto {
   @ApiProperty({ example: 1 })
@@ -21,10 +21,11 @@ export class InitiatePaymentDto {
   @ApiProperty({ example: 268 })
   @Type(() => Number)
   @IsNumber()
+  @Min(0)
   amount!: number;
 
-  @ApiProperty({ example: 'SUCCESS' })
-  @IsString()
+  @ApiProperty({ enum: ['PENDING', 'SUCCESS', 'FAILED'], example: 'SUCCESS' })
+  @IsIn(['PENDING', 'SUCCESS', 'FAILED'])
   status!: string;
 
   @ApiProperty({ enum: ['CASH', 'CARD', 'UPI', 'NETBANKING', 'WALLET'], example: 'UPI' })

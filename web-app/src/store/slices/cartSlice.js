@@ -3,6 +3,37 @@ import { cartApi } from '../../services/cartApi';
 
 const CART_STORAGE_KEY = 'cart_items';
 
+function getCartKey(item) {
+  const menuItemId = item.menuItemId ?? item.id;
+  const variantId = item.variantId ?? 'base';
+  return `${menuItemId}:${variantId}`;
+}
+
+function normalizeCartItem(item) {
+  const menuItem = item.menuItem ?? item;
+  const menuItemId = item.menuItemId ?? menuItem.id ?? item.id;
+  const variantId = item.variantId ?? null;
+
+  return {
+    ...item,
+    id: menuItemId,
+    cartItemId: item.menuItem ? item.id : item.cartItemId,
+    menuItemId,
+    variantId,
+    name: menuItem.name ?? item.name ?? 'Menu item',
+    category: menuItem.category ?? item.category,
+    restaurantId: menuItem.restaurantId ?? item.restaurantId,
+    price: Number(item.price ?? item.variant?.price ?? menuItem.price ?? 0),
+    quantity: Number(item.quantity ?? 1),
+    menuItem,
+    variant: item.variant ?? null,
+  };
+}
+
+function matchesCartItem(item, itemId) {
+  return item.id === itemId || item.menuItemId === itemId || getCartKey(item) === itemId;
+}
+
 export const fetchCart = createAsyncThunk(
   'cart/fetchCart',
   async (_, { rejectWithValue }) => {
@@ -67,7 +98,7 @@ export const clearCartAsync = createAsyncThunk(
 const loadCartFromStorage = () => {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    return stored ? JSON.parse(stored).map(normalizeCartItem) : [];
   } catch {
     return [];
   }
@@ -94,21 +125,21 @@ const cartSlice = createSlice({
   reducers: {
     addToCart(state, action) {
       const { item, quantity = 1 } = action.payload;
-      const existingItem = state.items.find((cartItem) => cartItem.id === item.id);
+      const normalizedItem = normalizeCartItem({ ...item, quantity });
+      const existingItem = state.items.find(
+        (cartItem) => getCartKey(cartItem) === getCartKey(normalizedItem),
+      );
 
       if (existingItem) {
         existingItem.quantity += quantity;
       } else {
-        state.items.push({
-          ...item,
-          quantity,
-        });
+        state.items.push(normalizedItem);
       }
 
       saveCartToStorage(state.items);
     },
     increaseQuantity(state, action) {
-      const item = state.items.find((cartItem) => cartItem.id === action.payload);
+      const item = state.items.find((cartItem) => matchesCartItem(cartItem, action.payload));
 
       if (item) {
         item.quantity += 1;
@@ -116,7 +147,7 @@ const cartSlice = createSlice({
       }
     },
     decreaseQuantity(state, action) {
-      const item = state.items.find((cartItem) => cartItem.id === action.payload);
+      const item = state.items.find((cartItem) => matchesCartItem(cartItem, action.payload));
 
       if (!item) {
         return;
@@ -127,7 +158,7 @@ const cartSlice = createSlice({
       saveCartToStorage(state.items);
     },
     removeItem(state, action) {
-      state.items = state.items.filter((cartItem) => cartItem.id !== action.payload);
+      state.items = state.items.filter((cartItem) => !matchesCartItem(cartItem, action.payload));
       saveCartToStorage(state.items);
     },
     clearCart(state) {
@@ -150,7 +181,9 @@ const cartSlice = createSlice({
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.syncing = false;
         // Merge server cart with local cart
-        const serverItems = Array.isArray(action.payload) ? action.payload : [];
+        const serverItems = Array.isArray(action.payload)
+          ? action.payload.map(normalizeCartItem)
+          : [];
         state.items = serverItems;
         saveCartToStorage(state.items);
       })
@@ -164,11 +197,12 @@ const cartSlice = createSlice({
       })
       .addCase(addToCartAsync.fulfilled, (state, action) => {
         state.loading = false;
-        const newItem = action.payload;
-        const existingItem = state.items.find((item) => item.menuItemId === newItem.menuItemId);
+        state.error = null;
+        const newItem = normalizeCartItem(action.payload);
+        const existingItem = state.items.find((item) => getCartKey(item) === getCartKey(newItem));
 
         if (existingItem) {
-          existingItem.quantity = newItem.quantity;
+          Object.assign(existingItem, newItem);
         } else {
           state.items.push(newItem);
         }
@@ -185,12 +219,12 @@ const cartSlice = createSlice({
       })
       .addCase(updateCartItemAsync.fulfilled, (state, action) => {
         state.loading = false;
-        const updatedItem = action.payload;
-        const item = state.items.find((i) => i.menuItemId === updatedItem.menuItemId);
+        state.error = null;
+        const updatedItem = normalizeCartItem(action.payload);
+        const item = state.items.find((i) => getCartKey(i) === getCartKey(updatedItem));
 
         if (item) {
-          item.quantity = updatedItem.quantity;
-          item.price = updatedItem.price;
+          Object.assign(item, updatedItem);
         }
 
         saveCartToStorage(state.items);
@@ -205,7 +239,8 @@ const cartSlice = createSlice({
       })
       .addCase(removeFromCartAsync.fulfilled, (state, action) => {
         state.loading = false;
-        state.items = state.items.filter((item) => item.menuItemId !== action.payload);
+        state.error = null;
+        state.items = state.items.filter((item) => !matchesCartItem(item, action.payload));
         saveCartToStorage(state.items);
       })
       .addCase(removeFromCartAsync.rejected, (state, action) => {
@@ -218,6 +253,7 @@ const cartSlice = createSlice({
       })
       .addCase(clearCartAsync.fulfilled, (state) => {
         state.loading = false;
+        state.error = null;
         state.items = [];
         saveCartToStorage([]);
       })

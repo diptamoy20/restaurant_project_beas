@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { addToCart, addToCartAsync } from '../store/slices/cartSlice';
+import { addToCart, addToCartAsync, clearError } from '../store/slices/cartSlice';
 import { fetchMenu } from '../store/slices/menuSlice';
 import {
   persistRestaurantId,
@@ -13,8 +13,10 @@ const HARDCODED_TABLE_ID = '1';
 export function MenuPage() {
   const dispatch = useDispatch();
   const { items, loading, error, restaurantId: menuRestaurantId } = useSelector((state) => state.menu);
+  const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
   const isAuthenticated = useSelector((state) => !!state.auth.token);
   const [quantities, setQuantities] = useState({});
+  const [cartMessage, setCartMessage] = useState('');
   const [resolvedRestaurantId, setResolvedRestaurantId] = useState(HARDCODED_RESTAURANT_ID);
   const tableId = HARDCODED_TABLE_ID;
 
@@ -51,29 +53,39 @@ export function MenuPage() {
     }));
   };
 
-  const handleAddToCart = (item) => {
-    const quantity = getQuantity(item.id);
-    
-    if (isAuthenticated) {
-      // Use async API when authenticated
-      dispatch(
-        addToCartAsync({
-          menuItemId: item.id,
-          quantity,
-          price: item.price,
-        }),
-      );
-    } else {
-      // Use local Redux for offline/demo mode
-      dispatch(
-        addToCart({
-          item,
-          quantity,
-        }),
-      );
+  useEffect(() => {
+    if (cartError) {
+      setCartMessage('');
     }
+  }, [cartError]);
+
+  const handleAddToCart = async (item) => {
+    const quantity = getQuantity(item.id);
+    setCartMessage('');
+    dispatch(clearError());
     
-    // Reset quantity
+    try {
+      if (isAuthenticated) {
+        await dispatch(
+          addToCartAsync({
+            menuItemId: item.id,
+            quantity,
+          }),
+        ).unwrap();
+      } else {
+        dispatch(
+          addToCart({
+            item,
+            quantity,
+          }),
+        );
+      }
+    } catch {
+      return;
+    }
+
+    setCartMessage(`${item.name} added to cart.`);
+    
     setQuantities((current) => ({
       ...current,
       [item.id]: 1,
@@ -131,6 +143,8 @@ export function MenuPage() {
             {tableId ? `Table ${tableId}` : 'No table selected'} - Restaurant {activeRestaurantId}
           </p>
         </div>
+        {cartMessage ? <div className="order-status-banner success">{cartMessage}</div> : null}
+        {cartError ? <div className="order-status-banner error">{cartError}</div> : null}
       </div>
 
       <div className="menu-grid">
@@ -161,9 +175,10 @@ export function MenuPage() {
               </div>
               <button
                 type="button"
+                disabled={cartLoading}
                 onClick={() => handleAddToCart(item)}
               >
-                Add to cart
+                {cartLoading ? 'Adding...' : 'Add to cart'}
               </button>
             </div>
           </article>

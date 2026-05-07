@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  clearCart,
   decreaseQuantity as decreaseQuantityAction,
   increaseQuantity as increaseQuantityAction,
   removeItem as removeItemAction,
-  setLastOrderId,
+  removeFromCartAsync,
+  updateCartItemAsync,
 } from '../store/slices/cartSlice';
-import { createOrder } from '../store/slices/orderSlice';
 import {
   createSessionAwarePath,
   persistRestaurantId,
@@ -16,7 +15,6 @@ import {
 } from '../lib/tableSession';
 
 const TAXES_AND_FEES = 0;
-const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
 const HARDCODED_RESTAURANT_ID = '1';
 const HARDCODED_TABLE_ID = '1';
 
@@ -24,10 +22,8 @@ export function CartPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const items = useSelector((state) => state.cart.items);
-  const user = useSelector((state) => state.auth.user);
-  const { loading: orderLoading, error: orderError } = useSelector((state) => state.orders);
-  const [placingOrder, setPlacingOrder] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const token = useSelector((state) => state.auth.token);
+  const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
   const [errorMessage, setErrorMessage] = useState('');
   // Temporarily hardcoded for local testing.
   // Dynamic URL/session/cart-based restaurant-table resolution is intentionally disabled.
@@ -46,42 +42,53 @@ export function CartPage() {
     }
   }, [restaurantId]);
 
-  useEffect(() => {
-    if (orderError) {
-      setErrorMessage(orderError);
-      setPlacingOrder(false);
-    }
-  }, [orderError]);
-
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [items],
   );
   const totalAmount = calculateTotal(subtotal, TAXES_AND_FEES);
 
-  const increaseQuantity = (itemId) => {
+  const increaseQuantity = (item) => {
+    const itemId = item.menuItemId || item.id;
+    const nextQuantity = item.quantity + 1;
+
     dispatch(increaseQuantityAction(itemId));
+
+    if (token) {
+      dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+    }
   };
 
-  const decreaseQuantity = (itemId) => {
+  const decreaseQuantity = (item) => {
+    const itemId = item.menuItemId || item.id;
+    const nextQuantity = item.quantity - 1;
+
     dispatch(decreaseQuantityAction(itemId));
+
+    if (token) {
+      if (nextQuantity <= 0) {
+        dispatch(removeFromCartAsync(itemId));
+      } else {
+        dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+      }
+    }
   };
 
-  const removeItem = (itemId) => {
+  const removeItem = (item) => {
+    const itemId = item.menuItemId || item.id;
+
     dispatch(removeItemAction(itemId));
+
+    if (token) {
+      dispatch(removeFromCartAsync(itemId));
+    }
   };
 
-  const placeOrder = async () => {
+  const proceedToCheckout = () => {
     setErrorMessage('');
-    setStatusMessage('');
 
     if (items.length === 0) {
-      setErrorMessage('Your cart is empty. Add at least one item before placing an order.');
-      return;
-    }
-
-    if (!user) {
-      setErrorMessage('Please sign in before placing an order.');
+      setErrorMessage('Your cart is empty. Add at least one item before checkout.');
       return;
     }
 
@@ -95,47 +102,8 @@ export function CartPage() {
       return;
     }
 
-    setPlacingOrder(true);
-
-    const payload = {
-      userId: user.id,
-      restaurantId: Number(restaurantId),
-      tableId: tableId ? Number(tableId) : undefined,
-      orderType: tableId ? 'DINE_IN' : 'TAKEAWAY',
-      discountAmount: 0,
-      items: items.map((item) => ({
-        menuItemId: item.menuItemId || item.id,
-        variantId: item.variantId,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    };
-
-    try {
-      const result = await dispatch(createOrder(payload)).unwrap();
-
-      dispatch(setLastOrderId(result.id));
-      dispatch(clearCart());
-      sessionStorage.setItem(
-        LAST_ORDER_STORAGE_KEY,
-        JSON.stringify({
-          orderId: result.id,
-          tableId: result.tableId,
-          totalAmount: result.finalAmount,
-          paymentStatus: result.paymentStatus,
-        }),
-      );
-      setStatusMessage('Order placed successfully. Redirecting to payment...');
-      setTimeout(() => {
-        navigate(createSessionAwarePath(`/payment/${result.id}`, tableId, restaurantId));
-      }, 1000);
-    } catch (error) {
-      setErrorMessage(error || 'Unable to place order right now.');
-      setPlacingOrder(false);
-    }
+    navigate(createSessionAwarePath('/checkout', tableId, restaurantId));
   };
-
-  console.log(items, 'items');
 
   return (
     <section className="cart-page">
@@ -170,7 +138,7 @@ export function CartPage() {
                     <button
                       type="button"
                       className="cart-remove-button"
-                      onClick={() => removeItem(item.id || item.menuItemId)}
+                      onClick={() => removeItem(item)}
                     >
                       Remove
                     </button>
@@ -182,7 +150,7 @@ export function CartPage() {
                         type="button"
                         className="quantity-button"
                         aria-label={`Decrease quantity for ${item.name}`}
-                        onClick={() => decreaseQuantity(item.id || item.menuItemId)}
+                        onClick={() => decreaseQuantity(item)}
                       >
                         -
                       </button>
@@ -191,7 +159,7 @@ export function CartPage() {
                         type="button"
                         className="quantity-button"
                         aria-label={`Increase quantity for ${item.name}`}
-                        onClick={() => increaseQuantity(item.id || item.menuItemId)}
+                        onClick={() => increaseQuantity(item)}
                       >
                         +
                       </button>
@@ -224,16 +192,17 @@ export function CartPage() {
             </div>
           </div>
 
-          {statusMessage ? <div className="order-status-banner success">{statusMessage}</div> : null}
-          {errorMessage ? <div className="order-status-banner error">{errorMessage}</div> : null}
+          {errorMessage || cartError ? (
+            <div className="order-status-banner error">{errorMessage || cartError}</div>
+          ) : null}
 
           <button
             type="button"
             className="place-order-button"
-            disabled={placingOrder || orderLoading || items.length === 0}
-            onClick={placeOrder}
+            disabled={cartLoading || items.length === 0}
+            onClick={proceedToCheckout}
           >
-            {placingOrder || orderLoading ? 'Placing order...' : 'Place Order'}
+            Proceed to checkout
           </button>
         </aside>
       </div>
