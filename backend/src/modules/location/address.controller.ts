@@ -1,10 +1,10 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { Public } from '../../common/decorators/public.decorator';
 import { AddressValidationDto } from './dto/address-validation.dto';
 import { AddressValidationResponseDto } from './dto/location-response.dto';
 import { LocationService } from './location.service';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller(['address', 'v1/address'])
 @Public()

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { Socket, connect as netConnect } from 'node:net';
 import { TLSSocket, connect as tlsConnect } from 'node:tls';
+
+import { Injectable, Logger } from '@nestjs/common';
 
 type CacheEntry = {
   expiresAt: number;

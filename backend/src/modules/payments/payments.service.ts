@@ -1,10 +1,12 @@
+import crypto from 'crypto';
+
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import crypto from 'crypto';
+import { Order } from '@prisma/client';
 import Razorpay from 'razorpay';
 
-import { RecordPaymentFailureDto } from './dto/record-payment-failure.dto';
 import { RazorpayOrderResponseDto, VerifyPaymentResponseDto } from './dto/payment-response.dto';
+import { RecordPaymentFailureDto } from './dto/record-payment-failure.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -202,7 +204,7 @@ export class PaymentsService {
     };
   }
 
-  private async getOrderForUser(orderId: number, userId: number) {
+  private async getOrderForUser(orderId: number, userId: number): Promise<Order> {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) {
       throw new NotFoundException('Order not found');

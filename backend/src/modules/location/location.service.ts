@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { AddressValidationResponseDto, DeliveryQuoteDto } from './dto/location-response.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AddressValidationResponseDto, DeliveryQuoteDto } from './dto/location-response.dto';
 
 const GEO_CACHE_TTL_SECONDS = 300;
 
