@@ -35,7 +35,6 @@ export function LocationPermissionModal({
           aria-label="Close"
           onClick={onClose}
         >
-          x
         </button>
         <p className="eyebrow">Nearby delivery</p>
         <h2 id="location-title">
@@ -58,16 +57,16 @@ export function LocationPermissionModal({
           >
             {status === "requesting" ? "Detecting..." : "Allow Location"}
           </button>
-          <button
+          {/* <button
             type="button"
             className="ghost-button location-secondary"
             onClick={() => setManualOpen(true)}
           >
             Choose Location Manually
-          </button>
+          </button> */}
         </div>
 
-        {manualOpen ? (
+        {/* {manualOpen ? (
           <form
             className="manual-location-form"
             onSubmit={submitManualLocation}
@@ -92,7 +91,7 @@ export function LocationPermissionModal({
             </label>
             <button type="submit">Use This Location</button>
           </form>
-        ) : null}
+        ) : null} */}
       </section>
     </div>
   );
