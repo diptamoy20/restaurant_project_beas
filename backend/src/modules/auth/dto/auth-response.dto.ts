@@ -33,6 +33,10 @@ export class AuthUserDto {
 export class AuthResponseDto {
   @ApiProperty({ example: 'jwt-token' })
   @IsString()
+  token!: string;
+
+  @ApiProperty({ example: 'jwt-token' })
+  @IsString()
   accessToken!: string;
 
   @ApiProperty({ example: 'refresh-jwt-token' })

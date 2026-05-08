@@ -193,6 +193,25 @@ export class OrderResponseDto {
   @IsString()
   paymentStatus!: string;
 
+  @ApiPropertyOptional({ example: 'RAZORPAY', nullable: true })
+  @IsOptional()
+  @IsString()
+  paymentMethod!: string | null;
+
+  @ApiPropertyOptional({ example: 'order_Q1W2E3R4T5Y6', nullable: true })
+  @IsOptional()
+  @IsString()
+  razorpayOrderId!: string | null;
+
+  @ApiPropertyOptional({ example: 'pay_A1B2C3D4E5F6', nullable: true })
+  @IsOptional()
+  @IsString()
+  razorpayPaymentId!: string | null;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsNumber()
+  paymentRetryCount!: number;
+
   @ApiProperty({ example: '2026-04-20T00:00:00.000Z' })
   @IsDate()
   createdAt!: Date;

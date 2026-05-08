@@ -1,0 +1,203 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+
+import { CartItemResponseDto } from './dto/cart-item-response.dto';
+import { CreateCartItemDto } from './dto/create-cart-item.dto';
+import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { PrismaService } from '../../prisma/prisma.service';
+
+type CartItemWithMenu = Prisma.CartItemGetPayload<{
+  include: {
+    menuItem: {
+      include: {
+        category: true;
+      };
+    };
+    variant: true;
+  };
+}>;
+
+@Injectable()
+export class CartService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getCart(userId: number): Promise<CartItemResponseDto[]> {
+    const cartItems = await this.prisma.cartItem.findMany({
+      where: { userId },
+      include: {
+        menuItem: {
+          include: {
+            category: true,
+          },
+        },
+        variant: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    return cartItems.map((item) => this.mapCartItem(item));
+  }
+
+  async addToCart(userId: number, payload: CreateCartItemDto): Promise<CartItemResponseDto> {
+    const menuItem = await this.prisma.menuItem.findUnique({
+      where: { id: payload.menuItemId },
+      include: {
+        category: true,
+        variants: true,
+      },
+    });
+
+    if (!menuItem || !menuItem.isAvailable) {
+      throw new BadRequestException('Menu item is not available');
+    }
+
+    const selectedVariant = payload.variantId
+      ? menuItem.variants.find((variant) => variant.id === payload.variantId)
+      : null;
+
+    if (payload.variantId && !selectedVariant) {
+      throw new BadRequestException('Selected variant is not available for this menu item');
+    }
+
+    const authoritativePrice = selectedVariant?.price ?? menuItem.price;
+
+    const cartItem = await this.prisma.$transaction(async (transaction) => {
+      const existingItem = await transaction.cartItem.findFirst({
+        where: {
+          userId,
+          menuItemId: payload.menuItemId,
+          variantId: payload.variantId ?? null,
+        },
+      });
+
+      if (existingItem) {
+        return transaction.cartItem.update({
+          where: { id: existingItem.id },
+          data: {
+            quantity: existingItem.quantity + payload.quantity,
+            price: authoritativePrice,
+          },
+          include: {
+            menuItem: {
+              include: {
+                category: true,
+              },
+            },
+            variant: true,
+          },
+        });
+      }
+
+      return transaction.cartItem.create({
+        data: {
+          userId,
+          menuItemId: payload.menuItemId,
+          variantId: payload.variantId,
+          quantity: payload.quantity,
+          price: authoritativePrice,
+        },
+        include: {
+          menuItem: {
+            include: {
+              category: true,
+            },
+          },
+          variant: true,
+        },
+      });
+    });
+
+    return this.mapCartItem(cartItem);
+  }
+
+  async updateCartItem(
+    userId: number,
+    menuItemId: number,
+    payload: UpdateCartItemDto,
+  ): Promise<CartItemResponseDto> {
+    const cartItem = await this.prisma.cartItem.findFirst({
+      where: {
+        userId,
+        menuItemId,
+      },
+    });
+
+    if (!cartItem) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    const menuItem = await this.prisma.menuItem.findUnique({
+      where: { id: cartItem.menuItemId },
+      include: {
+        variants: true,
+      },
+    });
+
+    if (!menuItem || !menuItem.isAvailable) {
+      throw new BadRequestException('Menu item is not available');
+    }
+
+    const selectedVariant = cartItem.variantId
+      ? menuItem.variants.find((variant) => variant.id === cartItem.variantId)
+      : null;
+    const authoritativePrice = selectedVariant?.price ?? menuItem.price;
+
+    const updatedItem = await this.prisma.cartItem.update({
+      where: { id: cartItem.id },
+      data: {
+        quantity: payload.quantity,
+        price: authoritativePrice,
+      },
+      include: {
+        menuItem: {
+          include: {
+            category: true,
+          },
+        },
+        variant: true,
+      },
+    });
+
+    return this.mapCartItem(updatedItem);
+  }
+
+  async removeFromCart(userId: number, menuItemId: number): Promise<void> {
+    const cartItem = await this.prisma.cartItem.findFirst({
+      where: {
+        userId,
+        menuItemId,
+      },
+    });
+
+    if (!cartItem) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    await this.prisma.cartItem.delete({
+      where: { id: cartItem.id },
+    });
+  }
+
+  async clearCart(userId: number): Promise<void> {
+    await this.prisma.cartItem.deleteMany({
+      where: { userId },
+    });
+  }
+
+  private mapCartItem(item: CartItemWithMenu): CartItemResponseDto {
+    return {
+      id: item.id,
+      userId: item.userId,
+      menuItemId: item.menuItemId,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      price: item.price,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      menuItem: item.menuItem,
+      variant: item.variant,
+    };
+  }
+}

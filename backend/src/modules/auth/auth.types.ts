@@ -12,10 +12,12 @@ export type JwtTokenType = 'access' | 'refresh';
 
 export type JwtPayload = {
   sub: number;
+  userId: number;
   email: string | null;
   phone: string | null;
   name: string | null;
   roles: Role[];
+  role: Role | null;
   type: JwtTokenType;
 };
 

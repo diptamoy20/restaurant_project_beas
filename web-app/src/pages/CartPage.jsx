@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
-  clearCart,
   decreaseQuantity as decreaseQuantityAction,
   increaseQuantity as increaseQuantityAction,
   removeItem as removeItemAction,
-  setLastOrderId,
+  removeFromCartAsync,
+  updateCartItemAsync,
 } from '../store/slices/cartSlice';
-import { api } from '../lib/api';
 import {
   createSessionAwarePath,
   persistRestaurantId,
@@ -16,7 +15,6 @@ import {
 } from '../lib/tableSession';
 
 const TAXES_AND_FEES = 0;
-const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
 const HARDCODED_RESTAURANT_ID = '1';
 const HARDCODED_TABLE_ID = '1';
 
@@ -25,9 +23,7 @@ export function CartPage() {
   const navigate = useNavigate();
   const items = useSelector((state) => state.cart.items);
   const token = useSelector((state) => state.auth.token);
-  const user = useSelector((state) => state.auth.user);
-  const [placingOrder, setPlacingOrder] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
   const [errorMessage, setErrorMessage] = useState('');
   // Temporarily hardcoded for local testing.
   // Dynamic URL/session/cart-based restaurant-table resolution is intentionally disabled.
@@ -52,29 +48,47 @@ export function CartPage() {
   );
   const totalAmount = calculateTotal(subtotal, TAXES_AND_FEES);
 
-  const increaseQuantity = (itemId) => {
+  const increaseQuantity = (item) => {
+    const itemId = item.menuItemId || item.id;
+    const nextQuantity = item.quantity + 1;
+
     dispatch(increaseQuantityAction(itemId));
+
+    if (token) {
+      dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+    }
   };
 
-  const decreaseQuantity = (itemId) => {
+  const decreaseQuantity = (item) => {
+    const itemId = item.menuItemId || item.id;
+    const nextQuantity = item.quantity - 1;
+
     dispatch(decreaseQuantityAction(itemId));
+
+    if (token) {
+      if (nextQuantity <= 0) {
+        dispatch(removeFromCartAsync(itemId));
+      } else {
+        dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+      }
+    }
   };
 
-  const removeItem = (itemId) => {
+  const removeItem = (item) => {
+    const itemId = item.menuItemId || item.id;
+
     dispatch(removeItemAction(itemId));
+
+    if (token) {
+      dispatch(removeFromCartAsync(itemId));
+    }
   };
 
-  const placeOrder = async () => {
+  const proceedToCheckout = () => {
     setErrorMessage('');
-    setStatusMessage('');
 
     if (items.length === 0) {
-      setErrorMessage('Your cart is empty. Add at least one item before placing an order.');
-      return;
-    }
-
-    if (!token || !user) {
-      setErrorMessage('Please sign in before placing an order.');
+      setErrorMessage('Your cart is empty. Add at least one item before checkout.');
       return;
     }
 
@@ -88,65 +102,8 @@ export function CartPage() {
       return;
     }
 
-    setPlacingOrder(true);
-
-    const order = {
-      tableId: tableId ? Number(tableId) : null,
-      items: items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      })),
-      totalAmount,
-      orderStatus: 'pending',
-      paymentStatus: 'unpaid',
-      createdAt: new Date().toISOString(),
-    };
-
-    const payload = {
-      userId: user.id,
-      restaurantId: Number(restaurantId),
-      tableId: order.tableId ?? undefined,
-      orderType: order.tableId ? 'DINE_IN' : 'TAKEAWAY',
-      items: items.map((item) => ({
-        menuItemId: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    };
-
-    try {
-      const response = await api.post('/orders', payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const orderId = response.id;
-
-      dispatch(setLastOrderId(orderId));
-      dispatch(clearCart());
-      sessionStorage.setItem(
-        LAST_ORDER_STORAGE_KEY,
-        JSON.stringify({
-          orderId,
-          tableId: order.tableId,
-          totalAmount: order.totalAmount,
-          paymentStatus: order.paymentStatus,
-        }),
-      );
-      setStatusMessage('Order placed successfully. Redirecting to payment...');
-      navigate(createSessionAwarePath(`/payment/${orderId}`, tableId, restaurantId));
-    } catch (error) {
-      setErrorMessage(error.message || 'Unable to place order right now.');
-    } finally {
-      setPlacingOrder(false);
-    }
+    navigate(createSessionAwarePath('/checkout', tableId, restaurantId));
   };
-
-  console.log(items,'items');
-  
 
   return (
     <section className="cart-page">
@@ -171,7 +128,7 @@ export function CartPage() {
               const itemSubtotal = item.price * item.quantity;
 
               return (
-                <article key={item.id} className="cart-item-card">
+                <article key={item.id || item.menuItemId} className="cart-item-card">
                   <div className="cart-item-main">
                     <div>
                       <span className="pill">{item.category?.name}</span>
@@ -181,7 +138,7 @@ export function CartPage() {
                     <button
                       type="button"
                       className="cart-remove-button"
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => removeItem(item)}
                     >
                       Remove
                     </button>
@@ -193,7 +150,7 @@ export function CartPage() {
                         type="button"
                         className="quantity-button"
                         aria-label={`Decrease quantity for ${item.name}`}
-                        onClick={() => decreaseQuantity(item.id)}
+                        onClick={() => decreaseQuantity(item)}
                       >
                         -
                       </button>
@@ -202,7 +159,7 @@ export function CartPage() {
                         type="button"
                         className="quantity-button"
                         aria-label={`Increase quantity for ${item.name}`}
-                        onClick={() => increaseQuantity(item.id)}
+                        onClick={() => increaseQuantity(item)}
                       >
                         +
                       </button>
@@ -235,16 +192,17 @@ export function CartPage() {
             </div>
           </div>
 
-          {statusMessage ? <div className="order-status-banner success">{statusMessage}</div> : null}
-          {errorMessage ? <div className="order-status-banner error">{errorMessage}</div> : null}
+          {errorMessage || cartError ? (
+            <div className="order-status-banner error">{errorMessage || cartError}</div>
+          ) : null}
 
           <button
             type="button"
             className="place-order-button"
-            disabled={placingOrder || items.length === 0}
-            onClick={placeOrder}
+            disabled={cartLoading || items.length === 0}
+            onClick={proceedToCheckout}
           >
-            {placingOrder ? 'Placing order...' : 'Place Order'}
+            Proceed to checkout
           </button>
         </aside>
       </div>

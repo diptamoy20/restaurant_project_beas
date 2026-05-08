@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
+import { fetchCart } from '../store/slices/cartSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { createTableAwarePath, resolveTableId } from '../lib/tableSession';
 import projectLogo from '../assets/project-logo.svg';
@@ -10,6 +11,7 @@ export function Layout({ children }) {
   const location = useLocation();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
+  const token = useSelector((state) => state.auth.token);
   const cartItems = useSelector((state) => state.cart.items);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -19,6 +21,8 @@ export function Layout({ children }) {
   const homePath = createTableAwarePath('/', tableId);
   const menuPath = createTableAwarePath('/menu', tableId);
   const cartPath = createTableAwarePath('/cart', tableId);
+  const profilePath = createTableAwarePath('/profile', tableId);
+  const ordersPath = createTableAwarePath('/orders', tableId);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -34,6 +38,12 @@ export function Layout({ children }) {
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCart());
+    }
+  }, [dispatch, token]);
 
   useEffect(() => {
     document.body.classList.toggle('drawer-open', menuOpen);
@@ -77,14 +87,37 @@ export function Layout({ children }) {
                   Cart
                   {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
                 </Link>
+                <Link className={location.pathname === '/orders' ? 'active' : ''} to={ordersPath}>
+                  Orders
+                </Link>
+                <Link className={location.pathname === '/profile' ? 'active' : ''} to={profilePath}>
+                  Profile
+                </Link>
                 <button type="button" className="ghost-button" onClick={() => dispatch(logout())}>
                   Logout
                 </button>
               </>
             ) : (
-              <Link className={location.pathname === '/login' ? 'active' : ''} to="/login">
-                Login
-              </Link>
+              <>
+                <Link
+                  className={location.pathname === '/menu' ? 'nav-cta active' : 'nav-cta'}
+                  to={menuPath}
+                >
+                  Menu
+                </Link>
+                <Link
+                  className={location.pathname === '/login' ? 'nav-cta active' : 'nav-cta'}
+                  to="/login"
+                >
+                  Login
+                </Link>
+                <Link
+                  className={location.pathname === '/register' ? 'nav-cta active' : 'nav-cta'}
+                  to="/register"
+                >
+                  Sign Up
+                </Link>
+              </>
             )}
           </nav>
 
@@ -115,14 +148,37 @@ export function Layout({ children }) {
               <Link className={location.pathname === '/cart' ? 'active' : ''} to={cartPath}>
                 Cart {cartCount > 0 ? `(${cartCount})` : ''}
               </Link>
+              <Link className={location.pathname === '/orders' ? 'active' : ''} to={ordersPath}>
+                Orders
+              </Link>
+              <Link className={location.pathname === '/profile' ? 'active' : ''} to={profilePath}>
+                Profile
+              </Link>
               <button type="button" className="ghost-button drawer-logout" onClick={() => dispatch(logout())}>
                 Logout
               </button>
             </>
           ) : (
-            <Link className={location.pathname === '/login' ? 'active' : ''} to="/login">
-              Login
-            </Link>
+            <>
+              <Link
+                className={location.pathname === '/menu' ? 'nav-cta active' : 'nav-cta'}
+                to={menuPath}
+              >
+                Menu
+              </Link>
+              <Link
+                className={location.pathname === '/login' ? 'nav-cta active' : 'nav-cta'}
+                to="/login"
+              >
+                Login
+              </Link>
+              <Link
+                className={location.pathname === '/register' ? 'nav-cta active' : 'nav-cta'}
+                to="/register"
+              >
+                Sign Up
+              </Link>
+            </>
           )}
         </nav>
       </aside>

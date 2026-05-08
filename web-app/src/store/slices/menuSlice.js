@@ -1,36 +1,60 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../lib/api';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { api } from "../../lib/api";
+import { getRestaurantMenuWithLocation } from "../../services/locationApi";
 
 export const fetchMenu = createAsyncThunk(
-  'menu/fetchMenu',
-  async (restaurantId) => {
-    let resolvedRestaurantId = restaurantId;
+  "menu/fetchMenu",
+  async (payload, { rejectWithValue, signal }) => {
+    try {
+      const restaurantId =
+        typeof payload === "object" && payload !== null
+          ? payload.restaurantId
+          : payload;
+      const coordinates =
+        typeof payload === "object" && payload !== null
+          ? payload.coordinates
+          : null;
+      let resolvedRestaurantId = restaurantId;
 
-    if (!resolvedRestaurantId) {
-      const restaurants = await api.get('/restaurants');
-      resolvedRestaurantId = restaurants?.[0]?.id || '1';
+      if (!resolvedRestaurantId) {
+        const restaurants = await api.get("/restaurants");
+        resolvedRestaurantId = restaurants?.[0]?.id || "1";
+      }
+
+      const response = coordinates
+        ? await getRestaurantMenuWithLocation({
+            restaurantId: resolvedRestaurantId,
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            signal,
+          })
+        : await api.get(`/menu/restaurant/${resolvedRestaurantId}`, { signal });
+
+      return {
+        restaurantId: response?.restaurantId ?? resolvedRestaurantId,
+        items: response?.items ?? [],
+        delivery: response?.delivery ?? null,
+        deliveryAvailable: response?.deliveryAvailable,
+        distanceKm: response?.distanceKm,
+        estimatedDeliveryTimeMinutes: response?.estimatedDeliveryTimeMinutes,
+        deliveryFee: response?.deliveryFee,
+      };
+    } catch (error) {
+      return rejectWithValue(
+        error.sessionExpired
+          ? "Session expired. Please login again."
+          : error.message,
+      );
     }
-
-    // if (!resolvedRestaurantId) {
-    //   return {
-    //     restaurantId: null,
-    //     items: [],
-    //   };
-    // }
-
-    const response = await api.get(`/menu/restaurant/${resolvedRestaurantId}`);
-    return {
-      restaurantId: response?.restaurantId ?? resolvedRestaurantId,
-      items: response?.items ?? [],
-    };
-  }
+  },
 );
 
 const menuSlice = createSlice({
-  name: 'menu',
+  name: "menu",
   initialState: {
     restaurantId: null,
     items: [],
+    delivery: null,
     loading: false,
     error: null,
   },
@@ -45,10 +69,11 @@ const menuSlice = createSlice({
         state.loading = false;
         state.restaurantId = action.payload.restaurantId;
         state.items = action.payload.items;
+        state.delivery = action.payload.delivery;
       })
       .addCase(fetchMenu.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       });
   },
 });
