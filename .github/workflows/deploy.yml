@@ -151,6 +151,13 @@ jobs:
               exit 1
             fi
 
+            for REQUIRED_BACKEND_ENV in DATABASE_URL ACCESS_TOKEN_SECRET REFRESH_TOKEN_SECRET RAZORPAY_KEY_ID RAZORPAY_KEY_SECRET PORT CORS_ORIGINS DB_SSL; do
+              if [ -z "$(printenv "$REQUIRED_BACKEND_ENV")" ]; then
+                echo "Missing required backend env in $APP_DIR/shared/backend.env: $REQUIRED_BACKEND_ENV"
+                exit 1
+              fi
+            done
+
             rm -rf dist
             rm -f tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo
             npm run prisma:generate
