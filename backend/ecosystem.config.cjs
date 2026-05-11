@@ -1,9 +1,12 @@
 const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
 
 const instances = process.env.PM2_INSTANCES ?? '1';
 const execMode = instances === '1' ? 'fork' : 'cluster';
 const envFile = process.env.PM2_ENV_FILE ?? path.join(__dirname, '..', 'shared', 'backend.env');
 const script = path.join(__dirname, 'dist', 'main.js');
+const fileEnv = fs.existsSync(envFile) ? dotenv.parse(fs.readFileSync(envFile)) : {};
 
 module.exports = {
   apps: [
@@ -13,8 +16,9 @@ module.exports = {
       script,
       instances,
       exec_mode: execMode,
-      env_file: envFile,
       env: {
+        ...fileEnv,
+        ...process.env,
         NODE_ENV: process.env.NODE_ENV ?? 'production',
       },
       autorestart: true,
