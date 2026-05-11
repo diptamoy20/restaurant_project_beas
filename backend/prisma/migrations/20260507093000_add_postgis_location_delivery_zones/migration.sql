@@ -1,18 +1,19 @@
-CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+SELECT set_config('search_path', current_schema() || ', public', false);
 
 ALTER TABLE "restaurants"
   ADD COLUMN IF NOT EXISTS "delivery_radius_km" DOUBLE PRECISION NOT NULL DEFAULT 8,
   ADD COLUMN IF NOT EXISTS "is_location_enabled" BOOLEAN NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS "location" geography(Point,4326);
+  ADD COLUMN IF NOT EXISTS "location" public.geography(Point,4326);
 
 UPDATE "restaurants"
-SET "location" = ST_SetSRID(ST_MakePoint("longitude", "latitude"), 4326)::geography
+SET "location" = public.ST_SetSRID(public.ST_MakePoint("longitude", "latitude"), 4326)::public.geography
 WHERE "location" IS NULL;
 
 CREATE OR REPLACE FUNCTION set_restaurant_location_from_coordinates()
 RETURNS trigger AS $$
 BEGIN
-  NEW.location := ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+  NEW.location := public.ST_SetSRID(public.ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::public.geography;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -31,7 +32,7 @@ USING GIST ("location");
 CREATE TABLE IF NOT EXISTS "delivery_zones" (
   "id" SERIAL PRIMARY KEY,
   "restaurant_id" INTEGER NOT NULL REFERENCES "restaurants"("id") ON DELETE CASCADE,
-  "polygon" geometry(Polygon,4326) NOT NULL,
+  "polygon" public.geometry(Polygon,4326) NOT NULL,
   "minimum_order_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "delivery_fee" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -83,10 +83,10 @@ export class LocationService {
     }
 
     const offset = (params.page - 1) * params.limit;
-    const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${params.lng}, ${params.lat}), 4326)`;
+    const point = Prisma.sql`public.ST_SetSRID(public.ST_MakePoint(${params.lng}, ${params.lat}), 4326)`;
     const rows = await this.prisma.$queryRaw<NearbyRestaurantRow[]>(Prisma.sql`
       WITH customer AS (
-        SELECT ${point} AS geom, ${point}::geography AS geog
+        SELECT ${point} AS geom, ${point}::public.geography AS geog
       ),
       restaurant_scope AS (
         SELECT
@@ -99,12 +99,12 @@ export class LocationService {
           r."is_active" AS "isActive",
           r."delivery_radius_km" AS "deliveryRadiusKm",
           r."is_location_enabled" AS "isLocationEnabled",
-          ROUND((ST_Distance(r."location", customer.geog) / 1000)::numeric, 2)::float AS "distanceKm",
+          ROUND((public.ST_Distance(r."location", customer.geog) / 1000)::numeric, 2)::float AS "distanceKm",
           EXISTS (
             SELECT 1
             FROM "delivery_zones" dz
             WHERE dz."restaurant_id" = r."id"
-              AND ST_Contains(dz."polygon", customer.geom)
+              AND public.ST_Contains(dz."polygon", customer.geom)
           ) AS "zoneContains",
           EXISTS (
             SELECT 1
@@ -115,7 +115,7 @@ export class LocationService {
             SELECT dz."delivery_fee"
             FROM "delivery_zones" dz
             WHERE dz."restaurant_id" = r."id"
-              AND ST_Contains(dz."polygon", customer.geom)
+              AND public.ST_Contains(dz."polygon", customer.geom)
             ORDER BY dz."delivery_fee" ASC
             LIMIT 1
           ) AS "zoneDeliveryFee",
@@ -123,7 +123,7 @@ export class LocationService {
             SELECT dz."minimum_order_amount"
             FROM "delivery_zones" dz
             WHERE dz."restaurant_id" = r."id"
-              AND ST_Contains(dz."polygon", customer.geom)
+              AND public.ST_Contains(dz."polygon", customer.geom)
             ORDER BY dz."delivery_fee" ASC
             LIMIT 1
           ) AS "minimumOrderAmount",
@@ -138,7 +138,7 @@ export class LocationService {
         WHERE r."is_active" = true
           AND r."is_location_enabled" = true
           AND r."location" IS NOT NULL
-          AND ST_DWithin(r."location", customer.geog, ${params.radiusKm * 1000})
+          AND public.ST_DWithin(r."location", customer.geog, ${params.radiusKm * 1000})
       )
       SELECT
         "id",
@@ -304,21 +304,21 @@ export class LocationService {
     lat: number,
     lng: number,
   ): Promise<RestaurantDeliveryRow> {
-    const point = Prisma.sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`;
+    const point = Prisma.sql`public.ST_SetSRID(public.ST_MakePoint(${lng}, ${lat}), 4326)`;
     const rows = await this.prisma.$queryRaw<RestaurantDeliveryRow[]>(Prisma.sql`
       WITH customer AS (
-        SELECT ${point} AS geom, ${point}::geography AS geog
+        SELECT ${point} AS geom, ${point}::public.geography AS geog
       ),
       restaurant_scope AS (
         SELECT
           r."id" AS "restaurantId",
           r."delivery_radius_km" AS "deliveryRadiusKm",
-          ROUND((ST_Distance(r."location", customer.geog) / 1000)::numeric, 2)::float AS "distanceKm",
+          ROUND((public.ST_Distance(r."location", customer.geog) / 1000)::numeric, 2)::float AS "distanceKm",
           EXISTS (
             SELECT 1
             FROM "delivery_zones" dz
             WHERE dz."restaurant_id" = r."id"
-              AND ST_Contains(dz."polygon", customer.geom)
+              AND public.ST_Contains(dz."polygon", customer.geom)
           ) AS "zoneContains",
           EXISTS (
             SELECT 1
@@ -329,7 +329,7 @@ export class LocationService {
             SELECT dz."delivery_fee"
             FROM "delivery_zones" dz
             WHERE dz."restaurant_id" = r."id"
-              AND ST_Contains(dz."polygon", customer.geom)
+              AND public.ST_Contains(dz."polygon", customer.geom)
             ORDER BY dz."delivery_fee" ASC
             LIMIT 1
           ) AS "zoneDeliveryFee",
@@ -337,7 +337,7 @@ export class LocationService {
             SELECT dz."minimum_order_amount"
             FROM "delivery_zones" dz
             WHERE dz."restaurant_id" = r."id"
-              AND ST_Contains(dz."polygon", customer.geom)
+              AND public.ST_Contains(dz."polygon", customer.geom)
             ORDER BY dz."delivery_fee" ASC
             LIMIT 1
           ) AS "minimumOrderAmount"
