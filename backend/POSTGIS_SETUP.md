@@ -30,3 +30,12 @@ npx prisma migrate dev
 ```
 
 Prisma also validates migrations against a shadow database. The important part is that PostGIS must be installed at the PostgreSQL server level, not only enabled in one database.
+
+If the server already recorded a failed migration and Prisma shows `P3009`, resolve the failed row after PostGIS is installed:
+
+```powershell
+npx prisma migrate resolve --rolled-back 20260507093000_add_postgis_location_delivery_zones
+npx prisma migrate deploy
+```
+
+Use `--rolled-back` when the failed migration should be retried. Use `--applied` only if you manually verified every SQL statement from that migration already exists in the target database.
