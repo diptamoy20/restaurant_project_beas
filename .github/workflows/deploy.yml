@@ -133,7 +133,6 @@ jobs:
 
             cd "$APP_DIR"
             rm -f backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo
-            git restore --source=HEAD --staged --worktree backend/tsconfig.build.tsbuildinfo backend/tsconfig.tsbuildinfo || true
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git pull --ff-only origin "$BRANCH"
@@ -155,15 +154,19 @@ jobs:
             rm -f tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo
             npm run prisma:generate
             set +e
-            MIGRATE_STATUS="$(npx prisma migrate status 2>&1)"
-            MIGRATE_STATUS_CODE=$?
+            npm run prisma:migrate:deploy > /tmp/restaurant-prisma-migrate.log 2>&1
+            MIGRATE_DEPLOY_CODE=$?
             set -e
-            printf '%s\n' "$MIGRATE_STATUS"
-            if [ "$MIGRATE_STATUS_CODE" -ne 0 ] && printf '%s\n' "$MIGRATE_STATUS" | grep -q "20260507093000_add_postgis_location_delivery_zones"; then
-              echo "Recovering failed PostGIS location migration before deploy"
-              npx prisma migrate resolve --rolled-back 20260507093000_add_postgis_location_delivery_zones || true
+            cat /tmp/restaurant-prisma-migrate.log
+            if [ "$MIGRATE_DEPLOY_CODE" -ne 0 ]; then
+              if grep -q "20260507093000_add_postgis_location_delivery_zones" /tmp/restaurant-prisma-migrate.log; then
+                echo "Recovering failed PostGIS location migration before retrying deploy"
+                npx prisma migrate resolve --rolled-back 20260507093000_add_postgis_location_delivery_zones || true
+                npm run prisma:migrate:deploy
+              else
+                exit "$MIGRATE_DEPLOY_CODE"
+              fi
             fi
-            npm run prisma:migrate:deploy
             npm run build
             if [ ! -f "$APP_DIR/backend/dist/main.js" ]; then
               echo "Backend build output missing: $APP_DIR/backend/dist/main.js"
