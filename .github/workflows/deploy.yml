@@ -154,6 +154,15 @@ jobs:
             rm -rf dist
             rm -f tsconfig.build.tsbuildinfo tsconfig.tsbuildinfo
             npm run prisma:generate
+            set +e
+            MIGRATE_STATUS="$(npx prisma migrate status 2>&1)"
+            MIGRATE_STATUS_CODE=$?
+            set -e
+            printf '%s\n' "$MIGRATE_STATUS"
+            if [ "$MIGRATE_STATUS_CODE" -ne 0 ] && printf '%s\n' "$MIGRATE_STATUS" | grep -q "20260507093000_add_postgis_location_delivery_zones"; then
+              echo "Recovering failed PostGIS location migration before deploy"
+              npx prisma migrate resolve --rolled-back 20260507093000_add_postgis_location_delivery_zones || true
+            fi
             npm run prisma:migrate:deploy
             npm run build
             if [ ! -f "$APP_DIR/backend/dist/main.js" ]; then
