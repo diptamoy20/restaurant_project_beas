@@ -5,7 +5,7 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
-import { MenuPage } from './pages/MenuPage';
+import { RestaurantsPage } from './pages/RestaurantsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { PaymentsPage } from './pages/PaymentsPage';
@@ -26,8 +26,8 @@ export default function App() {
             <Route element={<OrdersPage />} path="/orders" />
           </Route>
 
-          <Route element={<ProtectedRoute module="menu" />}>
-            <Route element={<MenuPage />} path="/menu" />
+          <Route element={<ProtectedRoute module="restaurants" />}>
+            <Route element={<RestaurantsPage />} path="/restaurants" />
           </Route>
 
           <Route element={<ProtectedRoute module="categories" />}>
