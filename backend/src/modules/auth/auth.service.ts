@@ -18,6 +18,7 @@ import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -26,6 +27,7 @@ type PrismaUserWithRoles = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  profileImageUrl: string | null;
   password: string;
   isActive: boolean;
   refreshToken: string | null;
@@ -310,8 +312,101 @@ export class AuthService {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      profileImageUrl: user.profileImageUrl,
       roles: user.roles,
     });
+  }
+
+  async updateMe(
+    user: AuthenticatedUser,
+    payload: UpdateProfileDto,
+  ): Promise<AuthSuccessResponse<AuthUserDto>> {
+    const hasChanges = Object.values(payload).some((value) => value !== undefined);
+
+    if (!hasChanges) {
+      throw new BadRequestException('No profile changes provided');
+    }
+
+    const currentUser = await this.loadAuthUser(user.id);
+
+    if (!currentUser || !currentUser.isActive) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const name = payload.name === undefined ? undefined : payload.name.trim() || null;
+    const email =
+      payload.email === undefined ? undefined : payload.email.trim().toLowerCase() || null;
+    const phone = payload.phone === undefined ? undefined : payload.phone.trim() || null;
+    const profileImageUrl =
+      payload.profileImageUrl === undefined ? undefined : payload.profileImageUrl.trim() || null;
+    const nextEmail = email === undefined ? currentUser.email : email;
+    const nextPhone = phone === undefined ? currentUser.phone : phone;
+
+    if (!nextEmail && !nextPhone) {
+      throw new BadRequestException('Email or phone is required');
+    }
+
+    const conflicts: Array<{ email?: string; phone?: string }> = [];
+    if (email) conflicts.push({ email });
+    if (phone) conflicts.push({ phone });
+
+    if (conflicts.length > 0) {
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          id: { not: user.id },
+          OR: conflicts,
+        },
+      });
+
+      if (existingUser) {
+        throw new BadRequestException('Email or phone is already in use');
+      }
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (phone !== undefined) data.phone = phone;
+    if (profileImageUrl !== undefined) data.profileImageUrl = profileImageUrl;
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data,
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.buildStandardResponse('Profile updated', this.toAuthUser(updatedUser));
+  }
+
+  async updateProfileImage(
+    user: AuthenticatedUser,
+    profileImageUrl: string,
+  ): Promise<AuthSuccessResponse<AuthUserDto>> {
+    const currentUser = await this.loadAuthUser(user.id);
+
+    if (!currentUser || !currentUser.isActive) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { profileImageUrl },
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.buildStandardResponse('Profile image updated', this.toAuthUser(updatedUser));
   }
 
   async validateUserById(id: number): Promise<AuthenticatedUser | null> {
@@ -393,6 +488,7 @@ export class AuthService {
       email: user.email,
       phone: user.phone,
       name: user.name,
+      profileImageUrl: user.profileImageUrl,
       roles,
       role: roles[0] ?? null,
       type,
@@ -521,6 +617,7 @@ export class AuthService {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      profileImageUrl: user.profileImageUrl,
       roles: this.mapRoles(user),
     };
   }

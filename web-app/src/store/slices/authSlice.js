@@ -120,6 +120,38 @@ export const refreshSession = createAsyncThunk(
   },
 );
 
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await api.patch('/auth/me', payload);
+
+      return response?.data ?? response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  },
+);
+
+export const uploadProfileImage = createAsyncThunk(
+  'auth/uploadProfileImage',
+  async (file, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await api.request('/auth/me/profile-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      return response?.data ?? response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: getInitialState(),
@@ -216,6 +248,36 @@ const authSlice = createSlice({
         state.token = null;
         state.refreshToken = null;
         clearStoredUser();
+      })
+      .addCase(updateProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.message = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.message = 'Profile updated';
+        updateStoredUser(state);
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Unable to update profile';
+      })
+      .addCase(uploadProfileImage.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.message = null;
+      })
+      .addCase(uploadProfileImage.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.message = 'Profile image updated';
+        updateStoredUser(state);
+      })
+      .addCase(uploadProfileImage.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Unable to upload profile image';
       });
   },
 });

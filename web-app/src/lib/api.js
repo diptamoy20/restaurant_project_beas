@@ -49,9 +49,11 @@ async function request(path, options = {}) {
   } = options;
   const token = getAuthToken();
   const normalizedPath = normalizePath(path);
+  const hasFormDataBody =
+    typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
 
   const makeHeaders = (authToken) => ({
-    "Content-Type": "application/json",
+    ...(!hasFormDataBody && { "Content-Type": "application/json" }),
     ...(authToken && { Authorization: `Bearer ${authToken}` }),
     ...(fetchOptions.headers || {}),
   });

@@ -11,6 +11,7 @@ model User {
   name                   String?
   email                  String?              @unique
   phone                  String?              @unique
+  profileImageUrl        String?              @map("profile_image_url")
   password               String
   isActive               Boolean              @default(true) @map("is_active")
   refreshToken           String?              @map("refresh_token")

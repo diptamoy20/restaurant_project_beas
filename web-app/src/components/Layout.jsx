@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { fetchCart } from '../store/slices/cartSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { NavbarRestaurantSearch } from './NavbarRestaurantSearch.jsx';
 import { createTableAwarePath, resolveTableId } from '../lib/tableSession';
+import { getUserDisplayName, getUserInitials, getUserProfileImage } from '../utils/profile';
 import projectLogo from '../assets/project-logo.svg';
 
 export function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const token = useSelector((state) => state.auth.token);
   const cartItems = useSelector((state) => state.cart.items);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const profileMenuRef = useRef(null);
   const isHomePage = location.pathname === '/';
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity ?? 1), 0);
   const tableId = resolveTableId(location.search);
@@ -24,6 +28,15 @@ export function Layout({ children }) {
   const cartPath = createTableAwarePath('/cart', tableId);
   const profilePath = createTableAwarePath('/profile', tableId);
   const ordersPath = createTableAwarePath('/orders', tableId);
+  const userInitials = useMemo(() => getUserInitials(user), [user]);
+  const userDisplayName = useMemo(() => getUserDisplayName(user), [user]);
+  const userProfileImage = useMemo(() => getUserProfileImage(user), [user]);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    setProfileMenuOpen(false);
+    navigate('/login', { replace: true });
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,7 +51,30 @@ export function Layout({ children }) {
 
   useEffect(() => {
     setMenuOpen(false);
+    setProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    function handleDocumentPointerDown(event) {
+      if (!profileMenuRef.current?.contains(event.target)) {
+        setProfileMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -93,12 +129,48 @@ export function Layout({ children }) {
                 <Link className={location.pathname === '/orders' ? 'active' : ''} to={ordersPath}>
                   Orders
                 </Link>
-                <Link className={location.pathname === '/profile' ? 'active' : ''} to={profilePath}>
-                  Profile
-                </Link>
-                <button type="button" className="ghost-button" onClick={() => dispatch(logout())}>
-                  Logout
-                </button>
+                <div className="profile-menu" ref={profileMenuRef}>
+                  <button
+                    type="button"
+                    className={profileMenuOpen ? 'profile-trigger is-open' : 'profile-trigger'}
+                    aria-haspopup="menu"
+                    aria-expanded={profileMenuOpen}
+                    onClick={() => setProfileMenuOpen((current) => !current)}
+                  >
+                    <span className="profile-avatar profile-avatar-sm">
+                      {userProfileImage ? <img src={userProfileImage} alt="" /> : userInitials}
+                    </span>
+                    <span className="profile-trigger-copy">
+                      <span>{userDisplayName}</span>
+                      <small>Account</small>
+                    </span>
+                  </button>
+
+                  {profileMenuOpen ? (
+                    <div className="profile-dropdown" role="menu">
+                      <div className="profile-dropdown-header">
+                        <span className="profile-avatar profile-avatar-md">
+                          {userProfileImage ? <img src={userProfileImage} alt="" /> : userInitials}
+                        </span>
+                        <div>
+                          <strong>{userDisplayName}</strong>
+                          <span>{user?.email || user?.phone || 'Signed in'}</span>
+                        </div>
+                      </div>
+                      <Link className="profile-dropdown-action" role="menuitem" to={profilePath}>
+                        Edit profile
+                      </Link>
+                      <button
+                        type="button"
+                        className="profile-dropdown-action profile-dropdown-logout"
+                        role="menuitem"
+                        onClick={handleLogout}
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </>
             ) : (
               <>
@@ -145,6 +217,15 @@ export function Layout({ children }) {
         <nav className="drawer-nav">
           {user ? (
             <>
+              <div className="drawer-profile-summary">
+                <span className="profile-avatar profile-avatar-md">
+                  {userProfileImage ? <img src={userProfileImage} alt="" /> : userInitials}
+                </span>
+                <div>
+                  <strong>{userDisplayName}</strong>
+                  <span>{user?.email || user?.phone || 'Signed in'}</span>
+                </div>
+              </div>
               <Link className={location.pathname === '/' ? 'active' : ''} to={homePath}>
                 Home
               </Link>
@@ -158,10 +239,10 @@ export function Layout({ children }) {
                 Orders
               </Link>
               <Link className={location.pathname === '/profile' ? 'active' : ''} to={profilePath}>
-                Profile
+                Edit profile
               </Link>
-              <button type="button" className="ghost-button drawer-logout" onClick={() => dispatch(logout())}>
-                Logout
+              <button type="button" className="ghost-button drawer-logout" onClick={handleLogout}>
+                Log out
               </button>
             </>
           ) : (
