@@ -9,7 +9,7 @@ export type CreateOrderItemType = {
 };
 
 export type CreateOrderType = {
-  userId?: number;
+  userId?: number | null;
 
   restaurantId: number;
 

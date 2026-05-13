@@ -5,10 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { CreateOrderType } from './types/create-order.type';
 
-import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
+import { CreateOrderType } from './types/create-order.type';
 import { ORDER_STATUS } from '../../common/constants/order-status';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -232,17 +231,19 @@ export class OrdersService {
 
       const createdOrder = await transaction.order.create({
         data: {
-          userId: payload.userId,
+          userId: payload.userId ?? null,
           restaurantId: payload.restaurantId,
           tableId: payload.tableId,
           addressId: payload.addressId,
           orderNumber: `ORD-${Date.now()}`,
           status: ORDER_STATUS.PENDING,
+          source: payload.source,
           orderType: payload.orderType,
           totalAmount,
           discountAmount,
           finalAmount: totalAmount - discountAmount,
           paymentStatus: 'PENDING',
+          paymentMethod: payload.paymentMethod,
           items: {
             create: orderItems,
           },
@@ -263,11 +264,13 @@ export class OrdersService {
         },
       });
 
-      await transaction.cartItem.deleteMany({
-        where: {
-          userId: payload.userId,
-        },
-      });
+      if (payload.userId) {
+        await transaction.cartItem.deleteMany({
+          where: {
+            userId: payload.userId,
+          },
+        });
+      }
 
       return createdOrder;
     });

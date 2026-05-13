@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { OrderSource, PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
 
 import { createPrismaClientOptions } from '../src/prisma/prisma-client-options';
@@ -57,6 +57,63 @@ async function ensureUser(params: {
   }
 
   return { id: user.id };
+}
+
+async function ensureRestaurantTable(params: {
+  restaurantId: number;
+  tableNumber: string;
+  qrCode: string;
+  status?: string;
+}): Promise<{ id: number; tableNumber: string; qrCode: string | null; status: string | null }> {
+  const existing = await prisma.restaurantTable.findFirst({
+    where: {
+      restaurantId: params.restaurantId,
+      tableNumber: params.tableNumber,
+    },
+  });
+
+  if (existing) {
+    return prisma.restaurantTable.update({
+      where: { id: existing.id },
+      data: {
+        qrCode: params.qrCode,
+        status: params.status ?? existing.status ?? 'AVAILABLE',
+      },
+    });
+  }
+
+  return prisma.restaurantTable.create({
+    data: {
+      restaurantId: params.restaurantId,
+      tableNumber: params.tableNumber,
+      qrCode: params.qrCode,
+      status: params.status ?? 'AVAILABLE',
+    },
+  });
+}
+
+async function ensureCategory(params: {
+  restaurantId: number;
+  name: string;
+  description: string;
+}): Promise<{ id: number; name: string; description: string | null }> {
+  const existing = await prisma.category.findFirst({
+    where: {
+      restaurantId: params.restaurantId,
+      name: params.name,
+    },
+  });
+
+  if (existing) {
+    return prisma.category.update({
+      where: { id: existing.id },
+      data: { description: params.description },
+    });
+  }
+
+  return prisma.category.create({
+    data: params,
+  });
 }
 
 async function main(): Promise<void> {
@@ -198,20 +255,42 @@ async function main(): Promise<void> {
       include: { categories: true },
     }));
 
-  const starters = downtownBranch.categories.find(
-    (category: (typeof downtownBranch.categories)[number]) => category.name === 'Starters',
-  );
-  const mains = downtownBranch.categories.find(
-    (category: (typeof downtownBranch.categories)[number]) => category.name === 'Main Course',
-  );
-  const beverages = downtownBranch.categories.find(
-    (category: (typeof downtownBranch.categories)[number]) => category.name === 'Beverages',
-  );
-  const quickMeals = riversideBranch.categories[0];
+  const qrTableT1 = await ensureRestaurantTable({
+    restaurantId: downtownBranch.id,
+    tableNumber: 'T1',
+    qrCode: `qr-downtown-spice-hub-t1-${downtownBranch.id}`,
+  });
+  const qrTableT2 = await ensureRestaurantTable({
+    restaurantId: downtownBranch.id,
+    tableNumber: 'T2',
+    qrCode: `qr-downtown-spice-hub-t2-${downtownBranch.id}`,
+  });
+  await ensureRestaurantTable({
+    restaurantId: downtownBranch.id,
+    tableNumber: 'T3',
+    qrCode: `qr-downtown-spice-hub-t3-${downtownBranch.id}`,
+  });
 
-  if (!starters || !mains || !beverages || !quickMeals) {
-    throw new Error('Categories could not be prepared for seed data');
-  }
+  const starters = await ensureCategory({
+    restaurantId: downtownBranch.id,
+    name: 'Starters',
+    description: 'Quick bites and appetizers',
+  });
+  const mains = await ensureCategory({
+    restaurantId: downtownBranch.id,
+    name: 'Main Course',
+    description: 'Signature dishes',
+  });
+  const beverages = await ensureCategory({
+    restaurantId: downtownBranch.id,
+    name: 'Beverages',
+    description: 'Cold and hot drinks',
+  });
+  const quickMeals = await ensureCategory({
+    restaurantId: riversideBranch.id,
+    name: 'Quick Meals',
+    description: 'Fast moving branch menu',
+  });
 
   const burger =
     (await prisma.menuItem.findFirst({
@@ -341,15 +420,17 @@ async function main(): Promise<void> {
       data: {
         userId: customer.id,
         restaurantId: downtownBranch.id,
-        tableId: downtownBranch.tables[0]?.id,
+        tableId: qrTableT2.id,
         addressId: address.id,
         orderNumber: 'ORD-DEMO-1001',
         status: 'OUT_FOR_DELIVERY',
+        source: OrderSource.WEBSITE,
         orderType: 'DELIVERY',
         totalAmount: 288,
         discountAmount: 20,
         finalAmount: 268,
         paymentStatus: 'PAID',
+        paymentMethod: 'UPI',
         items: {
           create: [
             {
@@ -426,12 +507,63 @@ async function main(): Promise<void> {
     });
   }
 
+  const qrDemoMenuItem = await prisma.menuItem.findFirst({
+    where: {
+      restaurantId: downtownBranch.id,
+      name: 'Crispy Corn',
+    },
+  });
+
+  if (!qrDemoMenuItem) {
+    throw new Error('QR demo menu item could not be prepared for seed data');
+  }
+
+  const existingQrOrder = await prisma.order.findFirst({
+    where: { orderNumber: 'ORD-QR-DEMO-1001' },
+  });
+
+  if (!existingQrOrder) {
+    await prisma.order.create({
+      data: {
+        userId: null,
+        restaurantId: downtownBranch.id,
+        tableId: qrTableT1.id,
+        orderNumber: 'ORD-QR-DEMO-1001',
+        status: 'PENDING',
+        source: OrderSource.QR_DINE_IN,
+        orderType: 'DINE_IN',
+        totalAmount: qrDemoMenuItem.price,
+        discountAmount: 0,
+        finalAmount: qrDemoMenuItem.price,
+        paymentStatus: 'PENDING',
+        paymentMethod: 'COD',
+        items: {
+          create: [
+            {
+              menuItemId: qrDemoMenuItem.id,
+              quantity: 1,
+              price: qrDemoMenuItem.price,
+              totalPrice: qrDemoMenuItem.price,
+            },
+          ],
+        },
+        statusLogs: {
+          create: [{ status: 'PENDING' }],
+        },
+      },
+    });
+  }
+
   console.warn('Seed complete');
   console.warn('Admin login: admin@example.com / password123');
   console.warn('Manager login: manager@example.com / password123');
   console.warn('Customer login: customer@example.com / password123');
   console.warn('Delivery login: delivery@example.com / password123');
   console.warn(`Admin user id: ${admin.id}`);
+  console.warn(`QR test restaurant id: ${downtownBranch.id}`);
+  console.warn(`QR test table id: ${qrTableT1.id} (${qrTableT1.tableNumber})`);
+  console.warn(`QR test table code: ${qrTableT1.qrCode}`);
+  console.warn(`QR test menu item id: ${qrDemoMenuItem.id} (${qrDemoMenuItem.name})`);
 }
 
 main()
