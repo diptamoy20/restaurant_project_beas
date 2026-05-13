@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { CreateOrderType } from './types/create-order.type';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
@@ -57,7 +58,7 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  async createOrder(payload: CreateOrderDto): Promise<OrderResponseDto> {
+  async createOrder(payload: CreateOrderType): Promise<OrderResponseDto> {
     const order = await this.prisma.$transaction(async (transaction) => {
       if (payload.tableId) {
         const table = await transaction.restaurantTable.findUnique({

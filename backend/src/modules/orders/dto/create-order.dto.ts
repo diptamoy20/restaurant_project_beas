@@ -10,6 +10,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { OrderSource } from '@prisma/client';
 
 class OrderItemInputDto {
   @ApiProperty({ example: 1 })
@@ -61,6 +62,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsInt()
   addressId?: number;
+
+  @ApiProperty({ enum: OrderSource, example: OrderSource.WEBSITE })
+  @IsIn(Object.values(OrderSource))
+  source!: OrderSource;
 
   @ApiProperty({ enum: ['DINE_IN', 'DELIVERY', 'TAKEAWAY'], example: 'DELIVERY' })
   @IsIn(['DINE_IN', 'DELIVERY', 'TAKEAWAY'])

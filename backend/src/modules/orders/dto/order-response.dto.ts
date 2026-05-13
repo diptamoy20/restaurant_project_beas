@@ -102,7 +102,8 @@ export class OrderPaymentResponseDto {
 
   @ApiProperty({ example: 3 })
   @IsNumber()
-  userId!: number;
+  @IsOptional()
+  userId?: number | null;
 
   @ApiPropertyOptional({ example: 'TXN-20260417-001', nullable: true })
   @IsOptional()
@@ -148,7 +149,8 @@ export class OrderResponseDto {
 
   @ApiProperty({ example: 3 })
   @IsNumber()
-  userId!: number;
+  @IsOptional()
+  userId?: number | null;
 
   @ApiProperty({ example: 1 })
   @IsNumber()

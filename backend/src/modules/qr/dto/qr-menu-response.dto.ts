@@ -1,0 +1,117 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class QRMenuItemVariantDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Large' })
+  @IsString()
+  name!: string;
+
+  @ApiProperty({ example: 150 })
+  @IsNumber()
+  price!: number;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  isAvailable!: boolean;
+}
+
+export class QRMenuItemDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Margherita Pizza' })
+  @IsString()
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'Fresh tomato sauce, mozzarella, basil' })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @ApiProperty({ example: 250 })
+  @IsNumber()
+  price!: number;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  isAvailable!: boolean;
+
+  @ApiPropertyOptional({ example: 15 })
+  @IsOptional()
+  @IsNumber()
+  preparationTime?: number;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  categoryId!: number;
+
+  @ApiPropertyOptional({ type: () => QRMenuItemVariantDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QRMenuItemVariantDto)
+  variants?: QRMenuItemVariantDto[];
+}
+
+export class QRMenuCategoryDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Pizza' })
+  @IsString()
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'Wood-fired pizzas' })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @ApiProperty({ type: () => QRMenuItemDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QRMenuItemDto)
+  items!: QRMenuItemDto[];
+}
+
+export class QRRestaurantInfoDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Mario\'s Pizzeria' })
+  @IsString()
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'Authentic Italian cuisine' })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @ApiProperty({ example: 12 })
+  @IsNumber()
+  tableId!: number;
+
+  @ApiProperty({ example: 'Table 12' })
+  @IsString()
+  tableName!: string;
+}
+
+export class QRMenuResponseDto {
+  @ApiProperty({ type: () => QRRestaurantInfoDto })
+  @ValidateNested()
+  @Type(() => QRRestaurantInfoDto)
+  restaurant!: QRRestaurantInfoDto;
+
+  @ApiProperty({ type: () => QRMenuCategoryDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QRMenuCategoryDto)
+  categories!: QRMenuCategoryDto[];
+}

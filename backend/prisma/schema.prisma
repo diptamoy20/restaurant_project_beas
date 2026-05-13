@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OrderSource {
+  WEBSITE
+  QR_DINE_IN
+  ADMIN
+}
+
 model User {
   id                     Int                  @id @default(autoincrement())
   name                   String?
@@ -161,12 +167,13 @@ model MenuItemVariant {
 
 model Order {
   id             Int              @id @default(autoincrement())
-  userId         Int              @map("user_id")
+  userId         Int?             @map("user_id")
   restaurantId   Int              @map("restaurant_id")
   tableId        Int?             @map("table_id")
   addressId      Int?             @map("address_id")
   orderNumber    String           @unique @map("order_number")
   status         String
+  source         OrderSource      @default(WEBSITE)
   orderType      String           @map("order_type")
   totalAmount    Float            @map("total_amount")
   discountAmount Float?           @map("discount_amount")
@@ -180,7 +187,7 @@ model Order {
   paymentRetryCount Int           @default(0) @map("payment_retry_count")
   razorpayDetails Json?           @map("razorpay_details")
   createdAt      DateTime         @default(now()) @map("created_at")
-  user           User             @relation(fields: [userId], references: [id])
+  user           User?            @relation(fields: [userId], references: [id])
   restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
   table          RestaurantTable? @relation(fields: [tableId], references: [id])
   address        UserAddress?     @relation(fields: [addressId], references: [id])
@@ -256,13 +263,13 @@ model DeliveryTracking {
 model Payment {
   id            Int     @id @default(autoincrement())
   orderId       Int     @map("order_id")
-  userId        Int     @map("user_id")
+  userId        Int?    @map("user_id")
   transactionId String? @map("transaction_id")
   amount        Float
   status        String
   method        String
   order         Order   @relation(fields: [orderId], references: [id])
-  user          User    @relation(fields: [userId], references: [id])
+  user          User?   @relation(fields: [userId], references: [id])
 
   @@map("payments")
 }
