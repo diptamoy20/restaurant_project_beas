@@ -9,6 +9,7 @@ import { menuApi } from '../services/menuApi';
 import { orderApi } from '../services/orderApi';
 import { paymentApi } from '../services/paymentApi';
 import { userApi } from '../services/userApi';
+import { restaurantApi } from '../services/restaurantApi';
 import { persistAuthState } from '../utils/auth';
 
 export const store = configureStore({
@@ -22,6 +23,7 @@ export const store = configureStore({
     [customerApi.reducerPath]: customerApi.reducer,
     [paymentApi.reducerPath]: paymentApi.reducer,
     [analyticsApi.reducerPath]: analyticsApi.reducer,
+    [restaurantApi.reducerPath]: restaurantApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -32,6 +34,7 @@ export const store = configureStore({
       customerApi.middleware,
       paymentApi.middleware,
       analyticsApi.middleware,
+      restaurantApi.middleware,
     ),
 });
 

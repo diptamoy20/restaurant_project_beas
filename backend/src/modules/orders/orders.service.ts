@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
+import { ORDER_STATUS } from '../../common/constants/order-status';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -29,6 +30,117 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listMyOrders(userId: number): Promise<OrderResponseDto[]> {
+    const orders = await this.prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+            variant: true,
+          },
+        },
+        statusLogs: true,
+        payments: true,
+        restaurant: true,
+      },
+    });
+
+    return orders.map((order) => this.mapOrder(order));
+  }
+
+  async acceptOrderByAdmin(orderId: number): Promise<OrderResponseDto> {
+    const existing = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: { include: { menuItem: true, variant: true } },
+        statusLogs: true,
+        payments: true,
+        restaurant: true,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const allowed = new Set<string>([ORDER_STATUS.PENDING, ORDER_STATUS.PLACED]);
+
+    if (!allowed.has(existing.status)) {
+      throw new BadRequestException(`Order cannot be accepted from status ${existing.status}`);
+    }
+
+    const now = new Date();
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: ORDER_STATUS.ACCEPTED,
+        acceptedAt: now,
+        statusLogs: {
+          create: [{ status: ORDER_STATUS.ACCEPTED }],
+        },
+      },
+      include: {
+        items: { include: { menuItem: true, variant: true } },
+        statusLogs: true,
+        payments: true,
+        restaurant: true,
+      },
+    });
+
+    return this.mapOrder(order);
+  }
+
+  async updateOrderStatusByAdmin(orderId: number, status: string): Promise<OrderResponseDto> {
+    const existing = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: { include: { menuItem: true, variant: true } },
+        statusLogs: true,
+        payments: true,
+        restaurant: true,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const now = new Date();
+    const data: Prisma.OrderUpdateInput = {
+      status,
+      statusLogs: {
+        create: [{ status }],
+      },
+    };
+
+    if (status === ORDER_STATUS.ACCEPTED) {
+      data.acceptedAt = existing.acceptedAt ?? now;
+    }
+
+    if (status === ORDER_STATUS.PREPARING) {
+      data.preparedAt = existing.preparedAt ?? now;
+    }
+
+    if (status === ORDER_STATUS.DELIVERED) {
+      data.deliveredAt = now;
+    }
+
+    const order = await this.prisma.order.update({
+      where: { id: orderId },
+      data,
+      include: {
+        items: { include: { menuItem: true, variant: true } },
+        statusLogs: true,
+        payments: true,
+        restaurant: true,
+      },
+    });
+
+    return this.mapOrder(order);
+  }
 
   async getOrder(id: number, requester: AuthenticatedUser): Promise<OrderResponseDto> {
     const order = await this.prisma.order.findUnique({
@@ -124,7 +236,7 @@ export class OrdersService {
           tableId: payload.tableId,
           addressId: payload.addressId,
           orderNumber: `ORD-${Date.now()}`,
-          status: 'PLACED',
+          status: ORDER_STATUS.PENDING,
           orderType: payload.orderType,
           totalAmount,
           discountAmount,
@@ -134,7 +246,7 @@ export class OrdersService {
             create: orderItems,
           },
           statusLogs: {
-            create: [{ status: 'PLACED' }],
+            create: [{ status: ORDER_STATUS.PENDING }],
           },
         },
         include: {
@@ -163,6 +275,13 @@ export class OrdersService {
   }
 
   private mapOrder(order: OrderWithRelations): OrderResponseDto {
+    const preparationMinutes = order.items
+      .map((item) => item.menuItem?.preparationTime)
+      .filter((value): value is number => typeof value === 'number' && value > 0);
+    const maxPrep = preparationMinutes.length > 0 ? Math.max(...preparationMinutes) : 20;
+    const deliveryBuffer = order.orderType === 'DELIVERY' ? 25 : 10;
+    const estimatedDeliveryMinutes = Math.min(120, Math.max(15, maxPrep + deliveryBuffer));
+
     return {
       id: order.id,
       userId: order.userId,
@@ -181,6 +300,10 @@ export class OrdersService {
       razorpayPaymentId: order.razorpayPaymentId,
       paymentRetryCount: order.paymentRetryCount,
       createdAt: order.createdAt,
+      acceptedAt: order.acceptedAt ?? null,
+      preparedAt: order.preparedAt ?? null,
+      deliveredAt: order.deliveredAt ?? null,
+      estimatedDeliveryMinutes,
       items: order.items.map((item) => ({
         id: item.id,
         orderId: item.orderId,

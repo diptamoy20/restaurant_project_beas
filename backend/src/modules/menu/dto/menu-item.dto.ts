@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsNumber, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 import { MenuVariantDto } from './menu-variant.dto';
 
@@ -44,4 +44,32 @@ export class MenuItemDto {
   @ApiProperty({ type: () => MenuVariantDto, isArray: true })
   @IsArray()
   variants!: MenuVariantDto[];
+
+  @ApiPropertyOptional({ example: 'https://cdn.example.com/pizza.png', nullable: true })
+  @IsOptional()
+  imageUrl?: string | null;
+
+  @ApiPropertyOptional({ example: 149 })
+  @IsOptional()
+  discountPrice?: number | null;
+
+  @ApiPropertyOptional({ example: 'VEG' })
+  @IsOptional()
+  foodType?: string;
+
+  @ApiPropertyOptional({ example: 2 })
+  @IsOptional()
+  spicyLevel?: number | null;
+
+  @ApiPropertyOptional({ example: 4.6 })
+  @IsOptional()
+  rating?: number | null;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  isBestSelling?: boolean;
+
+  @ApiPropertyOptional({ example: 15 })
+  @IsOptional()
+  preparationTime?: number | null;
 }

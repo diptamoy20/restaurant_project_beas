@@ -301,6 +301,20 @@ async function main(): Promise<void> {
     }
   }
 
+  await prisma.menuItem.updateMany({
+    where: {
+      restaurantId: downtownBranch.id,
+      name: { in: ['Crispy Corn', 'Veg Biryani Bowl', 'Cold Coffee'] },
+    },
+    data: {
+      isBestSelling: true,
+      popularityScore: 48,
+      rating: 4.7,
+      imageUrl:
+        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=70',
+    },
+  });
+
   const membershipExists = await prisma.membership.findFirst({
     where: {
       userId: customer.id,

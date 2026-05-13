@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Restaurant, Category } from '@prisma/client';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Restaurant, Category, Prisma } from '@prisma/client';
 
+import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
 import {
   RestaurantCategoryResponseDto,
   RestaurantMenuItemResponseDto,
@@ -9,12 +10,17 @@ import {
 } from './dto/restaurant-response.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
+
 @Injectable()
 export class RestaurantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly locationService: LocationService,
   ) {}
+
+  /**
+   * Get all active restaurants
+   */
   async getRestaurants(): Promise<RestaurantResponseDto[]> {
     const restaurants = await this.prisma.restaurant.findMany({
       where: { isActive: true },
@@ -25,6 +31,10 @@ export class RestaurantsService {
       this.mapRestaurant(restaurant),
     );
   }
+
+  /**
+   * Get single restaurant by ID
+   */
   async getRestaurant(id: number): Promise<RestaurantResponseDto> {
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id },
@@ -35,6 +45,49 @@ export class RestaurantsService {
     }
     return this.mapRestaurant(restaurant);
   }
+
+  /**
+   * Search restaurants by name (optional: sort by distance when lat/lng provided)
+   */
+  async searchRestaurants(
+    query: string,
+    coords?: { lat: number; lng: number },
+  ): Promise<RestaurantResponseDto[]> {
+    const q = query.trim();
+
+    if (q.length < 1) {
+      return [];
+    }
+
+    const restaurants = await this.prisma.restaurant.findMany({
+      where: {
+        isActive: true,
+        name: { contains: q, mode: 'insensitive' },
+      },
+      include: { categories: true },
+      take: 40,
+    });
+
+    let mapped = restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
+      this.mapRestaurant(restaurant),
+    );
+
+    if (coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+      mapped = [...mapped].sort((a, b) => {
+        const da = this.haversineKm(coords.lat, coords.lng, a.latitude, a.longitude);
+        const db = this.haversineKm(coords.lat, coords.lng, b.latitude, b.longitude);
+        return da - db;
+      });
+    } else {
+      mapped.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return mapped;
+  }
+
+  /**
+   * Find nearby restaurants based on user coordinates
+   */
   async findNearbyRestaurants(params: {
     lat: number;
     lng: number;
@@ -52,6 +105,191 @@ export class RestaurantsService {
 
     return restaurants.map((restaurant) => this.mapRestaurant(restaurant));
   }
+
+  /**
+   * Get all restaurants for admin (including inactive)
+   */
+  async getAllRestaurantsForAdmin(): Promise<RestaurantResponseDto[]> {
+    const restaurants = await this.prisma.restaurant.findMany({
+      include: { categories: true },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    return restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
+      this.mapRestaurant(restaurant),
+    );
+  }
+
+  /**
+   * Create a new restaurant (Admin only)
+   */
+  async createRestaurant(data: CreateRestaurantDto): Promise<RestaurantResponseDto> {
+    // Validate coordinates
+    if (!this.isValidCoordinates(data.latitude, data.longitude)) {
+      throw new BadRequestException('Invalid coordinates provided');
+    }
+
+    try {
+      // Create restaurant without location field first
+      const restaurant = await this.prisma.restaurant.create({
+        data: {
+          name: data.name,
+          address: data.address,
+          city: data.city ?? null,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          cuisineType: data.cuisineType ?? null,
+          description: data.description ?? null,
+          imageUrl: data.imageUrl ?? null,
+          deliveryRadiusKm: data.deliveryRadiusKm ?? 8,
+          isLocationEnabled: data.isLocationEnabled ?? true,
+          isActive: data.isActive ?? true,
+        },
+        include: { categories: true },
+      });
+
+      // Update location using raw query for PostGIS
+      await this.prisma.$executeRaw(
+        Prisma.sql`
+          UPDATE "restaurants"
+          SET "location" = public.ST_SetSRID(public.ST_MakePoint(${data.longitude}::double precision, ${data.latitude}::double precision), 4326)::public.geography
+          WHERE "id" = ${restaurant.id}
+        `,
+      );
+
+      // Fetch updated restaurant
+      const updatedRestaurant = await this.prisma.restaurant.findUnique({
+        where: { id: restaurant.id },
+        include: { categories: true },
+      });
+
+      return this.mapRestaurant(updatedRestaurant!);
+    } catch (error) {
+      console.error(`[DEBUG] Error in createRestaurant:`, error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new BadRequestException('Failed to create restaurant: ' + error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update restaurant by ID (Admin/Manager)
+   */
+  async updateRestaurant(id: number, data: UpdateRestaurantDto): Promise<RestaurantResponseDto> {
+    // Verify restaurant exists
+    await this.getRestaurant(id);
+
+    // Validate coordinates if provided
+    if (data.latitude !== undefined && data.longitude !== undefined) {
+      if (!this.isValidCoordinates(data.latitude, data.longitude)) {
+        throw new BadRequestException('Invalid coordinates provided');
+      }
+    }
+
+    try {
+      const updateData: Prisma.RestaurantUpdateInput = {
+        name: data.name,
+        address: data.address,
+        city: data.city,
+        cuisineType: data.cuisineType,
+        description: data.description,
+        imageUrl: data.imageUrl,
+        deliveryRadiusKm: data.deliveryRadiusKm,
+        isLocationEnabled: data.isLocationEnabled,
+        isActive: data.isActive,
+      };
+
+      // Remove undefined values
+      Object.keys(updateData).forEach((key) => {
+        const typedKey = key as keyof typeof updateData;
+        if (updateData[typedKey] === undefined) {
+          delete updateData[typedKey];
+        }
+      });
+
+      // Update coordinates if provided
+      if (data.latitude !== undefined && data.longitude !== undefined) {
+        updateData.latitude = data.latitude;
+        updateData.longitude = data.longitude;
+        // Update location using raw query so PostGIS geography data stays in sync
+        await this.prisma.$executeRaw(
+          Prisma.sql`
+            UPDATE "restaurants"
+            SET "location" = public.ST_SetSRID(public.ST_MakePoint(${data.longitude}::double precision, ${data.latitude}::double precision), 4326)::public.geography
+            WHERE "id" = ${id}
+          `,
+        );
+      }
+
+      const restaurant = await this.prisma.restaurant.update({
+        where: { id },
+        data: updateData,
+        include: { categories: true },
+      });
+
+      return this.mapRestaurant(restaurant);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new BadRequestException('Failed to update restaurant: ' + error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Delete restaurant by ID (Admin only)
+   */
+  async deleteRestaurant(id: number): Promise<{ message: string }> {
+    // Verify restaurant exists
+    await this.getRestaurant(id);
+
+    // Check if restaurant has orders
+    const orderCount = await this.prisma.order.count({
+      where: { restaurantId: id },
+    });
+
+    if (orderCount > 0) {
+      // Soft delete: mark as inactive
+      await this.prisma.restaurant.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      return { message: 'Restaurant deactivated successfully (has existing orders)' };
+    } else {
+      // Hard delete
+      await this.prisma.restaurant.delete({
+        where: { id },
+      });
+      return { message: 'Restaurant deleted successfully' };
+    }
+  }
+
+  /**
+   * Validate coordinates
+   */
+  private isValidCoordinates(lat: number, lng: number): boolean {
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  private haversineKm(lat: number, lng: number, rLat: number, rLng: number): number {
+    const R = 6371;
+    const dLat = this.deg2rad(rLat - lat);
+    const dLon = this.deg2rad(rLng - lng);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(lat)) *
+        Math.cos(this.deg2rad(rLat)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  }
+
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI / 180);
+  }
+
   private mapRestaurantCategory(category: {
     id: number;
     restaurantId: number;
@@ -65,6 +303,7 @@ export class RestaurantsService {
       description: category.description,
     };
   }
+
   private mapRestaurantTable(table: {
     id: number;
     restaurantId: number;
@@ -80,6 +319,7 @@ export class RestaurantsService {
       status: table.status,
     };
   }
+
   private mapRestaurantMenuItem(menuItem: {
     id: number;
     restaurantId: number;
@@ -101,6 +341,7 @@ export class RestaurantsService {
       preparationTime: menuItem.preparationTime,
     };
   }
+
   private mapRestaurant(restaurant: {
     id: number;
     name: string;
@@ -108,9 +349,14 @@ export class RestaurantsService {
     city: string | null;
     latitude: number;
     longitude: number;
+    cuisineType?: string | null;
+    description?: string | null;
+    imageUrl?: string | null;
     deliveryRadiusKm?: number;
     isLocationEnabled?: boolean;
     isActive: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
     categories: { id: number; restaurantId: number; name: string; description: string | null }[];
     tables?: {
       id: number;
@@ -143,6 +389,9 @@ export class RestaurantsService {
       city: restaurant.city,
       latitude: restaurant.latitude,
       longitude: restaurant.longitude,
+      cuisineType: restaurant.cuisineType,
+      description: restaurant.description,
+      imageUrl: restaurant.imageUrl,
       isActive: restaurant.isActive,
       deliveryRadiusKm: restaurant.deliveryRadiusKm,
       isLocationEnabled: restaurant.isLocationEnabled,

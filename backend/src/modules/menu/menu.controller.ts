@@ -11,6 +11,7 @@ import { Type } from 'class-transformer';
 import { IsNumber } from 'class-validator';
 
 import { MenuResponseDto } from './dto';
+import { MenuItemDto } from './dto/menu-item.dto';
 import { MenuService } from './menu.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -28,6 +29,24 @@ class GetMenuDto {
 @ApiTags('Menu')
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
+
+  @Get('best-selling')
+  @ApiOperation({ summary: 'Best selling menu items (active, with restaurant)' })
+  @ApiQuery({ name: 'lat', required: false, type: Number })
+  @ApiQuery({ name: 'lng', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiOkResponse({ type: MenuItemDto, isArray: true })
+  getBestSelling(
+    @Query('lat') lat?: number,
+    @Query('lng') lng?: number,
+    @Query('limit') limit?: number,
+  ): ReturnType<MenuService['getBestSellingItems']> {
+    return this.menuService.getBestSellingItems({
+      lat: lat !== undefined ? Number(lat) : undefined,
+      lng: lng !== undefined ? Number(lng) : undefined,
+      limit: limit !== undefined ? Number(limit) : undefined,
+    });
+  }
 
   @Get('restaurant/:restaurantId')
   @ApiOperation({ summary: 'Get menu for a restaurant' })

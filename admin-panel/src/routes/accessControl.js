@@ -3,7 +3,7 @@ import { defaultPermissionsByRole } from '../utils/auth';
 export const routeDefinitions = [
   { path: '/dashboard', label: 'Dashboard', module: 'dashboard' },
   { path: '/orders', label: 'Orders', module: 'orders' },
-  { path: '/menu', label: 'Menu', module: 'menu' },
+  { path: '/restaurants', label: 'Manage Restaurants', module: 'restaurants' },
   { path: '/categories', label: 'Categories', module: 'categories' },
   { path: '/customers', label: 'Customers', module: 'customers' },
   { path: '/payments', label: 'Payments', module: 'payments' },

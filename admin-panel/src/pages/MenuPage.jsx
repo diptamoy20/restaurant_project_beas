@@ -10,10 +10,10 @@ import { Table } from '../components/ui/Table';
 import { TextField } from '../components/ui/TextField';
 import { PermissionGate } from '../components/PermissionGate';
 import {
-  useCreateMenuItemMutation,
-  useDeleteMenuItemMutation,
-  useGetMenuByRestaurantQuery,
-  useUpdateMenuItemMutation,
+  useCreateAdminMenuItemMutation,
+  useDeleteAdminMenuItemMutation,
+  useGetAdminRestaurantMenuQuery,
+  useUpdateAdminMenuItemMutation,
 } from '../services/menuApi';
 
 const initialItemForm = {
@@ -28,10 +28,10 @@ export function MenuPage() {
   const [restaurantId, setRestaurantId] = useState('1');
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(initialItemForm);
-  const { data, isLoading, error } = useGetMenuByRestaurantQuery(restaurantId);
-  const [createMenuItem, createState] = useCreateMenuItemMutation();
-  const [updateMenuItem, updateState] = useUpdateMenuItemMutation();
-  const [deleteMenuItem, deleteState] = useDeleteMenuItemMutation();
+  const { data, isLoading, error } = useGetAdminRestaurantMenuQuery(restaurantId);
+  const [createMenuItem, createState] = useCreateAdminMenuItemMutation();
+  const [updateMenuItem, updateState] = useUpdateAdminMenuItemMutation();
+  const [deleteMenuItem, deleteState] = useDeleteAdminMenuItemMutation();
 
   const categories = useMemo(() => {
     const items = data?.items ?? [];
@@ -53,7 +53,18 @@ export function MenuPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await createMenuItem(form);
+
+    await createMenuItem({
+      restaurantId: Number(restaurantId),
+      body: {
+        name: form.name,
+        description: form.description || undefined,
+        price: Number(form.price),
+        categoryName: form.category,
+        foodType: 'VEG',
+        isAvailable: form.isAvailable,
+      },
+    }).unwrap();
   };
 
   return (
@@ -120,10 +131,31 @@ export function MenuPage() {
                     action="edit"
                   >
                     <div className="flex gap-2">
-                      <Button onClick={() => updateMenuItem({ id: row.id, ...row })} variant="secondary">
+                      <Button
+                        onClick={() =>
+                          updateMenuItem({
+                            id: row.id,
+                            restaurantId: Number(restaurantId),
+                            body: {
+                              name: row.name,
+                              description: row.description ?? undefined,
+                              price: row.price,
+                              categoryName: row.category?.name,
+                              foodType: row.foodType ?? 'VEG',
+                              isAvailable: row.isAvailable,
+                            },
+                          })
+                        }
+                        variant="secondary"
+                      >
                         Edit
                       </Button>
-                      <Button onClick={() => deleteMenuItem(row.id)} variant="danger">
+                      <Button
+                        onClick={() =>
+                          deleteMenuItem({ id: row.id, restaurantId: Number(restaurantId) })
+                        }
+                        variant="danger"
+                      >
                         Delete
                       </Button>
                     </div>

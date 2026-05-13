@@ -69,6 +69,11 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     'DOCS_ALLOW_IN_PRODUCTION',
     false,
   );
+  const firebaseAuthEnabled = parseBoolean(
+    env.FIREBASE_AUTH_ENABLED,
+    'FIREBASE_AUTH_ENABLED',
+    false,
+  );
   const corsOrigins = (env.CORS_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
@@ -104,6 +109,20 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
 
   if (!env.RAZORPAY_KEY_SECRET) {
     throw new Error('RAZORPAY_KEY_SECRET is required');
+  }
+
+  if (firebaseAuthEnabled) {
+    if (!env.FIREBASE_PROJECT_ID) {
+      throw new Error('FIREBASE_PROJECT_ID is required when FIREBASE_AUTH_ENABLED=true');
+    }
+
+    if (!env.FIREBASE_CLIENT_EMAIL) {
+      throw new Error('FIREBASE_CLIENT_EMAIL is required when FIREBASE_AUTH_ENABLED=true');
+    }
+
+    if (!env.FIREBASE_PRIVATE_KEY) {
+      throw new Error('FIREBASE_PRIVATE_KEY is required when FIREBASE_AUTH_ENABLED=true');
+    }
   }
 
   return {
@@ -160,5 +179,9 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     ),
     RAZORPAY_KEY_ID: env.RAZORPAY_KEY_ID,
     RAZORPAY_KEY_SECRET: env.RAZORPAY_KEY_SECRET,
+    FIREBASE_AUTH_ENABLED: firebaseAuthEnabled,
+    FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID,
+    FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL,
+    FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY,
   };
 }

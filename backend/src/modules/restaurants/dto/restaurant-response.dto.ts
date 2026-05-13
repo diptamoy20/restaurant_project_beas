@@ -114,6 +114,27 @@ export class RestaurantResponseDto {
   @IsNumber()
   longitude!: number;
 
+  @ApiPropertyOptional({ example: 'North Indian, Chinese', nullable: true })
+  @IsOptional()
+  @IsString()
+  cuisineType?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Popular restaurant serving authentic North Indian and Chinese cuisine',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'https://example.com/restaurant-image.jpg',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string | null;
+
   @ApiProperty({ example: true })
   @IsBoolean()
   isActive!: boolean;

@@ -33,6 +33,8 @@ export const fetchMenu = createAsyncThunk(
       return {
         restaurantId: response?.restaurantId ?? resolvedRestaurantId,
         items: response?.items ?? [],
+        categories: response?.categories ?? [],
+        restaurant: response?.restaurant ?? null,
         delivery: response?.delivery ?? null,
         deliveryAvailable: response?.deliveryAvailable,
         distanceKm: response?.distanceKm,
@@ -54,6 +56,8 @@ const menuSlice = createSlice({
   initialState: {
     restaurantId: null,
     items: [],
+    categories: [],
+    restaurant: null,
     delivery: null,
     loading: false,
     error: null,
@@ -69,6 +73,8 @@ const menuSlice = createSlice({
         state.loading = false;
         state.restaurantId = action.payload.restaurantId;
         state.items = action.payload.items;
+        state.categories = action.payload.categories ?? [];
+        state.restaurant = action.payload.restaurant ?? null;
         state.delivery = action.payload.delivery;
       })
       .addCase(fetchMenu.rejected, (state, action) => {

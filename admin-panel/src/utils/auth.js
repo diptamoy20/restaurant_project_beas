@@ -16,7 +16,7 @@ export const defaultPermissionsByRole = {
   admin: {
     dashboard: ['view'],
     orders: ['view', 'accept', 'reject', 'complete'],
-    menu: ['view', 'create', 'edit', 'delete'],
+    restaurants: ['view', 'create', 'edit', 'delete'],
     categories: ['view', 'create', 'edit', 'delete'],
     customers: ['view'],
     payments: ['view', 'filter'],
@@ -25,7 +25,7 @@ export const defaultPermissionsByRole = {
   manager: {
     dashboard: ['view'],
     orders: ['view', 'accept', 'reject'],
-    menu: ['view'],
+    restaurants: ['view', 'edit'],
     categories: ['view'],
     customers: ['view'],
     payments: ['view', 'filter'],
@@ -34,7 +34,7 @@ export const defaultPermissionsByRole = {
   staff: {
     dashboard: ['view'],
     orders: ['view'],
-    menu: ['view'],
+    restaurants: ['view'],
     categories: [],
     customers: [],
     payments: ['view'],
