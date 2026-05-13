@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuthFeedback, registerCustomer } from '../store/slices/authSlice';
+import {
+  clearAuthFeedback,
+  loginWithFirebaseFacebook,
+  loginWithFirebaseGoogle,
+  registerCustomer,
+} from '../store/slices/authSlice';
 
 function validateRegisterForm(form) {
   const errors = {};
@@ -62,7 +67,10 @@ export function RegisterPage() {
     const { checked, name, type, value } = event.target;
     dispatch(clearAuthFeedback());
     setFormErrors((current) => ({ ...current, [name]: null }));
-    setForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }));
+    setForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -81,12 +89,36 @@ export function RegisterPage() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    dispatch(clearAuthFeedback());
+    const result = await dispatch(
+      loginWithFirebaseGoogle({ rememberMe: form.rememberMe }),
+    );
+
+    if (loginWithFirebaseGoogle.fulfilled.match(result)) {
+      navigate(location.state?.from?.pathname || '/', { replace: true });
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    dispatch(clearAuthFeedback());
+    const result = await dispatch(
+      loginWithFirebaseFacebook({ rememberMe: form.rememberMe }),
+    );
+
+    if (loginWithFirebaseFacebook.fulfilled.match(result)) {
+      navigate(location.state?.from?.pathname || '/', { replace: true });
+    }
+  };
+
   return (
     <section className="auth-page">
       <div className="auth-card auth-card-wide">
         <p className="eyebrow">Create Account</p>
         <h2>Start ordering faster</h2>
-        <p className="copy">Create a customer account for saved details and smoother checkout.</p>
+        <p className="copy">
+          Create a customer account for saved details and smoother checkout.
+        </p>
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
           <label>
             Name
@@ -97,7 +129,9 @@ export function RegisterPage() {
               onChange={handleChange}
               placeholder="Your name"
             />
-            {formErrors.name ? <span className="field-error">{formErrors.name}</span> : null}
+            {formErrors.name ? (
+              <span className="field-error">{formErrors.name}</span>
+            ) : null}
           </label>
           <div className="auth-form-grid">
             <label>
@@ -110,7 +144,9 @@ export function RegisterPage() {
                 onChange={handleChange}
                 placeholder="you@example.com"
               />
-              {formErrors.email ? <span className="field-error">{formErrors.email}</span> : null}
+              {formErrors.email ? (
+                <span className="field-error">{formErrors.email}</span>
+              ) : null}
             </label>
             <label>
               Phone
@@ -121,7 +157,9 @@ export function RegisterPage() {
                 onChange={handleChange}
                 placeholder="+919911112222"
               />
-              {formErrors.phone ? <span className="field-error">{formErrors.phone}</span> : null}
+              {formErrors.phone ? (
+                <span className="field-error">{formErrors.phone}</span>
+              ) : null}
             </label>
           </div>
           <div className="auth-form-grid">
@@ -150,7 +188,9 @@ export function RegisterPage() {
               ) : null}
             </div>
             <div className="auth-field-group">
-              <label htmlFor="register-confirm-password">Confirm Password</label>
+              <label htmlFor="register-confirm-password">
+                Confirm Password
+              </label>
               <div className="password-input-wrap">
                 <input
                   autoComplete="new-password"
@@ -170,7 +210,9 @@ export function RegisterPage() {
                 </button>
               </div>
               {formErrors.confirmPassword ? (
-                <span className="field-error">{formErrors.confirmPassword}</span>
+                <span className="field-error">
+                  {formErrors.confirmPassword}
+                </span>
               ) : null}
             </div>
           </div>
@@ -186,6 +228,33 @@ export function RegisterPage() {
           {error ? <div className="form-error">{error}</div> : null}
           <button type="submit" disabled={loading}>
             {loading ? 'Creating account...' : 'Sign Up'}
+          </button>
+          <div className="auth-divider" aria-hidden="true">
+            <span />
+            <strong>or</strong>
+            <span />
+          </div>
+          <button
+            type="button"
+            className="social-login-button"
+            disabled={loading}
+            onClick={handleGoogleLogin}
+          >
+            <span className="google-mark" aria-hidden="true">
+              G
+            </span>
+            {loading ? 'Connecting...' : 'Continue with Google'}
+          </button>
+          <button
+            type="button"
+            className="social-login-button facebook-login-button"
+            disabled={loading}
+            onClick={handleFacebookLogin}
+          >
+            <span className="facebook-mark" aria-hidden="true">
+              f
+            </span>
+            {loading ? 'Connecting...' : 'Continue with Facebook'}
           </button>
           <p className="auth-switch">
             Already have an account? <Link to="/login">Sign in</Link>

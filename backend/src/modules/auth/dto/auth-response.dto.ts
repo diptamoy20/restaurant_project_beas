@@ -24,6 +24,11 @@ export class AuthUserDto {
   @IsString()
   phone!: string | null;
 
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg', nullable: true })
+  @IsOptional()
+  @IsString()
+  profileImageUrl!: string | null;
+
   @ApiProperty({ enum: Role, isArray: true, example: ['admin'] })
   @IsArray()
   @IsEnum(Role, { each: true })

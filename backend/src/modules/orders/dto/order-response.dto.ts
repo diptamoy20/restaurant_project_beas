@@ -218,6 +218,22 @@ export class OrderResponseDto {
   @IsDate()
   createdAt!: Date;
 
+  @ApiPropertyOptional({ example: '2026-04-20T00:00:00.000Z', nullable: true })
+  @IsOptional()
+  acceptedAt!: Date | null;
+
+  @ApiPropertyOptional({ example: '2026-04-20T00:00:00.000Z', nullable: true })
+  @IsOptional()
+  preparedAt!: Date | null;
+
+  @ApiPropertyOptional({ example: '2026-04-20T00:00:00.000Z', nullable: true })
+  @IsOptional()
+  deliveredAt!: Date | null;
+
+  @ApiPropertyOptional({ example: 45 })
+  @IsOptional()
+  estimatedDeliveryMinutes?: number;
+
   @ApiProperty({ type: () => OrderItemResponseDto, isArray: true })
   @IsArray()
   @ValidateNested({ each: true })

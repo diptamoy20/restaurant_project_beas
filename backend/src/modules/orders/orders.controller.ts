@@ -25,6 +25,14 @@ import { AuthenticatedUser } from '../auth/auth.types';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @Roles(Role.CUSTOMER)
+  @Get('my-orders')
+  @ApiOperation({ summary: 'List orders for the authenticated customer' })
+  @ApiOkResponse({ type: OrderResponseDto, isArray: true })
+  listMyOrders(@Req() request: { user: AuthenticatedUser }): Promise<OrderResponseDto[]> {
+    return this.ordersService.listMyOrders(request.user.id);
+  }
+
   @Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER)
   @Get(':id')
   @ApiOperation({ summary: 'Get order by id' })

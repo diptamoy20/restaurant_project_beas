@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 
-import { baseQueryWithAuth, createUnavailableHandler } from '../app/baseQuery';
+import { baseQueryWithAuth } from '../app/baseQuery';
 
 export const orderApi = createApi({
   reducerPath: 'orderApi',
@@ -18,11 +18,25 @@ export const orderApi = createApi({
         body: payload,
       }),
     }),
-    listOrders: builder.query({
-      queryFn: createUnavailableHandler('Order listing'),
+    acceptOrder: builder.mutation({
+      query: (orderId) => ({
+        url: `/admin/orders/${orderId}/accept`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: (_result, _error, orderId) => [{ type: 'Order', id: orderId }],
     }),
     updateOrderStatus: builder.mutation({
-      queryFn: createUnavailableHandler('Order status updates'),
+      query: ({ orderId, status }) => ({
+        url: `/admin/orders/${orderId}/status`,
+        method: 'PATCH',
+        body: { status },
+      }),
+      invalidatesTags: (_result, _error, { orderId }) => [{ type: 'Order', id: orderId }],
+    }),
+    listOrders: builder.query({
+      queryFn: async () => ({
+        error: { status: 'CUSTOM_ERROR', error: 'Bulk order listing is not exposed yet.' },
+      }),
     }),
   }),
 });
@@ -32,5 +46,6 @@ export const {
   useCreateOrderMutation,
   useListOrdersQuery,
   useUpdateOrderStatusMutation,
+  useAcceptOrderMutation,
 } = orderApi;
 

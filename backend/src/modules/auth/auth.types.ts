@@ -5,6 +5,7 @@ export type AuthenticatedUser = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  profileImageUrl: string | null;
   roles: Role[];
 };
 
@@ -16,6 +17,7 @@ export type JwtPayload = {
   email: string | null;
   phone: string | null;
   name: string | null;
+  profileImageUrl?: string | null;
   roles: Role[];
   role: Role | null;
   type: JwtTokenType;
