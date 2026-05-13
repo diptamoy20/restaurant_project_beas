@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { ORDER_STATUS } from '../../common/constants/order-status';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
+import { ORDER_STATUS } from '../../common/constants/order-status';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -66,15 +66,10 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    const allowed = new Set<string>([
-      ORDER_STATUS.PENDING,
-      ORDER_STATUS.PLACED,
-    ]);
+    const allowed = new Set<string>([ORDER_STATUS.PENDING, ORDER_STATUS.PLACED]);
 
     if (!allowed.has(existing.status)) {
-      throw new BadRequestException(
-        `Order cannot be accepted from status ${existing.status}`,
-      );
+      throw new BadRequestException(`Order cannot be accepted from status ${existing.status}`);
     }
 
     const now = new Date();
@@ -98,10 +93,7 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  async updateOrderStatusByAdmin(
-    orderId: number,
-    status: string,
-  ): Promise<OrderResponseDto> {
+  async updateOrderStatusByAdmin(orderId: number, status: string): Promise<OrderResponseDto> {
     const existing = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -286,13 +278,9 @@ export class OrdersService {
     const preparationMinutes = order.items
       .map((item) => item.menuItem?.preparationTime)
       .filter((value): value is number => typeof value === 'number' && value > 0);
-    const maxPrep =
-      preparationMinutes.length > 0 ? Math.max(...preparationMinutes) : 20;
+    const maxPrep = preparationMinutes.length > 0 ? Math.max(...preparationMinutes) : 20;
     const deliveryBuffer = order.orderType === 'DELIVERY' ? 25 : 10;
-    const estimatedDeliveryMinutes = Math.min(
-      120,
-      Math.max(15, maxPrep + deliveryBuffer),
-    );
+    const estimatedDeliveryMinutes = Math.min(120, Math.max(15, maxPrep + deliveryBuffer));
 
     return {
       id: order.id,

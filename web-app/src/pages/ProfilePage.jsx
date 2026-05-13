@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
 import { updateProfile, uploadProfileImage } from '../store/slices/authSlice';
-import { getUserDisplayName, getUserInitials, getUserProfileImage } from '../utils/profile';
+import { getUserDisplayName } from '../utils/profile';
 
 export function ProfilePage() {
   const dispatch = useDispatch();
@@ -12,7 +13,6 @@ export function ProfilePage() {
     email: '',
     phone: '',
   });
-  const userImage = getUserProfileImage(user);
 
   useEffect(() => {
     setForm({
@@ -52,9 +52,10 @@ export function ProfilePage() {
       <div className="profile-hero info-card">
         <div className="profile-hero-media">
           <div className="profile-image-editor">
-            <span className="profile-avatar profile-avatar-xl">
-              {userImage ? <img src={userImage} alt="" /> : getUserInitials(user)}
-            </span>
+            <ProfileAvatar
+              user={user}
+              className="profile-avatar profile-avatar-xl"
+            />
             <button
               type="button"
               className="profile-image-edit-button"
@@ -76,7 +77,8 @@ export function ProfilePage() {
           <p className="eyebrow">Edit profile</p>
           <h2>{getUserDisplayName(user)}</h2>
           <p className="copy">
-            Keep your account details ready for faster checkout, delivery updates, and payments.
+            Keep your account details ready for faster checkout, delivery
+            updates, and payments.
           </p>
         </div>
       </div>
@@ -85,7 +87,10 @@ export function ProfilePage() {
         <div className="profile-form-header">
           <div>
             <h3>Personal details</h3>
-            <p>Update the information used for account access and order communication.</p>
+            <p>
+              Update the information used for account access and order
+              communication.
+            </p>
           </div>
         </div>
 
@@ -94,7 +99,9 @@ export function ProfilePage() {
             <span>Name</span>
             <input
               value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, name: event.target.value }))
+              }
               placeholder="Your name"
             />
           </label>
@@ -103,7 +110,12 @@ export function ProfilePage() {
             <input
               type="email"
               value={form.email}
-              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  email: event.target.value,
+                }))
+              }
               placeholder="you@example.com"
             />
           </label>
@@ -111,7 +123,12 @@ export function ProfilePage() {
             <span>Phone</span>
             <input
               value={form.phone}
-              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  phone: event.target.value,
+                }))
+              }
               placeholder="+919900000001"
             />
           </label>

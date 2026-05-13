@@ -18,7 +18,9 @@ import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SocialLoginDto, SocialLoginProvider } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { FirebaseAuthService } from './firebase-auth.service';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -43,6 +45,14 @@ type SessionOptions = {
   updateLoginMetadata: boolean;
 };
 
+type FirebaseSocialProfile = {
+  provider: SocialLoginProvider;
+  providerUserId: string;
+  email: string | null;
+  name: string | null;
+  picture: string | null;
+};
+
 const ACCESS_TOKEN_TYPE = 'access' as const;
 const REFRESH_TOKEN_TYPE = 'refresh' as const;
 const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = '7d';
@@ -51,6 +61,10 @@ const DEFAULT_LOGIN_LOCK_THRESHOLD = 5;
 const DEFAULT_LOGIN_LOCK_DURATION_MINUTES = 15;
 const DEFAULT_BCRYPT_ROUNDS = 10;
 const DEFAULT_RESET_TOKEN_EXPIRES_MINUTES = 60;
+const FIREBASE_SIGN_IN_PROVIDERS: Record<SocialLoginProvider, string> = {
+  [SocialLoginProvider.FIREBASE_GOOGLE]: 'google.com',
+  [SocialLoginProvider.FIREBASE_FACEBOOK]: 'facebook.com',
+};
 
 @Injectable()
 export class AuthService {
@@ -63,6 +77,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly firebaseAuthService: FirebaseAuthService,
   ) {
     this.loginLockThreshold =
       this.configService.get<number>('LOGIN_LOCK_THRESHOLD') ?? DEFAULT_LOGIN_LOCK_THRESHOLD;
@@ -163,6 +178,56 @@ export class AuthService {
     }
 
     this.logger.log(`Login successful for user ${user.id}`);
+
+    return this.issueSession(user, {
+      message: 'Login successful',
+      updateLoginMetadata: true,
+    });
+  }
+
+  async socialLogin(payload: SocialLoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
+    const expectedFirebaseProvider = FIREBASE_SIGN_IN_PROVIDERS[payload.provider];
+
+    if (!expectedFirebaseProvider) {
+      this.logger.warn(`Social login rejected for unsupported provider: ${payload.provider}`);
+      throw new BadRequestException('Unsupported social login provider');
+    }
+
+    const decodedToken = await this.firebaseAuthService.verifyIdToken(payload.idToken);
+    const actualFirebaseProvider = decodedToken.firebase?.sign_in_provider;
+
+    if (actualFirebaseProvider !== expectedFirebaseProvider) {
+      this.logger.warn(
+        `Social login provider mismatch: requested ${payload.provider}, token provider ${
+          actualFirebaseProvider ?? 'missing'
+        }`,
+      );
+      throw new UnauthorizedException('Invalid social login token');
+    }
+
+    const email = this.normalizeOptionalString(decodedToken.email)?.toLowerCase() ?? null;
+
+    if (email && decodedToken.email_verified !== true) {
+      this.logger.warn(
+        `Social login rejected: unverified email for Firebase uid ${this.maskIdentifier(
+          decodedToken.uid,
+        )}`,
+      );
+      throw new UnauthorizedException('Verified email is required');
+    }
+
+    const profile: FirebaseSocialProfile = {
+      provider: payload.provider,
+      providerUserId: decodedToken.uid,
+      email,
+      name: this.normalizeOptionalString(decodedToken.name),
+      picture: this.normalizeOptionalString(decodedToken.picture),
+    };
+
+    const user = await this.findOrCreateSocialUser(profile);
+
+    await this.ensureLoginAllowed(user);
+    this.logger.log(`Social login successful for user ${user.id}`);
 
     return this.issueSession(user, {
       message: 'Login successful',
@@ -559,6 +624,254 @@ export class AuthService {
         },
       },
     });
+  }
+
+  private async loadAuthUserByEmail(email: string): Promise<PrismaUserWithRoles | null> {
+    return this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        roles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async loadAuthUserBySocialAccount(
+    provider: SocialLoginProvider,
+    providerUserId: string,
+  ): Promise<PrismaUserWithRoles | null> {
+    const socialAccount = await this.prisma.socialAccount.findUnique({
+      where: {
+        provider_providerUserId: {
+          provider,
+          providerUserId,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            roles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return socialAccount?.user ?? null;
+  }
+
+  private async findOrCreateSocialUser(
+    profile: FirebaseSocialProfile,
+  ): Promise<PrismaUserWithRoles> {
+    const existingLinkedUser = await this.loadAuthUserBySocialAccount(
+      profile.provider,
+      profile.providerUserId,
+    );
+
+    if (existingLinkedUser) {
+      return existingLinkedUser;
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const linkedAccount = await tx.socialAccount.findUnique({
+          where: {
+            provider_providerUserId: {
+              provider: profile.provider,
+              providerUserId: profile.providerUserId,
+            },
+          },
+          include: {
+            user: {
+              include: {
+                roles: {
+                  include: {
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (linkedAccount) {
+          return linkedAccount.user;
+        }
+
+        const customerRole = await tx.roleMaster.findUnique({
+          where: { name: Role.CUSTOMER },
+        });
+
+        if (!customerRole) {
+          throw new BadRequestException('Customer role is not configured');
+        }
+
+        const existingUser = profile.email
+          ? await tx.user.findUnique({
+              where: { email: profile.email },
+              include: {
+                roles: {
+                  include: {
+                    role: true,
+                  },
+                },
+              },
+            })
+          : null;
+
+        if (existingUser) {
+          const linkedSocialAccount = await tx.socialAccount.upsert({
+            where: {
+              provider_providerUserId: {
+                provider: profile.provider,
+                providerUserId: profile.providerUserId,
+              },
+            },
+            update: {
+              email: profile.email,
+            },
+            create: {
+              provider: profile.provider,
+              providerUserId: profile.providerUserId,
+              email: profile.email,
+              userId: existingUser.id,
+            },
+            include: {
+              user: {
+                include: {
+                  roles: {
+                    include: {
+                      role: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          return linkedSocialAccount.user;
+        }
+
+        const password = await hash(randomBytes(32).toString('hex'), this.bcryptRounds);
+        const socialAccount = await tx.socialAccount.create({
+          data: {
+            provider: profile.provider,
+            providerUserId: profile.providerUserId,
+            email: profile.email,
+            user: {
+              create: {
+                name: profile.name,
+                email: profile.email,
+                profileImageUrl: profile.picture,
+                password,
+                isActive: true,
+                roles: {
+                  create: [{ roleId: customerRole.id }],
+                },
+              },
+            },
+          },
+          include: {
+            user: {
+              include: {
+                roles: {
+                  include: {
+                    role: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return socialAccount.user;
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        this.logger.warn(
+          `Social login unique conflict for ${profile.provider}:${this.maskIdentifier(
+            profile.providerUserId,
+          )}; retrying lookup`,
+        );
+
+        const linkedUser = await this.loadAuthUserBySocialAccount(
+          profile.provider,
+          profile.providerUserId,
+        );
+
+        if (linkedUser) {
+          return linkedUser;
+        }
+
+        if (profile.email) {
+          const existingUser = await this.loadAuthUserByEmail(profile.email);
+
+          if (existingUser) {
+            return this.linkSocialAccount(existingUser.id, profile);
+          }
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  private async linkSocialAccount(
+    userId: number,
+    profile: FirebaseSocialProfile,
+  ): Promise<PrismaUserWithRoles> {
+    const socialAccount = await this.prisma.socialAccount.upsert({
+      where: {
+        provider_providerUserId: {
+          provider: profile.provider,
+          providerUserId: profile.providerUserId,
+        },
+      },
+      update: {
+        email: profile.email,
+      },
+      create: {
+        provider: profile.provider,
+        providerUserId: profile.providerUserId,
+        email: profile.email,
+        userId,
+      },
+      include: {
+        user: {
+          include: {
+            roles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return socialAccount.user;
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+  }
+
+  private normalizeOptionalString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  }
+
+  private maskIdentifier(value: string): string {
+    if (value.length <= 8) {
+      return 'present';
+    }
+
+    return `${value.slice(0, 4)}...${value.slice(-4)}`;
   }
 
   private async ensureLoginAllowed(user: PrismaUserWithRoles): Promise<void> {

@@ -1,17 +1,13 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { CreateAdminMenuItemDto, UpdateAdminMenuItemDto } from './dto/admin-menu-item.dto';
 import {
   MenuCategoryGroupDto,
   MenuItemDto,
   MenuResponseDto,
   MenuRestaurantSummaryDto,
 } from './dto';
+import { CreateAdminMenuItemDto, UpdateAdminMenuItemDto } from './dto/admin-menu-item.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
@@ -77,9 +73,7 @@ export class MenuService {
 
     const response: MenuResponseDto = {
       restaurantId,
-      restaurant: restaurant
-        ? this.mapRestaurantSummary(restaurant)
-        : undefined,
+      restaurant: restaurant ? this.mapRestaurantSummary(restaurant) : undefined,
       categories,
       items: mappedItems,
       deliveryAvailable: delivery?.deliveryAvailable,
@@ -94,11 +88,7 @@ export class MenuService {
     return response;
   }
 
-  async getBestSellingItems(params?: {
-    lat?: number;
-    lng?: number;
-    limit?: number;
-  }): Promise<
+  async getBestSellingItems(params?: { lat?: number; lng?: number; limit?: number }): Promise<
     (MenuItemDto & {
       restaurant: MenuRestaurantSummaryDto;
     })[]
@@ -119,7 +109,7 @@ export class MenuService {
       take,
     });
 
-    let ordered = [...items];
+    const ordered = [...items];
 
     if (
       params?.lat !== undefined &&
@@ -215,10 +205,7 @@ export class MenuService {
     return this.mapMenuItem(created);
   }
 
-  async updateAdminMenuItem(
-    menuItemId: number,
-    dto: UpdateAdminMenuItemDto,
-  ): Promise<MenuItemDto> {
+  async updateAdminMenuItem(menuItemId: number, dto: UpdateAdminMenuItemDto): Promise<MenuItemDto> {
     const existing = await this.prisma.menuItem.findUnique({
       where: { id: menuItemId },
       include: { category: true },
@@ -257,18 +244,13 @@ export class MenuService {
       where: { id: menuItemId },
       data: {
         name: dto.name?.trim(),
-        description:
-          dto.description === undefined ? undefined : dto.description?.trim() || null,
+        description: dto.description === undefined ? undefined : dto.description?.trim() || null,
         price: dto.price,
-        discountPrice:
-          dto.discountPrice === undefined ? undefined : dto.discountPrice,
-        imageUrl:
-          dto.imageUrl === undefined ? undefined : dto.imageUrl?.trim() || null,
+        discountPrice: dto.discountPrice === undefined ? undefined : dto.discountPrice,
+        imageUrl: dto.imageUrl === undefined ? undefined : dto.imageUrl?.trim() || null,
         foodType: dto.foodType,
-        spicyLevel:
-          dto.spicyLevel === undefined ? undefined : dto.spicyLevel,
-        ingredients:
-          dto.ingredients === undefined ? undefined : dto.ingredients?.trim() || null,
+        spicyLevel: dto.spicyLevel === undefined ? undefined : dto.spicyLevel,
+        ingredients: dto.ingredients === undefined ? undefined : dto.ingredients?.trim() || null,
         isAvailable: dto.isAvailable,
         isBestSelling: dto.isBestSelling,
         popularityScore: dto.popularityScore,
@@ -300,9 +282,7 @@ export class MenuService {
     });
 
     if (ordersUsingItem > 0) {
-      throw new BadRequestException(
-        'Cannot delete a menu item that appears on past orders',
-      );
+      throw new BadRequestException('Cannot delete a menu item that appears on past orders');
     }
 
     await this.prisma.$transaction(async (tx) => {

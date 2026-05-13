@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Restaurant, Category, Prisma } from '@prisma/client';
 
+import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
 import {
   RestaurantCategoryResponseDto,
   RestaurantMenuItemResponseDto,
   RestaurantResponseDto,
   RestaurantTableResponseDto,
 } from './dto/restaurant-response.dto';
-import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
 
@@ -72,11 +72,7 @@ export class RestaurantsService {
       this.mapRestaurant(restaurant),
     );
 
-    if (
-      coords &&
-      Number.isFinite(coords.lat) &&
-      Number.isFinite(coords.lng)
-    ) {
+    if (coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
       mapped = [...mapped].sort((a, b) => {
         const da = this.haversineKm(coords.lat, coords.lng, a.latitude, a.longitude);
         const db = this.haversineKm(coords.lat, coords.lng, b.latitude, b.longitude);
@@ -157,7 +153,7 @@ export class RestaurantsService {
           UPDATE "restaurants"
           SET "location" = public.ST_SetSRID(public.ST_MakePoint(${data.longitude}::double precision, ${data.latitude}::double precision), 4326)::public.geography
           WHERE "id" = ${restaurant.id}
-        `
+        `,
       );
 
       // Fetch updated restaurant
@@ -221,7 +217,7 @@ export class RestaurantsService {
             UPDATE "restaurants"
             SET "location" = public.ST_SetSRID(public.ST_MakePoint(${data.longitude}::double precision, ${data.latitude}::double precision), 4326)::public.geography
             WHERE "id" = ${id}
-          `
+          `,
         );
       }
 
@@ -245,7 +241,7 @@ export class RestaurantsService {
    */
   async deleteRestaurant(id: number): Promise<{ message: string }> {
     // Verify restaurant exists
-    const restaurant = await this.getRestaurant(id);
+    await this.getRestaurant(id);
 
     // Check if restaurant has orders
     const orderCount = await this.prisma.order.count({

@@ -12,21 +12,28 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
 
-import { NearbyRestaurantsDto } from './dto/nearby-restaurants.dto';
-import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
-import { RestaurantResponseDto } from './dto/restaurant-response.dto';
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
+import { NearbyRestaurantsDto } from './dto/nearby-restaurants.dto';
+import { RestaurantResponseDto } from './dto/restaurant-response.dto';
+import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
 import { MenuResponseDto } from '../menu/dto';
 import { MenuService } from '../menu/menu.service';
-import { RolesGuard } from '../../common/guards/roles.guard';
 
 @Controller(['restaurants', 'v1/restaurants'])
 @ApiTags('Restaurants')

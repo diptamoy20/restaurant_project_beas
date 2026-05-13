@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync } from 'fs';
+import { extname, join } from 'path';
+
 import {
   Body,
   Controller,
@@ -24,10 +27,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { existsSync, mkdirSync } from 'fs';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
 import { Response } from 'express';
+import { diskStorage } from 'multer';
 
 import { AuthService } from './auth.service';
 import { AuthenticatedUser, AuthSuccessResponse } from './auth.types';
@@ -41,6 +42,7 @@ import {
 } from './dto/auth.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SocialLoginDto } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -86,6 +88,36 @@ export class AuthController {
   @ApiStandardErrorResponses({ badRequest: true })
   login(@Body() payload: LoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
     return this.authService.login(payload);
+  }
+
+  @Public()
+  @Post('social-login')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Login with a Firebase social identity token' })
+  @ApiBody({
+    type: SocialLoginDto,
+    examples: {
+      google: {
+        summary: 'Firebase Google login',
+        value: {
+          provider: 'firebase_google',
+          idToken: 'firebase-google-id-token',
+        },
+      },
+      facebook: {
+        summary: 'Firebase Facebook login',
+        value: {
+          provider: 'firebase_facebook',
+          idToken: 'firebase-facebook-id-token',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid social login token' })
+  @ApiStandardErrorResponses({ badRequest: true, unauthorized: true, forbidden: true })
+  socialLogin(@Body() payload: SocialLoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
+    return this.authService.socialLogin(payload);
   }
 
   @Public()
@@ -211,7 +243,10 @@ export class AuthController {
         callback: (error: Error | null, acceptFile: boolean) => void,
       ) => {
         if (!PROFILE_IMAGE_MIME_TYPES.has(file.mimetype)) {
-          callback(new BadRequestException('Only JPG, PNG, WEBP, or GIF images are allowed'), false);
+          callback(
+            new BadRequestException('Only JPG, PNG, WEBP, or GIF images are allowed'),
+            false,
+          );
           return;
         }
 
