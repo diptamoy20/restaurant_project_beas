@@ -1,5 +1,16 @@
 import { api } from "../lib/api";
 
+export function searchRestaurants({ q, lat, lng, signal }) {
+  const params = new URLSearchParams({ q });
+
+  if (lat !== undefined && lng !== undefined) {
+    params.set("lat", String(lat));
+    params.set("lng", String(lng));
+  }
+
+  return api.get(`/restaurants/search?${params.toString()}`, { signal });
+}
+
 export function getNearbyRestaurants({
   lat,
   lng,

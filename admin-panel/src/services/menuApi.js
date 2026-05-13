@@ -1,44 +1,73 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 
-import { baseQueryWithAuth, createUnavailableHandler } from '../app/baseQuery';
+import { baseQueryWithAuth } from '../app/baseQuery';
 
 export const menuApi = createApi({
   reducerPath: 'menuApi',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Menu'],
+  tagTypes: ['Menu', 'AdminMenu'],
   endpoints: (builder) => ({
     getMenuByRestaurant: builder.query({
       query: (restaurantId) => `/menu/restaurant/${restaurantId}`,
       providesTags: ['Menu'],
     }),
+    getAdminRestaurantMenu: builder.query({
+      query: (restaurantId) => `/admin/restaurants/${restaurantId}/menu`,
+      providesTags: (_result, _error, restaurantId) => [{ type: 'AdminMenu', id: restaurantId }],
+    }),
+    createAdminMenuItem: builder.mutation({
+      query: ({ restaurantId, body }) => ({
+        url: `/admin/restaurants/${restaurantId}/menu`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { restaurantId }) => [
+        { type: 'AdminMenu', id: restaurantId },
+        'Menu',
+      ],
+    }),
+    updateAdminMenuItem: builder.mutation({
+      query: ({ id, body }) => ({
+        url: `/admin/menu/${id}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { restaurantId }) =>
+        restaurantId ? [{ type: 'AdminMenu', id: restaurantId }, 'Menu'] : ['Menu'],
+    }),
+    deleteAdminMenuItem: builder.mutation({
+      query: ({ id }) => ({
+        url: `/admin/menu/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { restaurantId }) =>
+        restaurantId ? [{ type: 'AdminMenu', id: restaurantId }, 'Menu'] : ['Menu'],
+    }),
     createCategory: builder.mutation({
-      queryFn: createUnavailableHandler('Category creation'),
+      queryFn: async () => ({
+        error: { status: 'CUSTOM_ERROR', error: 'Use menu item categoryName to auto-create categories.' },
+      }),
     }),
     updateCategory: builder.mutation({
-      queryFn: createUnavailableHandler('Category updates'),
+      queryFn: async () => ({
+        error: { status: 'CUSTOM_ERROR', error: 'Category updates are not exposed yet.' },
+      }),
     }),
     deleteCategory: builder.mutation({
-      queryFn: createUnavailableHandler('Category deletion'),
-    }),
-    createMenuItem: builder.mutation({
-      queryFn: createUnavailableHandler('Menu item creation'),
-    }),
-    updateMenuItem: builder.mutation({
-      queryFn: createUnavailableHandler('Menu item updates'),
-    }),
-    deleteMenuItem: builder.mutation({
-      queryFn: createUnavailableHandler('Menu item deletion'),
+      queryFn: async () => ({
+        error: { status: 'CUSTOM_ERROR', error: 'Category deletion is not exposed yet.' },
+      }),
     }),
   }),
 });
 
 export const {
   useGetMenuByRestaurantQuery,
+  useGetAdminRestaurantMenuQuery,
+  useCreateAdminMenuItemMutation,
+  useUpdateAdminMenuItemMutation,
+  useDeleteAdminMenuItemMutation,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
-  useCreateMenuItemMutation,
-  useUpdateMenuItemMutation,
-  useDeleteMenuItemMutation,
 } = menuApi;
-

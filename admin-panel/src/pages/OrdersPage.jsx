@@ -8,12 +8,20 @@ import { Loader } from '../components/ui/Loader';
 import { Table } from '../components/ui/Table';
 import { TextField } from '../components/ui/TextField';
 import { PermissionGate } from '../components/PermissionGate';
-import { useGetOrderByIdQuery, useUpdateOrderStatusMutation } from '../services/orderApi';
+import {
+  useAcceptOrderMutation,
+  useGetOrderByIdQuery,
+  useUpdateOrderStatusMutation,
+} from '../services/orderApi';
 
 const statusClasses = {
   PLACED: 'bg-amber-100 text-amber-800',
   PENDING: 'bg-amber-100 text-amber-800',
-  ACCEPTED: 'bg-emerald-100 text-emerald-800',
+  ACCEPTED: 'bg-blue-100 text-blue-800',
+  PREPARING: 'bg-orange-100 text-orange-900',
+  OUT_FOR_DELIVERY: 'bg-indigo-100 text-indigo-900',
+  DELIVERED: 'bg-emerald-100 text-emerald-900',
+  CANCELLED: 'bg-rose-100 text-rose-700',
   REJECTED: 'bg-rose-100 text-rose-700',
   COMPLETED: 'bg-slate-200 text-slate-700',
 };
@@ -21,6 +29,7 @@ const statusClasses = {
 export function OrdersPage() {
   const [inputOrderId, setInputOrderId] = useState('1');
   const [selectedOrderId, setSelectedOrderId] = useState('1');
+  const [acceptOrder, acceptState] = useAcceptOrderMutation();
   const [updateOrderStatus, { error: actionError, isLoading: isUpdating }] = useUpdateOrderStatusMutation();
   const { data, isFetching, error } = useGetOrderByIdQuery(selectedOrderId, {
     skip: !selectedOrderId,
@@ -32,8 +41,12 @@ export function OrdersPage() {
     setSelectedOrderId(inputOrderId);
   };
 
-  const handleAction = async (status) => {
-    await updateOrderStatus({ orderId: selectedOrderId, status });
+  const handleAccept = async () => {
+    await acceptOrder(selectedOrderId).unwrap();
+  };
+
+  const handleStatus = async (status) => {
+    await updateOrderStatus({ orderId: selectedOrderId, status }).unwrap();
   };
 
   const itemRows = data?.items ?? [];
@@ -114,15 +127,33 @@ export function OrdersPage() {
                   fallback={<p className="text-sm text-slate-500">Your role can view order details but cannot accept orders.</p>}
                   module="orders"
                 >
-                  <Button className="w-full" disabled={isUpdating} onClick={() => handleAction('ACCEPTED')}>
+                  <Button
+                    className="w-full"
+                    disabled={isUpdating || acceptState.isLoading}
+                    onClick={() => handleAccept()}
+                  >
                     Accept order
                   </Button>
                 </PermissionGate>
                 <PermissionGate module="orders" action="reject">
-                  <Button className="w-full" disabled={isUpdating} onClick={() => handleAction('REJECTED')} variant="danger">
-                    Reject order
+                  <Button
+                    className="w-full"
+                    disabled={isUpdating}
+                    onClick={() => handleStatus('CANCELLED')}
+                    variant="danger"
+                  >
+                    Cancel order
                   </Button>
                 </PermissionGate>
+                <Button className="w-full" disabled={isUpdating} onClick={() => handleStatus('PREPARING')} variant="secondary">
+                  Mark preparing
+                </Button>
+                <Button className="w-full" disabled={isUpdating} onClick={() => handleStatus('OUT_FOR_DELIVERY')} variant="secondary">
+                  Out for delivery
+                </Button>
+                <Button className="w-full" disabled={isUpdating} onClick={() => handleStatus('DELIVERED')} variant="secondary">
+                  Mark delivered
+                </Button>
                 {actionError ? (
                   <ErrorState
                     message={

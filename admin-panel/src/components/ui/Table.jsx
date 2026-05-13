@@ -1,4 +1,4 @@
-export function Table({ columns, data, emptyMessage = 'No records found.' }) {
+export function Table({ columns, data, emptyMessage = 'No records found.', onRowClick }) {
   if (!data.length) {
     return <div className="rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">{emptyMessage}</div>;
   }
@@ -22,7 +22,14 @@ export function Table({ columns, data, emptyMessage = 'No records found.' }) {
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
             {data.map((row, rowIndex) => (
-              <tr className="align-top" key={row.id ?? rowIndex}>
+              <tr
+                className={[
+                  'align-top',
+                  typeof onRowClick === 'function' ? 'cursor-pointer hover:bg-slate-50/80' : '',
+                ].join(' ')}
+                key={row.id ?? rowIndex}
+                onClick={() => onRowClick?.(row)}
+              >
                 {columns.map((column) => (
                   <td className="px-4 py-4 text-slate-700" key={column.key}>
                     {column.render ? column.render(row) : row[column.key]}

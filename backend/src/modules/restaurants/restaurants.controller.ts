@@ -15,6 +15,7 @@ import {
 import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, ApiCreatedResponse } from '@nestjs/swagger';
 
 import { NearbyRestaurantsDto } from './dto/nearby-restaurants.dto';
+import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantResponseDto } from './dto/restaurant-response.dto';
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
 import { RestaurantsService } from './restaurants.service';
@@ -47,6 +48,27 @@ export class RestaurantsController {
   }
 
   /**
+   * Search restaurants by name (optional lat/lng to sort by distance)
+   */
+  @Get('search')
+  @Public()
+  @ApiOperation({ summary: 'Search restaurants by name' })
+  @ApiQuery({ name: 'q', required: true })
+  @ApiQuery({ name: 'lat', required: false })
+  @ApiQuery({ name: 'lng', required: false })
+  @ApiOkResponse({ type: RestaurantResponseDto, isArray: true })
+  async searchRestaurants(
+    @Query() query: SearchRestaurantsQueryDto,
+  ): Promise<RestaurantResponseDto[]> {
+    return this.restaurantsService.searchRestaurants(
+      query.q,
+      query.lat !== undefined && query.lng !== undefined
+        ? { lat: query.lat, lng: query.lng }
+        : undefined,
+    );
+  }
+
+  /**
    * Get all restaurants for admin (including inactive)
    */
   @Get('admin/all')
@@ -65,8 +87,8 @@ export class RestaurantsController {
   @Get('nearby')
   @Public()
   @ApiOperation({ summary: 'Find nearby restaurants using coordinates' })
-  @ApiQuery({ name: 'lat', required: true, type: Number, example: 22.5726 })
-  @ApiQuery({ name: 'lng', required: true, type: Number, example: 88.3639 })
+  @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
+  @ApiQuery({ name: 'lng', required: false, type: Number, example: 88.3639 })
   @ApiQuery({ name: 'radiusKm', required: false, type: Number, example: 10 })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
@@ -75,7 +97,12 @@ export class RestaurantsController {
   async getNearbyRestaurants(
     @Query() query: NearbyRestaurantsDto,
   ): Promise<RestaurantResponseDto[]> {
-    const { lat, lng } = query.getCoordinates();
+    const lat = query.lat ?? query.latitude;
+    const lng = query.lng ?? query.longitude;
+
+    if (lat === undefined || lng === undefined) {
+      return this.restaurantsService.getRestaurants();
+    }
 
     return this.restaurantsService.findNearbyRestaurants({
       lat,
