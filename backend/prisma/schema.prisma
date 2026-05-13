@@ -130,19 +130,28 @@ model Category {
 }
 
 model MenuItem {
-  id              Int               @id @default(autoincrement())
-  restaurantId    Int               @map("restaurant_id")
-  categoryId      Int               @map("category_id")
-  name            String
-  description     String?
-  price           Float
-  isAvailable     Boolean           @default(true) @map("is_available")
-  preparationTime Int?              @map("preparation_time")
-  restaurant      Restaurant        @relation(fields: [restaurantId], references: [id])
-  category        Category          @relation(fields: [categoryId], references: [id])
-  variants        MenuItemVariant[]
-  orderItems      OrderItem[]
-  cartItems       CartItem[]
+  id                   Int               @id @default(autoincrement())
+  restaurantId        Int               @map("restaurant_id")
+  categoryId          Int               @map("category_id")
+  name                String
+  description         String?
+  price               Float
+  discountPrice       Float?            @map("discount_price")
+  imageUrl            String?           @map("image_url")
+  foodType            String            @default("VEG") @map("food_type")
+  spicyLevel          Int?              @map("spicy_level")
+  ingredients         String?
+  isAvailable         Boolean           @default(true) @map("is_available")
+  isBestSelling       Boolean           @default(false) @map("is_best_selling")
+  popularityScore     Int               @default(0) @map("popularity_score")
+  rating              Float?
+  preparationTime     Int?              @map("preparation_time")
+  customizableOptions Json?             @map("customizable_options")
+  restaurant          Restaurant        @relation(fields: [restaurantId], references: [id])
+  category            Category          @relation(fields: [categoryId], references: [id])
+  variants            MenuItemVariant[]
+  orderItems          OrderItem[]
+  cartItems           CartItem[]
 
   @@map("menu_items")
 }
@@ -179,6 +188,9 @@ model Order {
   paymentFailureReason String?    @map("payment_failure_reason")
   paymentRetryCount Int           @default(0) @map("payment_retry_count")
   razorpayDetails Json?           @map("razorpay_details")
+  acceptedAt     DateTime?        @map("accepted_at")
+  preparedAt     DateTime?        @map("prepared_at")
+  deliveredAt    DateTime?        @map("delivered_at")
   createdAt      DateTime         @default(now()) @map("created_at")
   user           User             @relation(fields: [userId], references: [id])
   restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { fetchCart } from '../store/slices/cartSlice';
 import { CartIcon } from './landing/LandingIcons';
+import { NavbarRestaurantSearch } from './NavbarRestaurantSearch.jsx';
 import { createTableAwarePath, resolveTableId } from '../lib/tableSession';
 import projectLogo from '../assets/project-logo.svg';
 
@@ -71,6 +72,8 @@ export function Layout({ children }) {
             </div>
           </Link>
 
+          <NavbarRestaurantSearch />
+
           <nav className="nav desktop-nav">
             {user ? (
               <>
@@ -136,6 +139,9 @@ export function Layout({ children }) {
       </header>
       <div className={menuOpen ? 'drawer-backdrop is-open' : 'drawer-backdrop'} onClick={() => setMenuOpen(false)} />
       <aside className={menuOpen ? 'mobile-drawer is-open' : 'mobile-drawer'}>
+        <div className="drawer-restaurant-search">
+          <NavbarRestaurantSearch />
+        </div>
         <nav className="drawer-nav">
           {user ? (
             <>

@@ -6,12 +6,17 @@ import { CTABanner } from "../components/landing/CTABanner";
 import { Footer } from "../components/landing/Footer";
 import { LocationPermissionModal } from "../components/LocationPermissionModal";
 import { NearbyRestaurantsSection } from "../components/NearbyRestaurantsSection";
+import { HomeMenuBrowse } from "../components/HomeMenuBrowse.jsx";
+import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
 
 export function HomePage() {
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location);
+  const { selectedRestaurantId } = useSelectedRestaurant();
+  const fallbackRestaurantId = nearby.restaurants?.[0]?.id ?? null;
+  const activeRestaurantId = selectedRestaurantId ?? fallbackRestaurantId;
 
   return (
     <div className="landing-page">
@@ -24,6 +29,10 @@ export function HomePage() {
         onClose={() => locationFlow.setPermissionModalOpen(false)}
       />
       <HeroSection />
+      <HomeMenuBrowse
+        coordinates={locationFlow.location}
+        restaurantId={activeRestaurantId}
+      />
       <NearbyRestaurantsSection
         location={locationFlow.location}
         restaurants={nearby.restaurants}

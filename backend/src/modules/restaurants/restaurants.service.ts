@@ -47,6 +47,49 @@ export class RestaurantsService {
   }
 
   /**
+   * Search restaurants by name (optional: sort by distance when lat/lng provided)
+   */
+  async searchRestaurants(
+    query: string,
+    coords?: { lat: number; lng: number },
+  ): Promise<RestaurantResponseDto[]> {
+    const q = query.trim();
+
+    if (q.length < 1) {
+      return [];
+    }
+
+    const restaurants = await this.prisma.restaurant.findMany({
+      where: {
+        isActive: true,
+        name: { contains: q, mode: 'insensitive' },
+      },
+      include: { categories: true },
+      take: 40,
+    });
+
+    let mapped = restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
+      this.mapRestaurant(restaurant),
+    );
+
+    if (
+      coords &&
+      Number.isFinite(coords.lat) &&
+      Number.isFinite(coords.lng)
+    ) {
+      mapped = [...mapped].sort((a, b) => {
+        const da = this.haversineKm(coords.lat, coords.lng, a.latitude, a.longitude);
+        const db = this.haversineKm(coords.lat, coords.lng, b.latitude, b.longitude);
+        return da - db;
+      });
+    } else {
+      mapped.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return mapped;
+  }
+
+  /**
    * Find nearby restaurants based on user coordinates
    */
   async findNearbyRestaurants(params: {
@@ -230,6 +273,25 @@ export class RestaurantsService {
    */
   private isValidCoordinates(lat: number, lng: number): boolean {
     return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  private haversineKm(lat: number, lng: number, rLat: number, rLng: number): number {
+    const R = 6371;
+    const dLat = this.deg2rad(rLat - lat);
+    const dLon = this.deg2rad(rLng - lng);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(lat)) *
+        Math.cos(this.deg2rad(rLat)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  }
+
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI / 180);
   }
 
   private mapRestaurantCategory(category: {

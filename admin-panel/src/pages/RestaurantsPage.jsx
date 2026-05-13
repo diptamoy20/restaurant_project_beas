@@ -16,6 +16,7 @@ import {
   useUpdateRestaurantMutation,
   useDeleteRestaurantMutation,
 } from '../services/restaurantApi';
+import { RestaurantMenuModal } from '../components/RestaurantMenuModal.jsx';
 
 const initialFormState = {
   name: '',
@@ -33,6 +34,7 @@ const initialFormState = {
 
 export function RestaurantsPage() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [menuRestaurant, setMenuRestaurant] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialFormState);
   const [errors, setErrors] = useState({});
@@ -265,7 +267,7 @@ export function RestaurantsPage() {
                       module="restaurants"
                       action="edit"
                     >
-                      <div className="flex gap-2">
+                      <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
                         <Button onClick={() => handleEdit(row)} variant="secondary">
                           Edit
                         </Button>
@@ -280,12 +282,19 @@ export function RestaurantsPage() {
                 },
               ]}
               data={data}
+              onRowClick={(row) => setMenuRestaurant(row)}
             />
           </div>
         ) : null}
 
         {mutationError ? <ErrorState message={mutationError} /> : null}
       </Card>
+
+      <RestaurantMenuModal
+        open={Boolean(menuRestaurant)}
+        restaurant={menuRestaurant}
+        onClose={() => setMenuRestaurant(null)}
+      />
 
       <Modal
         footer={

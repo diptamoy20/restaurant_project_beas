@@ -8,4 +8,8 @@ export const orderApi = {
   async getOrder(orderId) {
     return api.get(`/orders/${orderId}`);
   },
+
+  async getMyOrders() {
+    return api.get('/orders/my-orders');
+  },
 };
