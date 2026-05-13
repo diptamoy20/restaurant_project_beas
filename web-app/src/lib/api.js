@@ -3,6 +3,8 @@ const API_BASE_URL = (
 ).replace(/\/$/, "");
 let getAuthToken = () => null;
 let handleUnauthorized = () => {};
+let refreshAuthToken = null;
+let refreshRequest = null;
 const debugAuth = import.meta.env.VITE_DEBUG_AUTH === "true";
 
 export class ApiError extends Error {
@@ -23,6 +25,10 @@ export function setUnauthorizedHandler(handler) {
   handleUnauthorized = typeof handler === "function" ? handler : () => {};
 }
 
+export function setAuthRefreshHandler(handler) {
+  refreshAuthToken = typeof handler === "function" ? handler : null;
+}
+
 function maskToken(token) {
   if (!token) {
     return "missing";
@@ -36,21 +42,51 @@ function maskToken(token) {
 }
 
 async function request(path, options = {}) {
+  const {
+    skipAuthRefresh = false,
+    skipUnauthorizedHandler = false,
+    ...fetchOptions
+  } = options;
   const token = getAuthToken();
   const normalizedPath = normalizePath(path);
 
-  const headers = {
+  const makeHeaders = (authToken) => ({
     "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-    ...(options.headers || {}),
-  };
-
-  const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
-    headers,
-    ...options,
+    ...(authToken && { Authorization: `Bearer ${authToken}` }),
+    ...(fetchOptions.headers || {}),
   });
 
-  const data = await response.json().catch(() => ({}));
+  const performRequest = (authToken) =>
+    fetch(`${API_BASE_URL}${normalizedPath}`, {
+      ...fetchOptions,
+      headers: makeHeaders(authToken),
+    });
+
+  let response = await performRequest(token);
+
+  let data = await response.json().catch(() => ({}));
+
+  if (!response.ok && response.status === 401 && token && refreshAuthToken && !skipAuthRefresh) {
+    try {
+      refreshRequest = refreshRequest ?? Promise.resolve(refreshAuthToken()).finally(() => {
+        refreshRequest = null;
+      });
+
+      const refreshedToken = await refreshRequest;
+
+      if (refreshedToken) {
+        response = await performRequest(refreshedToken);
+        data = await response.json().catch(() => ({}));
+      }
+    } catch (error) {
+      if (debugAuth) {
+        console.debug("[auth/api] token refresh failed", {
+          path,
+          message: error.message,
+        });
+      }
+    }
+  }
 
   if (!response.ok) {
     const isUnauthorized = response.status === 401;
@@ -66,8 +102,8 @@ async function request(path, options = {}) {
       });
     }
 
-    if (isUnauthorized) {
-      handleUnauthorized();
+    if (isUnauthorized && !skipUnauthorizedHandler) {
+      handleUnauthorized({ path, token });
     }
 
     throw new ApiError(message, {

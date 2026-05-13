@@ -16,6 +16,7 @@ function readStorage(storage) {
 
     return {
       token: parsed.token,
+      refreshToken: parsed.refreshToken ?? null,
       user: parsed.user,
     };
   } catch {
@@ -36,9 +37,18 @@ export function saveUserToStorage(auth, rememberMe = true) {
     AUTH_STORAGE_KEY,
     JSON.stringify({
       token: auth.token,
+      refreshToken: auth.refreshToken,
       user: auth.user,
     }),
   );
+}
+
+export function updateStoredUser(auth) {
+  const useLocalStorage =
+    localStorage.getItem(AUTH_STORAGE_KEY) !== null ||
+    sessionStorage.getItem(AUTH_STORAGE_KEY) === null;
+
+  saveUserToStorage(auth, useLocalStorage);
 }
 
 export function clearStoredUser() {

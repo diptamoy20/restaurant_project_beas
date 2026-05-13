@@ -1,6 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { api } from '../../lib/api';
-import { clearStoredUser, loadUserFromStorage, saveUserToStorage } from '../../services/authStorage';
+import {
+  clearStoredUser,
+  loadUserFromStorage,
+  saveUserToStorage,
+  updateStoredUser,
+} from '../../services/authStorage';
 
 function getInitialState() {
   const storedAuth = loadUserFromStorage();
@@ -8,6 +13,7 @@ function getInitialState() {
   return {
     user: storedAuth?.user ?? null,
     token: storedAuth?.token ?? null,
+    refreshToken: storedAuth?.refreshToken ?? null,
     loading: false,
     error: null,
     message: null,
@@ -88,6 +94,32 @@ export const resetPassword = createAsyncThunk(
   },
 );
 
+export const refreshSession = createAsyncThunk(
+  'auth/refreshSession',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const refreshToken = getState().auth?.refreshToken;
+
+      if (!refreshToken) {
+        return rejectWithValue('Session expired. Please login again.');
+      }
+
+      const response = await api.post(
+        '/auth/refresh',
+        { refreshToken },
+        {
+          skipAuthRefresh: true,
+          skipUnauthorizedHandler: true,
+        },
+      );
+
+      return normalizeAuthResponse(response?.data ?? response);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: getInitialState(),
@@ -95,6 +127,7 @@ const authSlice = createSlice({
     logout(state) {
       state.user = null;
       state.token = null;
+      state.refreshToken = null;
       state.error = null;
       state.message = null;
       clearStoredUser();
@@ -110,11 +143,16 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.message = null;
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        clearStoredUser();
       })
       .addCase(loginCustomer.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
         saveUserToStorage(state, action.payload.rememberMe);
       })
       .addCase(loginCustomer.rejected, (state, action) => {
@@ -125,11 +163,16 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.message = null;
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        clearStoredUser();
       })
       .addCase(registerCustomer.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
         saveUserToStorage(state, action.payload.rememberMe);
       })
       .addCase(registerCustomer.rejected, (state, action) => {
@@ -161,6 +204,18 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Unable to reset password';
+      })
+      .addCase(refreshSession.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        updateStoredUser(state);
+      })
+      .addCase(refreshSession.rejected, (state) => {
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        clearStoredUser();
       });
   },
 });
