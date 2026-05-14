@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrderSource } from '@prisma/client';
-import { QRMenuResponseDto } from './dto/qr-menu-response.dto';
-import { QRCreateOrderItemDto, QRCreateOrderDto } from './dto/qr-create-order.dto';
+
 import { QRCreateOrderResponseDto } from './dto/qr-create-order-response.dto';
+import { QRCreateOrderItemDto, QRCreateOrderDto } from './dto/qr-create-order.dto';
+import { QRMenuResponseDto } from './dto/qr-menu-response.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { CreateOrderType } from '../orders/types/create-order.type';
@@ -110,7 +111,7 @@ export class QrService {
       source: OrderSource.QR_DINE_IN,
       orderType: 'DINE_IN',
       paymentMethod: orderData.paymentMethod,
-      discountAmount: orderData.discountAmount,
+      discountAmount: 0,
       items: orderData.items.map((item) => ({
         menuItemId: item.menuItemId,
         variantId: item.variantId,
@@ -129,6 +130,7 @@ export class QrService {
       orderNumber: order.orderNumber,
       status: order.status,
       estimatedTime,
+      finalAmount: order.finalAmount,
     };
   }
 
@@ -149,12 +151,12 @@ export class QrService {
     });
 
     const menuItemPrepTimes = new Map(
-      menuItems.map((item) => [item.id, item.preparationTime || 10]) // Default 10 minutes if not set
+      menuItems.map((item) => [item.id, item.preparationTime || 10]), // Default 10 minutes if not set
     );
 
     // Find the maximum preparation time among all items
     const maxPrepTime = Math.max(
-      ...items.map((item) => menuItemPrepTimes.get(item.menuItemId) || 10)
+      ...items.map((item) => menuItemPrepTimes.get(item.menuItemId) || 10),
     );
 
     // Add buffer time for order processing and serving

@@ -1,45 +1,83 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsString, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 
 export class QRCreateOrderItemDto {
-  @ApiProperty({ example: 1, description: 'Menu item ID' })
-  @IsNumber()
+  @ApiProperty({
+    example: 1,
+    minimum: 1,
+    description: 'Menu item ID',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   menuItemId!: number;
 
-  @ApiPropertyOptional({ example: 2, description: 'Variant ID if selected' })
+  @ApiPropertyOptional({
+    example: 2,
+    minimum: 1,
+    description: 'Variant ID',
+  })
+  @Type(() => Number)
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   variantId?: number;
 
-  @ApiProperty({ example: 2, description: 'Quantity of the item' })
-  @IsNumber()
+  @ApiProperty({ example: 2, minimum: 1, description: 'Quantity of the item' })
+  @Type(() => Number)
+  @IsInt()
   @Min(1)
   quantity!: number;
 }
 
 export class QRCreateOrderDto {
-  @ApiProperty({ example: 1, description: 'Restaurant ID' })
-  @IsNumber()
+  @ApiProperty({
+    example: 1,
+    minimum: 1,
+    description: 'Restaurant ID',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   restaurantId!: number;
 
-  @ApiProperty({ example: 12, description: 'Table ID' })
-  @IsNumber()
+  @ApiProperty({
+    example: 1,
+    minimum: 1,
+    description: 'Table ID',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   tableId!: number;
 
-  @ApiProperty({ type: () => QRCreateOrderItemDto, isArray: true, description: 'Order items' })
+  @ApiProperty({
+    type: () => QRCreateOrderItemDto,
+    isArray: true,
+    minItems: 1,
+    description: 'Order items',
+  })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => QRCreateOrderItemDto)
   items!: QRCreateOrderItemDto[];
 
-  @ApiPropertyOptional({ example: 'COD', description: 'Payment method' })
+  @ApiPropertyOptional({
+    enum: ['COD', 'RAZORPAY'],
+    example: 'COD',
+    description: 'Payment method',
+  })
   @IsOptional()
-  @IsString()
+  @IsIn(['COD', 'RAZORPAY'])
   paymentMethod?: string;
-
-  @ApiPropertyOptional({ example: 50, description: 'Discount amount' })
-  @IsOptional()
-  @IsNumber()
-  discountAmount?: number;
 }

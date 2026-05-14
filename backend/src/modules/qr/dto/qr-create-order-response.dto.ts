@@ -10,11 +10,15 @@ export class QRCreateOrderResponseDto {
   @IsString()
   orderNumber!: string;
 
-  @ApiProperty({ example: 'PLACED', description: 'Order status' })
+  @ApiProperty({ example: 'PENDING', description: 'Initial order status' })
   @IsString()
   status!: string;
 
   @ApiProperty({ example: 20, description: 'Estimated preparation time in minutes' })
   @IsNumber()
   estimatedTime!: number;
+
+  @ApiProperty({ example: 500, description: 'Final amount calculated by the server' })
+  @IsNumber()
+  finalAmount!: number;
 }
