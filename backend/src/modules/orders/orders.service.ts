@@ -181,6 +181,21 @@ export class OrdersService {
         }
       }
 
+      if (payload.addressId) {
+        if (!payload.userId) {
+          throw new BadRequestException('A signed-in customer is required for saved addresses');
+        }
+
+        const address = await transaction.userAddress.findFirst({
+          where: { id: payload.addressId, userId: payload.userId },
+          select: { id: true },
+        });
+
+        if (!address) {
+          throw new BadRequestException('Selected address does not belong to this customer');
+        }
+      }
+
       const menuItemIds = [...new Set(payload.items.map((item) => item.menuItemId))];
       const menuItems = await transaction.menuItem.findMany({
         where: {
