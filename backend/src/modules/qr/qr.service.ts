@@ -70,6 +70,7 @@ export class QrService {
         id: item.id,
         name: item.name,
         description: item.description || undefined,
+        imageUrl: item.imageUrl || undefined,
         price: item.price,
         isAvailable: item.isAvailable,
         preparationTime: item.preparationTime || undefined,

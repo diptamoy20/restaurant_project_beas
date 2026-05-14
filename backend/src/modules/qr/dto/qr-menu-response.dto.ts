@@ -34,6 +34,11 @@ export class QRMenuItemDto {
   @IsString()
   description?: string | null;
 
+  @ApiPropertyOptional({ example: 'https://example.com/menu-item.jpg' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string | null;
+
   @ApiProperty({ example: 250 })
   @IsNumber()
   price!: number;
