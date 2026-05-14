@@ -5,13 +5,13 @@ CREATE TYPE "OrderSource" AS ENUM ('WEBSITE', 'QR_DINE_IN', 'ADMIN');
 ALTER TABLE "orders" DROP CONSTRAINT "orders_user_id_fkey";
 
 -- DropIndex
-DROP INDEX "restaurants_delivery_radius_km_idx";
+DROP INDEX IF EXISTS "restaurants_delivery_radius_km_idx";
 
 -- DropIndex
-DROP INDEX "restaurants_is_active_idx";
+DROP INDEX IF EXISTS "restaurants_is_active_idx";
 
 -- DropIndex
-DROP INDEX "restaurants_latitude_longitude_idx";
+DROP INDEX IF EXISTS "restaurants_latitude_longitude_idx";
 
 -- AlterTable
 ALTER TABLE "orders" ADD COLUMN     "source" "OrderSource" NOT NULL DEFAULT 'WEBSITE',
