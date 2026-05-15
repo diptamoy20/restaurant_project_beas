@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { Auth, DecodedIdToken, getAuth } from 'firebase-admin/auth';
+import { Auth, DecodedIdToken, getAuth, UserRecord } from 'firebase-admin/auth';
 
 @Injectable()
 export class FirebaseAuthService {
@@ -29,6 +29,20 @@ export class FirebaseAuthService {
     } catch (error) {
       const code = error instanceof Error && 'code' in error ? String(error.code) : 'unknown';
       this.logger.warn(`Firebase ID token verification failed: ${code}`);
+      throw new UnauthorizedException('Invalid social login token');
+    }
+  }
+
+  async getUser(uid: string): Promise<UserRecord> {
+    if (!this.enabled || !this.auth) {
+      throw new ServiceUnavailableException('Social login is not configured');
+    }
+
+    try {
+      return await this.auth.getUser(uid);
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? String(error.code) : 'unknown';
+      this.logger.warn(`Firebase user lookup failed: ${code}`);
       throw new UnauthorizedException('Invalid social login token');
     }
   }
