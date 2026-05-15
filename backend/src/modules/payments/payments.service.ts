@@ -217,7 +217,7 @@ export class PaymentsService {
 
   private async recordFailure(
     orderId: number,
-    userId: number,
+    userId: number | null,
     razorpayOrderId: string,
     amount: number,
     reason?: string,

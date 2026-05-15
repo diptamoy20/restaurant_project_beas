@@ -72,6 +72,7 @@ async function bootstrap(): Promise<void> {
           'http://localhost:3000',
           'http://localhost:5173',
           'http://localhost:5174',
+          'http://localhost:5175',
           'http://localhost:4173',
         ];
   const configuredOrigins = parseCsvEnv(process.env.CORS_ORIGINS);
@@ -151,7 +152,7 @@ async function bootstrap(): Promise<void> {
     const openApiDocument = SwaggerModule.createDocument(app, swaggerConfig);
 
     SwaggerModule.setup('api/docs', app, openApiDocument, {
-      jsonDocumentUrl: 'api/openapi.json',
+      jsonDocumentUrl: '/api/openapi.json',
       swaggerOptions: {
         persistAuthorization: true,
       },

@@ -23,7 +23,9 @@ import { MenuModule } from './modules/menu/menu.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { QrModule } from './modules/qr/qr.module';
 import { RestaurantsModule } from './modules/restaurants/restaurants.module';
+import { UserAddressesModule } from './modules/user-addresses/user-addresses.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -45,6 +47,8 @@ import { PrismaModule } from './prisma/prisma.module';
     NotificationsModule,
     AdminModule,
     DeliveriesModule,
+    QrModule,
+    UserAddressesModule,
   ],
   controllers: [AppController],
   providers: [

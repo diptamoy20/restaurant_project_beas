@@ -1,27 +1,20 @@
 import { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { clearCart, setLastOrderId } from '../store/slices/cartSlice';
-import { createOrder } from '../store/slices/orderSlice';
+import { CheckoutAddressPicker } from '../components/checkout/CheckoutAddressPicker.jsx';
 import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
-import { paymentApi } from '../services/paymentApi';
 import {
   createSessionAwarePath,
   resolveRestaurantId,
   resolveTableId,
 } from '../lib/tableSession';
+import { clearCart, setLastOrderId } from '../store/slices/cartSlice';
+import { createOrder } from '../store/slices/orderSlice';
 
 const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
 const TAXES_AND_FEES = 0;
 const HARDCODED_RESTAURANT_ID = '1';
 const HARDCODED_TABLE_ID = '1';
-
-const paymentMethods = [
-  { value: 'UPI', label: 'UPI' },
-  { value: 'CARD', label: 'Card' },
-  { value: 'WALLET', label: 'Wallet' },
-  { value: 'CASH', label: 'Cash' },
-];
 
 export function CheckoutPage() {
   const dispatch = useDispatch();
@@ -31,7 +24,7 @@ export function CheckoutPage() {
   const user = useSelector((state) => state.auth.user);
   const orderLoading = useSelector((state) => state.orders.loading);
   const { startRazorpayPayment } = useRazorpayPayment();
-  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [selectedAddressId, setSelectedAddressId] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -65,10 +58,16 @@ export function CheckoutPage() {
       return;
     }
 
+    if (!selectedAddressId) {
+      setErrorMessage('Please select or add a delivery address before checkout.');
+      return;
+    }
+
     const orderPayload = {
       userId: user.id,
       restaurantId: Number(restaurantId),
       tableId: tableId ? Number(tableId) : undefined,
+      addressId: Number(selectedAddressId),
       orderType: tableId ? 'DINE_IN' : 'TAKEAWAY',
       discountAmount: 0,
       items: items.map((item) => ({
@@ -84,18 +83,13 @@ export function CheckoutPage() {
       setStatusMessage('Creating your order...');
       const order = await dispatch(createOrder(orderPayload)).unwrap();
 
-      if (paymentMethod === 'CASH') {
-        setStatusMessage('Confirming cash on delivery...');
-        await paymentApi.confirmCodPayment(order.id);
-      } else {
-        setStatusMessage('Opening secure payment...');
-        await startRazorpayPayment({
-          order,
-          user,
-          onSuccess: () => setStatusMessage('Payment successful. Finalizing order...'),
-          onFailure: (message) => setErrorMessage(message),
-        });
-      }
+      setStatusMessage('Opening secure payment...');
+      await startRazorpayPayment({
+        order,
+        user,
+        onSuccess: () => setStatusMessage('Payment successful. Finalizing order...'),
+        onFailure: (message) => setErrorMessage(message),
+      });
 
       dispatch(setLastOrderId(order.id));
       dispatch(clearCart());
@@ -104,9 +98,10 @@ export function CheckoutPage() {
         JSON.stringify({
           orderId: order.id,
           tableId: order.tableId,
+          addressId: order.addressId,
           totalAmount: order.finalAmount,
-          paymentStatus: paymentMethod === 'CASH' ? 'PENDING' : 'PAID',
-          paymentMethod,
+          paymentStatus: 'PAID',
+          paymentMethod: 'RAZORPAY',
           customerNote,
         }),
       );
@@ -115,7 +110,7 @@ export function CheckoutPage() {
         replace: true,
       });
     } catch (error) {
-      setErrorMessage(error || 'Unable to complete checkout right now.');
+      setErrorMessage(error?.message || error || 'Unable to complete checkout right now.');
       setStatusMessage('');
     } finally {
       setIsPaying(false);
@@ -127,7 +122,7 @@ export function CheckoutPage() {
       <div className="section-header checkout-header">
         <div>
           <p className="eyebrow">Checkout</p>
-          <h2>Confirm order and payment</h2>
+          <h2>Confirm order</h2>
           <p className="cart-supporting-copy">
             Table {tableId || 'N/A'} - Restaurant {restaurantId}
           </p>
@@ -163,26 +158,14 @@ export function CheckoutPage() {
             <div className="checkout-panel-header">
               <span className="checkout-step">2</span>
               <div>
-                <h3>Payment method</h3>
-                <p>Choose how this order will be settled.</p>
+                <h3>Delivery address</h3>
+                <p>Select a saved address or add a new one.</p>
               </div>
             </div>
-            <div className="payment-method-grid">
-              {paymentMethods.map((method) => (
-                <button
-                  key={method.value}
-                  type="button"
-                  className={
-                    paymentMethod === method.value
-                      ? 'payment-method-button active'
-                      : 'payment-method-button'
-                  }
-                  onClick={() => setPaymentMethod(method.value)}
-                >
-                  {method.label}
-                </button>
-              ))}
-            </div>
+            <CheckoutAddressPicker
+              selectedAddressId={selectedAddressId}
+              onSelectAddress={setSelectedAddressId}
+            />
           </div>
 
           <div className="checkout-panel">
@@ -209,7 +192,10 @@ export function CheckoutPage() {
               <div className="empty-state">Your cart is empty.</div>
             ) : (
               items.map((item) => (
-                <div key={`${item.menuItemId || item.id}-${item.variantId || 'base'}`} className="checkout-line-item">
+                <div
+                  key={`${item.menuItemId || item.id}-${item.variantId || 'base'}`}
+                  className="checkout-line-item"
+                >
                   <div>
                     <strong>{item.name}</strong>
                     <span>

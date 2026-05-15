@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OrderSource } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -61,6 +62,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsInt()
   addressId?: number;
+
+  @ApiProperty({ enum: OrderSource, example: OrderSource.WEBSITE })
+  @IsIn(Object.values(OrderSource))
+  source!: OrderSource;
 
   @ApiProperty({ enum: ['DINE_IN', 'DELIVERY', 'TAKEAWAY'], example: 'DELIVERY' })
   @IsIn(['DINE_IN', 'DELIVERY', 'TAKEAWAY'])

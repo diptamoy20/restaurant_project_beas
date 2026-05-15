@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum OrderSource {
+  WEBSITE
+  QR_DINE_IN
+  ADMIN
+}
+
 model User {
   id                     Int                  @id @default(autoincrement())
   name                   String?
@@ -73,6 +79,7 @@ model UserRoleMapping {
 model UserAddress {
   id        Int     @id @default(autoincrement())
   userId    Int     @map("user_id")
+  label     String  @default("Home")
   address   String
   city      String?
   state     String?
@@ -147,7 +154,7 @@ model Category {
 }
 
 model MenuItem {
-  id                   Int               @id @default(autoincrement())
+  id                  Int               @id @default(autoincrement())
   restaurantId        Int               @map("restaurant_id")
   categoryId          Int               @map("category_id")
   name                String
@@ -186,38 +193,39 @@ model MenuItemVariant {
 }
 
 model Order {
-  id             Int              @id @default(autoincrement())
-  userId         Int              @map("user_id")
-  restaurantId   Int              @map("restaurant_id")
-  tableId        Int?             @map("table_id")
-  addressId      Int?             @map("address_id")
-  orderNumber    String           @unique @map("order_number")
-  status         String
-  orderType      String           @map("order_type")
-  totalAmount    Float            @map("total_amount")
-  discountAmount Float?           @map("discount_amount")
-  finalAmount    Float            @map("final_amount")
-  paymentStatus  String           @map("payment_status")
-  paymentMethod  String?          @map("payment_method")
-  razorpayOrderId String?         @map("razorpay_order_id")
-  razorpayPaymentId String?       @map("razorpay_payment_id")
-  razorpaySignature String?       @map("razorpay_signature")
-  paymentFailureReason String?    @map("payment_failure_reason")
-  paymentRetryCount Int           @default(0) @map("payment_retry_count")
-  razorpayDetails Json?           @map("razorpay_details")
-  acceptedAt     DateTime?        @map("accepted_at")
-  preparedAt     DateTime?        @map("prepared_at")
-  deliveredAt    DateTime?        @map("delivered_at")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  user           User             @relation(fields: [userId], references: [id])
-  restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
-  table          RestaurantTable? @relation(fields: [tableId], references: [id])
-  address        UserAddress?     @relation(fields: [addressId], references: [id])
-  items          OrderItem[]
-  statusLogs     OrderStatusLog[]
-  payments       Payment[]
-  delivery       Delivery?
-  coupons        CouponUsage[]
+  id                   Int              @id @default(autoincrement())
+  userId               Int?             @map("user_id")
+  restaurantId         Int              @map("restaurant_id")
+  tableId              Int?             @map("table_id")
+  addressId            Int?             @map("address_id")
+  orderNumber          String           @unique @map("order_number")
+  status               String
+  source               OrderSource      @default(WEBSITE)
+  orderType            String           @map("order_type")
+  totalAmount          Float            @map("total_amount")
+  discountAmount       Float?           @map("discount_amount")
+  finalAmount          Float            @map("final_amount")
+  paymentStatus        String           @map("payment_status")
+  paymentMethod        String?          @map("payment_method")
+  razorpayOrderId      String?          @map("razorpay_order_id")
+  razorpayPaymentId    String?          @map("razorpay_payment_id")
+  razorpaySignature    String?          @map("razorpay_signature")
+  paymentFailureReason String?          @map("payment_failure_reason")
+  paymentRetryCount    Int              @default(0) @map("payment_retry_count")
+  razorpayDetails      Json?            @map("razorpay_details")
+  acceptedAt           DateTime?        @map("accepted_at")
+  preparedAt           DateTime?        @map("prepared_at")
+  deliveredAt          DateTime?        @map("delivered_at")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  user                 User?            @relation(fields: [userId], references: [id])
+  restaurant           Restaurant       @relation(fields: [restaurantId], references: [id])
+  table                RestaurantTable? @relation(fields: [tableId], references: [id])
+  address              UserAddress?     @relation(fields: [addressId], references: [id])
+  items                OrderItem[]
+  statusLogs           OrderStatusLog[]
+  payments             Payment[]
+  delivery             Delivery?
+  coupons              CouponUsage[]
 
   @@map("orders")
 }
@@ -285,13 +293,13 @@ model DeliveryTracking {
 model Payment {
   id            Int     @id @default(autoincrement())
   orderId       Int     @map("order_id")
-  userId        Int     @map("user_id")
+  userId        Int?    @map("user_id")
   transactionId String? @map("transaction_id")
   amount        Float
   status        String
   method        String
   order         Order   @relation(fields: [orderId], references: [id])
-  user          User    @relation(fields: [userId], references: [id])
+  user          User?   @relation(fields: [userId], references: [id])
 
   @@map("payments")
 }

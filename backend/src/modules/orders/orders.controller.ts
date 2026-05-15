@@ -8,6 +8,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { OrderSource } from '@prisma/client';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
@@ -56,8 +57,8 @@ export class OrdersController {
     @Req() request: { user: AuthenticatedUser },
   ): Promise<OrderResponseDto> {
     const normalizedPayload = request.user.roles.includes(Role.CUSTOMER)
-      ? { ...payload, userId: request.user.id }
-      : payload;
+      ? { ...payload, userId: request.user.id, source: payload.source || OrderSource.WEBSITE }
+      : { ...payload, source: payload.source || OrderSource.ADMIN };
 
     return this.ordersService.createOrder(normalizedPayload);
   }

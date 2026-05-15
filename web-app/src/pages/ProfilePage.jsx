@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { AccountSidebar } from '../components/account/AccountSidebar.jsx';
+import { AddressManager } from '../components/account/AddressManager.jsx';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
 import { updateProfile, uploadProfileImage } from '../store/slices/authSlice';
 import { getUserDisplayName } from '../utils/profile';
@@ -8,6 +10,7 @@ export function ProfilePage() {
   const dispatch = useDispatch();
   const { user, loading, error, message } = useSelector((state) => state.auth);
   const imageInputRef = useRef(null);
+  const [activeSection, setActiveSection] = useState('profile');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -74,75 +77,89 @@ export function ProfilePage() {
           </div>
         </div>
         <div className="profile-hero-copy">
-          <p className="eyebrow">Edit profile</p>
+          <p className="eyebrow">Profile</p>
           <h2>{getUserDisplayName(user)}</h2>
           <p className="copy">
-            Keep your account details ready for faster checkout, delivery
-            updates, and payments.
+            Keep your account details and delivery addresses ready for faster checkout.
           </p>
         </div>
       </div>
 
-      <form className="info-card profile-edit-panel" onSubmit={handleSubmit}>
-        <div className="profile-form-header">
-          <div>
-            <h3>Personal details</h3>
-            <p>
-              Update the information used for account access and order
-              communication.
-            </p>
-          </div>
-        </div>
+      <div className="account-layout">
+        <AccountSidebar
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+        />
 
-        <div className="profile-form-grid">
-          <label>
-            <span>Name</span>
-            <input
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              placeholder="Your name"
-            />
-          </label>
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  email: event.target.value,
-                }))
-              }
-              placeholder="you@example.com"
-            />
-          </label>
-          <label>
-            <span>Phone</span>
-            <input
-              value={form.phone}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  phone: event.target.value,
-                }))
-              }
-              placeholder="+919900000001"
-            />
-          </label>
-        </div>
+        <div className="account-content">
+          {activeSection === 'profile' ? (
+            <form className="info-card profile-edit-panel" onSubmit={handleSubmit}>
+              <div className="profile-form-header">
+                <div>
+                  <h3>Personal details</h3>
+                  <p>
+                    Update the information used for account access and order
+                    communication.
+                  </p>
+                </div>
+              </div>
 
-        {error ? <p className="form-error">{error}</p> : null}
-        {message ? <p className="form-success">{message}</p> : null}
+              <div className="profile-form-grid">
+                <label>
+                  <span>Name</span>
+                  <input
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, name: event.target.value }))
+                    }
+                    placeholder="Your name"
+                  />
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                    placeholder="you@example.com"
+                  />
+                </label>
+                <label>
+                  <span>Phone</span>
+                  <input
+                    value={form.phone}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        phone: event.target.value,
+                      }))
+                    }
+                    placeholder="+919900000001"
+                  />
+                </label>
+              </div>
 
-        <div className="profile-form-actions">
-          <button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save profile'}
-          </button>
+              {error ? <p className="form-error">{error}</p> : null}
+              {message ? <p className="form-success">{message}</p> : null}
+
+              <div className="profile-form-actions">
+                <button type="submit" disabled={loading}>
+                  {loading ? 'Saving...' : 'Save profile'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="info-card account-address-panel">
+              <AddressManager />
+            </div>
+          )}
         </div>
-      </form>
+      </div>
     </section>
   );
 }

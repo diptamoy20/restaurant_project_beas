@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
+import { CreateOrderType } from './types/create-order.type';
 import { ORDER_STATUS } from '../../common/constants/order-status';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -169,7 +169,7 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  async createOrder(payload: CreateOrderDto): Promise<OrderResponseDto> {
+  async createOrder(payload: CreateOrderType): Promise<OrderResponseDto> {
     const order = await this.prisma.$transaction(async (transaction) => {
       if (payload.tableId) {
         const table = await transaction.restaurantTable.findUnique({
@@ -178,6 +178,21 @@ export class OrdersService {
 
         if (!table || table.restaurantId !== payload.restaurantId) {
           throw new BadRequestException('Selected table does not belong to this restaurant');
+        }
+      }
+
+      if (payload.addressId) {
+        if (!payload.userId) {
+          throw new BadRequestException('A signed-in customer is required for saved addresses');
+        }
+
+        const address = await transaction.userAddress.findFirst({
+          where: { id: payload.addressId, userId: payload.userId },
+          select: { id: true },
+        });
+
+        if (!address) {
+          throw new BadRequestException('Selected address does not belong to this customer');
         }
       }
 
@@ -231,17 +246,19 @@ export class OrdersService {
 
       const createdOrder = await transaction.order.create({
         data: {
-          userId: payload.userId,
+          userId: payload.userId ?? null,
           restaurantId: payload.restaurantId,
           tableId: payload.tableId,
           addressId: payload.addressId,
           orderNumber: `ORD-${Date.now()}`,
           status: ORDER_STATUS.PENDING,
+          source: payload.source,
           orderType: payload.orderType,
           totalAmount,
           discountAmount,
           finalAmount: totalAmount - discountAmount,
           paymentStatus: 'PENDING',
+          paymentMethod: payload.paymentMethod,
           items: {
             create: orderItems,
           },
@@ -262,11 +279,13 @@ export class OrdersService {
         },
       });
 
-      await transaction.cartItem.deleteMany({
-        where: {
-          userId: payload.userId,
-        },
-      });
+      if (payload.userId) {
+        await transaction.cartItem.deleteMany({
+          where: {
+            userId: payload.userId,
+          },
+        });
+      }
 
       return createdOrder;
     });

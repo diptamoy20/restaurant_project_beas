@@ -7,7 +7,16 @@ const rootDir = process.cwd();
 const backendPort = process.env.PORT ?? '4000';
 const frontendPort = process.env.FRONTEND_PORT ?? '5173';
 const adminPanelPort = process.env.ADMIN_PANEL_PORT ?? '5174';
+const qrOrderingPort = process.env.QR_ORDERING_PORT ?? '5175';
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? `http://localhost:${backendPort}/api`;
+const corsOrigins =
+  process.env.CORS_ORIGINS ??
+  [
+    `http://localhost:${backendPort}`,
+    `http://localhost:${frontendPort}`,
+    `http://localhost:${adminPanelPort}`,
+    `http://localhost:${qrOrderingPort}`,
+  ].join(',');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const services = [
@@ -19,13 +28,14 @@ const services = [
     env: {
       ...process.env,
       PORT: backendPort,
+      CORS_ORIGINS: corsOrigins,
     },
   },
   {
     name: 'web-app',
     cwd: path.join(rootDir, 'web-app'),
     command: npmCommand,
-    args: ['run', 'dev', '--', '--host', '0.0.0.0'],
+    args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', frontendPort],
     env: {
       ...process.env,
       VITE_API_BASE_URL: apiBaseUrl,
@@ -35,7 +45,17 @@ const services = [
     name: 'admin-panel',
     cwd: path.join(rootDir, 'admin-panel'),
     command: npmCommand,
-    args: ['run', 'dev', '--', '--host', '0.0.0.0'],
+    args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', adminPanelPort],
+    env: {
+      ...process.env,
+      VITE_API_BASE_URL: apiBaseUrl,
+    },
+  },
+  {
+    name: 'qr-ordering-frontend',
+    cwd: path.join(rootDir, 'qr-ordering-frontend'),
+    command: npmCommand,
+    args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', qrOrderingPort],
     env: {
       ...process.env,
       VITE_API_BASE_URL: apiBaseUrl,
@@ -58,6 +78,10 @@ const requiredFiles = [
   {
     label: 'admin-panel dependencies',
     path: path.join(rootDir, 'admin-panel', 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite'),
+  },
+  {
+    label: 'qr-ordering-frontend dependencies',
+    path: path.join(rootDir, 'qr-ordering-frontend', 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite'),
   },
 ];
 
@@ -197,8 +221,9 @@ process.stdout.write(
     `- backend: http://localhost:${backendPort}`,
     `- web-app: http://localhost:${frontendPort}`,
     `- admin-panel: http://localhost:${adminPanelPort}`,
+    `- qr-ordering-frontend: http://localhost:${qrOrderingPort}`,
     `- API base URL: ${apiBaseUrl}`,
-    'Press Ctrl+C to stop all three.',
+    'Press Ctrl+C to stop all services.',
     '',
   ].join('\n'),
 );

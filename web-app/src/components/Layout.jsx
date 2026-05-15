@@ -188,7 +188,7 @@ export function Layout({ children }) {
                         role="menuitem"
                         to={profilePath}
                       >
-                        Edit profile
+                        Profile
                       </Link>
                       <button
                         type="button"
@@ -300,7 +300,7 @@ export function Layout({ children }) {
                 className={location.pathname === '/profile' ? 'active' : ''}
                 to={profilePath}
               >
-                Edit profile
+                Profile
               </Link>
               <button
                 type="button"
