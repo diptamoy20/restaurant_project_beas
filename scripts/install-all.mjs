@@ -9,6 +9,7 @@ const projects = [
   { name: 'backend', cwd: path.join(rootDir, 'backend') },
   { name: 'web-app', cwd: path.join(rootDir, 'web-app') },
   { name: 'admin-panel', cwd: path.join(rootDir, 'admin-panel') },
+  { name: 'qr-ordering-frontend', cwd: path.join(rootDir, 'qr-ordering-frontend') },
 ];
 
 function quoteWindowsArg(value) {

@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsNumber,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 
 export class QRMenuItemVariantDto {
   @ApiProperty({ example: 1 })
@@ -90,7 +97,7 @@ export class QRRestaurantInfoDto {
   @IsNumber()
   id!: number;
 
-  @ApiProperty({ example: 'Mario\'s Pizzeria' })
+  @ApiProperty({ example: "Mario's Pizzeria" })
   @IsString()
   name!: string;
 

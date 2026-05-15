@@ -152,7 +152,7 @@ async function bootstrap(): Promise<void> {
     const openApiDocument = SwaggerModule.createDocument(app, swaggerConfig);
 
     SwaggerModule.setup('api/docs', app, openApiDocument, {
-      jsonDocumentUrl: 'api/openapi.json',
+      jsonDocumentUrl: '/api/openapi.json',
       swaggerOptions: {
         persistAuthorization: true,
       },

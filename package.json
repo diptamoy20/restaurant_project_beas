@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "install:all": "node ./scripts/install-all.mjs",
+    "build": "node ./scripts/build-all.mjs",
+    "build:all": "node ./scripts/build-all.mjs",
     "dev": "node ./scripts/dev-all.mjs",
     "dev:all": "node ./scripts/dev-all.mjs"
   }

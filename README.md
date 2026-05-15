@@ -94,6 +94,7 @@ This installs dependencies for:
 - `backend`
 - `web-app`
 - `admin-panel`
+- `qr-ordering-frontend`
 
 Manual install in each app also works:
 
@@ -101,6 +102,7 @@ Manual install in each app also works:
 cd backend && npm install
 cd ../web-app && npm install
 cd ../admin-panel && npm install
+cd ../qr-ordering-frontend && npm install
 ```
 
 ## Database Setup
@@ -130,6 +132,7 @@ What it starts:
 - Backend on `http://localhost:4000`
 - Web app on `http://localhost:5173`
 - Admin panel on `http://localhost:5174`
+- QR ordering frontend on `http://localhost:5175`
 
 The root dev runner also injects:
 
@@ -148,6 +151,7 @@ Optional overrides:
 ```bash
 PORT=7001 npm run dev
 VITE_API_BASE_URL=http://localhost:7001/api npm run dev
+QR_ORDERING_PORT=7004 npm run dev
 ```
 
 If you prefer running each app separately, use:
@@ -173,11 +177,25 @@ cd admin-panel
 npm run dev
 ```
 
+Start the QR ordering frontend:
+
+```bash
+cd qr-ordering-frontend
+npm run dev
+```
+
 Local endpoints:
 
 - Backend: `http://localhost:4000`
 - Web app: `http://localhost:5173`
 - Admin panel: `http://localhost:5174`
+- QR ordering frontend: `http://localhost:5175`
+
+Build every app from the repo root:
+
+```bash
+npm run build
+```
 
 ## API Documentation
 
@@ -185,6 +203,11 @@ When `DOCS_ENABLED=true`, OpenAPI docs are available at:
 
 - Swagger UI: `http://localhost:4000/api/docs`
 - OpenAPI JSON: `http://localhost:4000/api/openapi.json`
+
+QR ordering endpoints are included under the `QR Ordering` Swagger tag:
+
+- `GET /api/qr/menu/{restaurantId}/{tableId}`
+- `POST /api/qr/order`
 
 Recommended production setting:
 
@@ -257,7 +280,7 @@ cd ../admin-panel && npm run build
 NODE_ENV=production
 PORT=4000
 DATABASE_URL="postgresql://<user>:<password>@<host>:5432/restaurant_db?schema=restaurant_management"
-CORS_ORIGINS="https://app.example.com,https://admin.example.com"
+CORS_ORIGINS="https://app.example.com,https://admin.example.com,https://qr.example.com"
 ACCESS_TOKEN_SECRET="<strong-secret>"
 REFRESH_TOKEN_SECRET="<strong-secret>"
 DB_SSL=true
@@ -325,18 +348,18 @@ Nginx should reverse-proxy `/api` to backend port and serve frontend assets sepa
 
 ## Automated Deployment
 
-Current default flow is simple GitHub-to-server deploy: GitHub checks backend, SSHes into server, runs `git pull`, migrates DB, builds backend, restarts PM2, then checks `/api/health`.
+Current default flow is simple GitHub-to-server deploy: GitHub checks backend and all frontends, SSHes into server, runs `git pull`, migrates DB, builds backend, restarts PM2, serves all frontend builds through PM2, then checks `/api/health` and each frontend port.
 
 ### Option 1: GitHub Actions (Easy Auto-Deploy)
 
 The `.github/workflows/deploy.yml` workflow:
 
-1. Runs backend lint, typecheck, and build on PRs and pushes
+1. Runs backend lint/typecheck/build and builds `web-app`, `admin-panel`, and `qr-ordering-frontend` on PRs and pushes
 2. On push to `main` or `production`, SSHes into server
 3. Runs `git pull`
 4. Runs `npm ci`, `npm run prisma:generate`, `npm run prisma:migrate:deploy`, `npm run build`
-5. Restarts PM2
-6. Verifies `GET /api/health`
+5. Restarts backend PM2 and serves frontend `dist` folders with PM2
+6. Verifies `GET /api/health`, web app, admin panel, and QR ordering frontend
 
 **Setup:**
 
@@ -350,6 +373,13 @@ The `.github/workflows/deploy.yml` workflow:
    GitHub repository variables:
    - `SERVER_APP_DIR` - `/var/www/dev.beas.in/public_html/restaurant_project_beas`
    - `PM2_APP_NAME` - `restaurant-backend`
+   - `WEB_PM2_APP_NAME` - `restaurant-web-app`
+   - `ADMIN_PM2_APP_NAME` - `restaurant-admin-panel`
+   - `QR_PM2_APP_NAME` - `restaurant-qr-ordering`
+   - `PUBLIC_API_BASE_URL` - public backend API URL, for example `https://dev.beas.in/api`
+   - `WEB_APP_PORT` - web app PM2 static server port, default `7002`
+   - `ADMIN_PANEL_PORT` - admin panel PM2 static server port, default `7003`
+   - `QR_ORDERING_PORT` - QR ordering PM2 static server port, default `7004`
 
 3. On your server, ensure:
    - Repo already cloned at deploy root

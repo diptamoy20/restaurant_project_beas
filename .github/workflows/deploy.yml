@@ -9,6 +9,7 @@ on:
       - backend/**
       - web-app/**
       - admin-panel/**
+      - qr-ordering-frontend/**
       - .github/workflows/deploy.yml
   push:
     branches:
@@ -18,6 +19,7 @@ on:
       - backend/**
       - web-app/**
       - admin-panel/**
+      - qr-ordering-frontend/**
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
@@ -26,13 +28,16 @@ env:
   BACKEND_DIR: backend
   WEB_APP_DIR: web-app
   ADMIN_PANEL_DIR: admin-panel
+  QR_ORDERING_DIR: qr-ordering-frontend
   SERVER_APP_DIR: ${{ vars.SERVER_APP_DIR != '' && vars.SERVER_APP_DIR || '/var/www/dev.beas.in/public_html/restaurant_project_beas' }}
   PM2_APP_NAME: ${{ vars.PM2_APP_NAME != '' && vars.PM2_APP_NAME || 'restaurant-backend' }}
   WEB_PM2_APP_NAME: ${{ vars.WEB_PM2_APP_NAME != '' && vars.WEB_PM2_APP_NAME || 'restaurant-web-app' }}
   ADMIN_PM2_APP_NAME: ${{ vars.ADMIN_PM2_APP_NAME != '' && vars.ADMIN_PM2_APP_NAME || 'restaurant-admin-panel' }}
+  QR_PM2_APP_NAME: ${{ vars.QR_PM2_APP_NAME != '' && vars.QR_PM2_APP_NAME || 'restaurant-qr-ordering' }}
   PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
   WEB_APP_PORT: ${{ vars.WEB_APP_PORT != '' && vars.WEB_APP_PORT || '7002' }}
   ADMIN_PANEL_PORT: ${{ vars.ADMIN_PANEL_PORT != '' && vars.ADMIN_PANEL_PORT || '7003' }}
+  QR_ORDERING_PORT: ${{ vars.QR_ORDERING_PORT != '' && vars.QR_ORDERING_PORT || '7004' }}
 
 jobs:
   backend-ci:
@@ -57,7 +62,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: |
+            backend/package-lock.json
+            web-app/package-lock.json
+            admin-panel/package-lock.json
+            qr-ordering-frontend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: ${{ env.BACKEND_DIR }}
@@ -91,6 +100,14 @@ jobs:
         working-directory: ${{ env.ADMIN_PANEL_DIR }}
         run: npm run build
 
+      - name: Install QR ordering frontend dependencies
+        working-directory: ${{ env.QR_ORDERING_DIR }}
+        run: npm ci
+
+      - name: Build QR ordering frontend
+        working-directory: ${{ env.QR_ORDERING_DIR }}
+        run: npm run build
+
   deploy:
     name: Deploy All Apps To Server
     needs: backend-ci
@@ -108,16 +125,18 @@ jobs:
           PM2_APP_NAME: ${{ env.PM2_APP_NAME }}
           WEB_PM2_APP_NAME: ${{ env.WEB_PM2_APP_NAME }}
           ADMIN_PM2_APP_NAME: ${{ env.ADMIN_PM2_APP_NAME }}
+          QR_PM2_APP_NAME: ${{ env.QR_PM2_APP_NAME }}
           PUBLIC_API_BASE_URL: ${{ env.PUBLIC_API_BASE_URL }}
           WEB_APP_PORT: ${{ env.WEB_APP_PORT }}
           ADMIN_PANEL_PORT: ${{ env.ADMIN_PANEL_PORT }}
+          QR_ORDERING_PORT: ${{ env.QR_ORDERING_PORT }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
-          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,PUBLIC_API_BASE_URL,WEB_APP_PORT,ADMIN_PANEL_PORT
+          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,PUBLIC_API_BASE_URL,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT
           script: |
             set -e
 
@@ -207,6 +226,16 @@ jobs:
             fi
             pm2 serve "$APP_DIR/admin-panel/dist" "$ADMIN_PANEL_PORT" --name "$ADMIN_PM2_APP_NAME" --spa
 
+            cd "$APP_DIR/qr-ordering-frontend"
+            export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
+            npm ci --include=dev
+            npm run build
+
+            if pm2 describe "$QR_PM2_APP_NAME" >/dev/null 2>&1; then
+              pm2 delete "$QR_PM2_APP_NAME"
+            fi
+            pm2 serve "$APP_DIR/qr-ordering-frontend/dist" "$QR_ORDERING_PORT" --name "$QR_PM2_APP_NAME" --spa
+
             pm2 save
 
             HEALTH_PORT="${PORT:-4000}"
@@ -224,3 +253,4 @@ jobs:
             fi
             curl -fsS "http://127.0.0.1:${WEB_APP_PORT}/" >/dev/null
             curl -fsS "http://127.0.0.1:${ADMIN_PANEL_PORT}/" >/dev/null
+            curl -fsS "http://127.0.0.1:${QR_ORDERING_PORT}/" >/dev/null

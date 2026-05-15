@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OrderSource } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -10,7 +11,6 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { OrderSource } from '@prisma/client';
 
 class OrderItemInputDto {
   @ApiProperty({ example: 1 })

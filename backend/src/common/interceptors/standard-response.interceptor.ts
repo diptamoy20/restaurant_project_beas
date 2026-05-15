@@ -14,10 +14,7 @@ type StandardResponse<T> =
 export class StandardResponseInterceptor<T> implements NestInterceptor<T, StandardResponse<T>> {
   constructor(private readonly reflector: Reflector) {}
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler<T>,
-  ): Observable<StandardResponse<T>> {
+  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<StandardResponse<T>> {
     const request = context.switchToHttp().getRequest<{
       url?: string;
       headers?: Record<string, string | string[] | undefined>;

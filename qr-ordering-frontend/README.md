@@ -25,3 +25,5 @@ The default Vite port is `5175`. Configure the backend URL with:
 ```bash
 VITE_API_BASE_URL=http://localhost:4000/api
 ```
+
+From the repo root, `npm run install:all`, `npm run dev`, and `npm run build` also include this app.
