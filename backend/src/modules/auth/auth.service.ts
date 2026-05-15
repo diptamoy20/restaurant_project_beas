@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
+import { DecodedIdToken, UserRecord } from 'firebase-admin/auth';
 import nodemailer from 'nodemailer';
 
 import { AuthSuccessResponse, AuthenticatedUser, JwtPayload } from './auth.types';
@@ -49,6 +50,7 @@ type FirebaseSocialProfile = {
   provider: SocialLoginProvider;
   providerUserId: string;
   email: string | null;
+  phone: string | null;
   name: string | null;
   picture: string | null;
 };
@@ -194,6 +196,7 @@ export class AuthService {
     }
 
     const decodedToken = await this.firebaseAuthService.verifyIdToken(payload.idToken);
+    const firebaseUser = await this.firebaseAuthService.getUser(decodedToken.uid);
     const actualFirebaseProvider = decodedToken.firebase?.sign_in_provider;
 
     if (actualFirebaseProvider !== expectedFirebaseProvider) {
@@ -205,9 +208,19 @@ export class AuthService {
       throw new UnauthorizedException('Invalid social login token');
     }
 
-    const email = this.normalizeOptionalString(decodedToken.email)?.toLowerCase() ?? null;
+    const email = this.resolveFirebaseEmail(decodedToken, firebaseUser, expectedFirebaseProvider);
+    const phone = this.resolveFirebasePhone(decodedToken, firebaseUser, expectedFirebaseProvider);
 
-    if (email && decodedToken.email_verified !== true) {
+    if (!email) {
+      this.logger.warn(
+        `Social login rejected: missing email for Firebase uid ${this.maskIdentifier(
+          decodedToken.uid,
+        )}`,
+      );
+      throw new UnauthorizedException('Social account email is required');
+    }
+
+    if (!this.isFirebaseEmailVerified(email, decodedToken, firebaseUser, expectedFirebaseProvider)) {
       this.logger.warn(
         `Social login rejected: unverified email for Firebase uid ${this.maskIdentifier(
           decodedToken.uid,
@@ -220,8 +233,13 @@ export class AuthService {
       provider: payload.provider,
       providerUserId: decodedToken.uid,
       email,
-      name: this.normalizeOptionalString(decodedToken.name),
-      picture: this.normalizeOptionalString(decodedToken.picture),
+      phone,
+      name:
+        this.normalizeOptionalString(decodedToken.name) ??
+        this.normalizeOptionalString(firebaseUser.displayName),
+      picture:
+        this.normalizeOptionalString(decodedToken.picture) ??
+        this.normalizeOptionalString(firebaseUser.photoURL),
     };
 
     const user = await this.findOrCreateSocialUser(profile);
@@ -675,7 +693,7 @@ export class AuthService {
     );
 
     if (existingLinkedUser) {
-      return existingLinkedUser;
+      return this.syncLinkedSocialUser(existingLinkedUser, profile);
     }
 
     try {
@@ -768,6 +786,7 @@ export class AuthService {
               create: {
                 name: profile.name,
                 email: profile.email,
+                phone: profile.phone,
                 profileImageUrl: profile.picture,
                 password,
                 isActive: true,
@@ -856,6 +875,162 @@ export class AuthService {
     });
 
     return socialAccount.user;
+  }
+
+  private async syncLinkedSocialUser(
+    user: PrismaUserWithRoles,
+    profile: FirebaseSocialProfile,
+  ): Promise<PrismaUserWithRoles> {
+    const userData: Prisma.UserUpdateInput = {};
+
+    if (!user.email && profile.email) {
+      userData.email = profile.email;
+    }
+
+    if (!user.name && profile.name) {
+      userData.name = profile.name;
+    }
+
+    if (!user.phone && profile.phone) {
+      userData.phone = profile.phone;
+    }
+
+    if (!user.profileImageUrl && profile.picture) {
+      userData.profileImageUrl = profile.picture;
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.socialAccount.update({
+          where: {
+            provider_providerUserId: {
+              provider: profile.provider,
+              providerUserId: profile.providerUserId,
+            },
+          },
+          data: {
+            email: profile.email,
+          },
+        });
+
+        if (Object.keys(userData).length > 0) {
+          return tx.user.update({
+            where: { id: user.id },
+            data: userData,
+            include: {
+              roles: {
+                include: {
+                  role: true,
+                },
+              },
+            },
+          });
+        }
+
+        const currentUser = await tx.user.findUnique({
+          where: { id: user.id },
+          include: {
+            roles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        });
+
+        if (!currentUser) {
+          throw new UnauthorizedException('Invalid credentials');
+        }
+
+        return currentUser;
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        this.logger.warn(
+          `Social login email or phone conflict for user ${user.id}: ${this.maskIdentifier(
+            profile.email ?? '',
+          )}`,
+        );
+        throw new BadRequestException('Email or phone is already linked to another account');
+      }
+
+      throw error;
+    }
+  }
+
+  private resolveFirebaseEmail(
+    decodedToken: DecodedIdToken,
+    firebaseUser: UserRecord,
+    expectedFirebaseProvider: string,
+  ): string | null {
+    const tokenEmail = this.normalizeOptionalString(decodedToken.email)?.toLowerCase();
+
+    if (tokenEmail) {
+      return tokenEmail;
+    }
+
+    const userEmail = this.normalizeOptionalString(firebaseUser.email)?.toLowerCase();
+
+    if (userEmail) {
+      return userEmail;
+    }
+
+    return (
+      firebaseUser.providerData
+        .filter((provider) => provider.providerId === expectedFirebaseProvider)
+        .map((provider) => this.normalizeOptionalString(provider.email)?.toLowerCase() ?? null)
+        .find((email): email is string => Boolean(email)) ?? null
+    );
+  }
+
+  private resolveFirebasePhone(
+    decodedToken: DecodedIdToken,
+    firebaseUser: UserRecord,
+    expectedFirebaseProvider: string,
+  ): string | null {
+    const tokenPhone = this.normalizeOptionalString(decodedToken.phone_number);
+
+    if (tokenPhone) {
+      return tokenPhone;
+    }
+
+    const userPhone = this.normalizeOptionalString(firebaseUser.phoneNumber);
+
+    if (userPhone) {
+      return userPhone;
+    }
+
+    return (
+      firebaseUser.providerData
+        .filter((provider) => provider.providerId === expectedFirebaseProvider)
+        .map((provider) => this.normalizeOptionalString(provider.phoneNumber) ?? null)
+        .find((phone): phone is string => Boolean(phone)) ?? null
+    );
+  }
+
+  private isFirebaseEmailVerified(
+    email: string,
+    decodedToken: DecodedIdToken,
+    firebaseUser: UserRecord,
+    expectedFirebaseProvider: string,
+  ): boolean {
+    const tokenEmail = this.normalizeOptionalString(decodedToken.email)?.toLowerCase();
+
+    if (tokenEmail === email && decodedToken.email_verified === true) {
+      return true;
+    }
+
+    const userEmail = this.normalizeOptionalString(firebaseUser.email)?.toLowerCase();
+
+    if (userEmail === email && firebaseUser.emailVerified) {
+      return true;
+    }
+
+    return firebaseUser.providerData.some((provider) => {
+      const providerEmail = this.normalizeOptionalString(provider.email)?.toLowerCase();
+
+      return provider.providerId === expectedFirebaseProvider && providerEmail === email;
+    });
   }
 
   private isUniqueConstraintError(error: unknown): boolean {
