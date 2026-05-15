@@ -220,7 +220,9 @@ export class AuthService {
       throw new UnauthorizedException('Social account email is required');
     }
 
-    if (!this.isFirebaseEmailVerified(email, decodedToken, firebaseUser, expectedFirebaseProvider)) {
+    if (
+      !this.isFirebaseEmailVerified(email, decodedToken, firebaseUser, expectedFirebaseProvider)
+    ) {
       this.logger.warn(
         `Social login rejected: unverified email for Firebase uid ${this.maskIdentifier(
           decodedToken.uid,
