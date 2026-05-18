@@ -63,6 +63,48 @@ img {
   background: var(--qr-page);
 }
 
+.qr-splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: clamp(2.25rem, 6vh, 3.6rem);
+  width: min(100%, 430px);
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0 auto;
+  background: var(--qr-orange);
+  color: #fff;
+}
+
+.qr-splash-logo {
+  overflow: hidden;
+  width: clamp(11.5rem, 54vw, 18.5rem);
+  height: clamp(10.1rem, 47vw, 16.2rem);
+  filter: drop-shadow(0 22px 38px rgba(130, 51, 0, 0.1));
+}
+
+.qr-splash-logo img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.qr-splash-screen h1 {
+  margin: 0;
+  color: #ffd456;
+  font-size: clamp(3rem, 14vw, 5.1rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.qr-splash-screen h1 span {
+  color: #fff;
+}
+
 .qr-brand-header {
   position: relative;
   display: flex;
