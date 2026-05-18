@@ -79,10 +79,41 @@ export function MenuPage() {
   }, [data, restaurantId, setOrderContext, tableId]);
 
   useEffect(() => {
-    document.body.classList.toggle('qr-modal-open', Boolean(optionItem));
+    if (!optionItem) {
+      return undefined;
+    }
+
+    const scrollY = window.scrollY;
+    const { body, documentElement } = document;
+    const previousBodyStyles = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    const previousOverscrollBehavior = documentElement.style.overscrollBehavior;
+
+    body.classList.add('qr-modal-open');
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    documentElement.style.overscrollBehavior = 'none';
 
     return () => {
-      document.body.classList.remove('qr-modal-open');
+      body.classList.remove('qr-modal-open');
+      body.style.overflow = previousBodyStyles.overflow;
+      body.style.position = previousBodyStyles.position;
+      body.style.top = previousBodyStyles.top;
+      body.style.left = previousBodyStyles.left;
+      body.style.right = previousBodyStyles.right;
+      body.style.width = previousBodyStyles.width;
+      documentElement.style.overscrollBehavior = previousOverscrollBehavior;
+      window.scrollTo(0, scrollY);
     };
   }, [optionItem]);
 
