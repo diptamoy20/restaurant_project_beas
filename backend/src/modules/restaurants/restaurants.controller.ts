@@ -33,6 +33,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
 import { MenuResponseDto } from '../menu/dto';
 import { MenuService } from '../menu/menu.service';
+import { AllowWeb } from '../../common/decorators/client.decorator';
 
 @Controller(['restaurants', 'v1/restaurants'])
 @ApiTags('Restaurants')
@@ -46,6 +47,7 @@ export class RestaurantsController {
    * Get all active restaurants (Public endpoint)
    */
   @Get()
+  @AllowWeb()
   @ApiOperation({ summary: 'List active restaurants' })
   @ApiOkResponse({ type: RestaurantResponseDto, isArray: true })
   async getRestaurants(): Promise<RestaurantResponseDto[]> {
@@ -56,6 +58,7 @@ export class RestaurantsController {
    * Search restaurants by name (optional lat/lng to sort by distance)
    */
   @Get('search')
+  @AllowWeb()
   @ApiOperation({ summary: 'Search restaurants by name' })
   @ApiQuery({ name: 'q', required: true })
   @ApiQuery({ name: 'lat', required: false })
@@ -89,6 +92,7 @@ export class RestaurantsController {
    * Find nearby restaurants based on coordinates
    */
   @Get('nearby')
+  @AllowWeb()
   @ApiOperation({ summary: 'Find nearby restaurants using coordinates' })
   @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
   @ApiQuery({ name: 'lng', required: false, type: Number, example: 88.3639 })
@@ -165,6 +169,7 @@ export class RestaurantsController {
    * Get restaurant menu with delivery quote
    */
   @Get(':id/menu')
+  @AllowWeb()
   @ApiOperation({ summary: 'Get restaurant menu with delivery quote for coordinates' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })

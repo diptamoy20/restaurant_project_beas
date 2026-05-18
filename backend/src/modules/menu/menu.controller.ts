@@ -14,6 +14,7 @@ import { MenuResponseDto } from './dto';
 import { MenuItemDto } from './dto/menu-item.dto';
 import { MenuService } from './menu.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
+import { AllowWeb } from '../../common/decorators/client.decorator';
 import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
 
 class GetMenuDto {
@@ -29,6 +30,7 @@ export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 
   @Get('best-selling')
+  @AllowWeb()
   @ApiOperation({ summary: 'Best selling menu items (active, with restaurant)' })
   @ApiQuery({ name: 'lat', required: false, type: Number })
   @ApiQuery({ name: 'lng', required: false, type: Number })
@@ -47,6 +49,7 @@ export class MenuController {
   }
 
   @Get('restaurant/:restaurantId')
+  @AllowWeb()
   @ApiOperation({ summary: 'Get menu for a restaurant' })
   @ApiParam({ name: 'restaurantId', type: Number, example: 1 })
   @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
