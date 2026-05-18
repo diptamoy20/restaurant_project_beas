@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useParams } from 'react-router-dom';
 import { StickyCartCTA } from '../components/cart/StickyCartCTA';
 import { BrandHeader } from '../components/common/BrandHeader';
-import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
+import { SplashScreen } from '../components/common/SplashScreen';
 import { StateMessage } from '../components/common/StateMessage';
 import { PageShell } from '../components/layout/PageShell';
 import { AddOnSheet } from '../components/menu/AddOnSheet';
@@ -27,6 +28,7 @@ export function MenuPage() {
   const [selectedVariant, setSelectedVariant] = useState<QRMenuItemVariant | undefined>();
   const [selectedAddOns, setSelectedAddOns] = useState<AddOnIngredient[]>([]);
   const [sheetQuantity, setSheetQuantity] = useState(1);
+  const [hasMinimumSplashElapsed, setHasMinimumSplashElapsed] = useState(false);
   const categories = data?.categories ?? [];
   const selectedCategoryId = activeCategoryId;
   const allMenuItems = useMemo(() => categories.flatMap((category) => category.items), [categories]);
@@ -65,6 +67,8 @@ export function MenuPage() {
   const recommendedItems = useMemo(() => allMenuItems.slice(0, 12), [allMenuItems]);
   const visibleItems = selectedCategory ? selectedCategory.items : recommendedItems;
 
+  const shouldShowSplash = !hasMinimumSplashElapsed || isLoading;
+
   useEffect(() => {
     if (!data || !restaurantId || !tableId) {
       return;
@@ -77,6 +81,17 @@ export function MenuPage() {
       tableLabel: data.restaurant.tableName,
     });
   }, [data, restaurantId, setOrderContext, tableId]);
+
+  useEffect(() => {
+    setHasMinimumSplashElapsed(false);
+    const timerId = window.setTimeout(() => {
+      setHasMinimumSplashElapsed(true);
+    }, 2400);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [restaurantId, tableId]);
 
   useEffect(() => {
     if (!optionItem) {
@@ -117,21 +132,28 @@ export function MenuPage() {
     };
   }, [optionItem]);
 
-  if (isLoading) {
-    return <LoadingSkeleton />;
-  }
-
   if (error || !data || !restaurantId || !tableId) {
     return (
-      <PageShell>
-        <BrandHeader title="Welcome" tableName={params.tableId} />
-        <StateMessage
-          title="Menu unavailable"
-          message={error || 'We could not load this restaurant menu.'}
-          actionLabel="Try again"
-          onAction={() => window.location.reload()}
-        />
-      </PageShell>
+      <>
+        <AnimatePresence>{shouldShowSplash ? <SplashScreen key="qr-splash" /> : null}</AnimatePresence>
+        {!shouldShowSplash ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.34, ease: 'easeOut' }}
+          >
+            <PageShell>
+              <BrandHeader title="Welcome" tableName={params.tableId} />
+              <StateMessage
+                title="Menu unavailable"
+                message={error || 'We could not load this restaurant menu.'}
+                actionLabel="Try again"
+                onAction={() => window.location.reload()}
+              />
+            </PageShell>
+          </motion.div>
+        ) : null}
+      </>
     );
   }
 
@@ -166,7 +188,15 @@ export function MenuPage() {
   };
 
   return (
-    <PageShell className="qr-menu-page">
+    <>
+      <AnimatePresence>{shouldShowSplash ? <SplashScreen key="qr-splash" /> : null}</AnimatePresence>
+      {!shouldShowSplash ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.34, ease: 'easeOut' }}
+        >
+          <PageShell className="qr-menu-page">
       <BrandHeader
         title="Welcome"
         tableName={data.restaurant.tableName}
@@ -231,6 +261,9 @@ export function MenuPage() {
         }}
       />
       <StickyCartCTA />
-    </PageShell>
+          </PageShell>
+        </motion.div>
+      ) : null}
+    </>
   );
 }
