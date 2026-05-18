@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { fetchCart } from '../store/slices/cartSlice';
@@ -91,6 +91,8 @@ export function Layout({ children }) {
 
     return () => document.body.classList.remove('drawer-open');
   }, [menuOpen]);
+
+  const content = children ?? <Outlet />;
 
   return (
     <div className="app-shell">
@@ -342,7 +344,7 @@ export function Layout({ children }) {
           )}
         </nav>
       </aside>
-      <main className="page">{children}</main>
+      <main className="page">{content}</main>
     </div>
   );
 }
