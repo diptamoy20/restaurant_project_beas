@@ -357,8 +357,8 @@ export function Layout({ children }) {
               </Link>
             </>
           )}
-          </nav>
-        </aside>
+        </nav>
+      </aside>
       <main className="page">{content}</main>
     </div>
   );
