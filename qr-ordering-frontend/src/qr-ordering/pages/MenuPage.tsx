@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-
 import { StickyCartCTA } from '../components/cart/StickyCartCTA';
 import { BrandHeader } from '../components/common/BrandHeader';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
@@ -28,19 +27,43 @@ export function MenuPage() {
   const [selectedVariant, setSelectedVariant] = useState<QRMenuItemVariant | undefined>();
   const [selectedAddOns, setSelectedAddOns] = useState<AddOnIngredient[]>([]);
   const [sheetQuantity, setSheetQuantity] = useState(1);
-
   const categories = data?.categories ?? [];
-  const selectedCategoryId = activeCategoryId ?? categories[0]?.id ?? null;
+  const selectedCategoryId = activeCategoryId;
+  const allMenuItems = useMemo(() => categories.flatMap((category) => category.items), [categories]);
 
   const selectedCategory = useMemo(
-    () => categories.find((category) => category.id === selectedCategoryId) ?? categories[0],
+    () => categories.find((category) => category.id === selectedCategoryId) ?? null,
     [categories, selectedCategoryId],
   );
 
-  const bestSellerItems = useMemo(
-    () => categories.flatMap((category) => category.items).slice(0, 6),
-    [categories],
-  );
+  const bestSellerItems = useMemo(() => {
+    const seededBestSellerNames = new Set([
+      'Margherita Pizza',
+      'Veg Burger',
+      'Chicken Burger',
+      'French Fries',
+      'Pasta Alfredo',
+      'Cold Coffee',
+      'Mojito',
+      'Brownie',
+    ]);
+
+    return [...allMenuItems]
+      .sort((firstItem, secondItem) => {
+        const firstRank = seededBestSellerNames.has(firstItem.name) ? 0 : 1;
+        const secondRank = seededBestSellerNames.has(secondItem.name) ? 0 : 1;
+
+        if (firstRank !== secondRank) {
+          return firstRank - secondRank;
+        }
+
+        return firstItem.price - secondItem.price;
+      })
+      .slice(0, 8);
+  }, [allMenuItems]);
+
+  const recommendedItems = useMemo(() => allMenuItems.slice(0, 12), [allMenuItems]);
+  const visibleItems = selectedCategory ? selectedCategory.items : recommendedItems;
 
   useEffect(() => {
     if (!data || !restaurantId || !tableId) {
@@ -56,10 +79,41 @@ export function MenuPage() {
   }, [data, restaurantId, setOrderContext, tableId]);
 
   useEffect(() => {
-    document.body.classList.toggle('qr-modal-open', Boolean(optionItem));
+    if (!optionItem) {
+      return undefined;
+    }
+
+    const scrollY = window.scrollY;
+    const { body, documentElement } = document;
+    const previousBodyStyles = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    const previousOverscrollBehavior = documentElement.style.overscrollBehavior;
+
+    body.classList.add('qr-modal-open');
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    documentElement.style.overscrollBehavior = 'none';
 
     return () => {
-      document.body.classList.remove('qr-modal-open');
+      body.classList.remove('qr-modal-open');
+      body.style.overflow = previousBodyStyles.overflow;
+      body.style.position = previousBodyStyles.position;
+      body.style.top = previousBodyStyles.top;
+      body.style.left = previousBodyStyles.left;
+      body.style.right = previousBodyStyles.right;
+      body.style.width = previousBodyStyles.width;
+      documentElement.style.overscrollBehavior = previousOverscrollBehavior;
+      window.scrollTo(0, scrollY);
     };
   }, [optionItem]);
 
@@ -131,18 +185,24 @@ export function MenuPage() {
             onSelect={setActiveCategoryId}
           />
           <section className="qr-menu-content">
-            <BestSellerStrip
-              items={bestSellerItems}
-              onViewAll={() => {
-                document.getElementById('qr-food-grid')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            />
+            {!selectedCategory ? (
+              <BestSellerStrip
+                items={bestSellerItems}
+                onSelectItem={handleOpenOptions}
+                onViewAll={() => {
+                  document.getElementById('qr-food-grid')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              />
+            ) : null}
             <div className="qr-section-title qr-section-title--left">
-              <h2>{selectedCategory?.name ?? 'Menu'}</h2>
-              {selectedCategory?.description ? <p>{selectedCategory.description}</p> : null}
+              <h2>{selectedCategory?.name ?? 'Recommended for you'}</h2>
+              <p>
+                {selectedCategory?.description ??
+                  'Popular picks from today’s QR menu. Choose a category above to filter.'}
+              </p>
             </div>
             <div className="qr-food-grid" id="qr-food-grid">
-              {(selectedCategory?.items ?? []).map((item) => (
+              {visibleItems.map((item) => (
                 <FoodCard
                   key={item.id}
                   item={item}

@@ -5,9 +5,10 @@ import { getMenuItemImage } from '../../utils/images';
 interface BestSellerStripProps {
   items: QRMenuItem[];
   onViewAll: () => void;
+  onSelectItem: (item: QRMenuItem) => void;
 }
 
-export function BestSellerStrip({ items, onViewAll }: BestSellerStripProps) {
+export function BestSellerStrip({ items, onViewAll, onSelectItem }: BestSellerStripProps) {
   if (items.length === 0) {
     return null;
   }
@@ -21,11 +22,18 @@ export function BestSellerStrip({ items, onViewAll }: BestSellerStripProps) {
         </button>
       </div>
       <div className="qr-best-strip">
-        {items.slice(0, 4).map((item) => (
-          <article className="qr-best-card" key={item.id}>
+        {items.slice(0, 6).map((item) => (
+          <button
+            className="qr-best-card"
+            key={item.id}
+            type="button"
+            onClick={() => onSelectItem(item)}
+            aria-label={`Customize ${item.name}`}
+          >
             <img src={getMenuItemImage(item)} alt={item.name} />
             <span>{formatCurrency(item.price)}</span>
-          </article>
+            <strong>{item.name}</strong>
+          </button>
         ))}
       </div>
     </section>
