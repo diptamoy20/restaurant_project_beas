@@ -7,11 +7,13 @@ interface CategoryTabsProps {
 }
 
 const categoryIcons: Record<string, string> = {
-  pizza: '△',
-  burger: '☰',
-  dessert: '♨',
-  drinks: '♧',
-  veg: '✿',
+  pizza: '🍕',
+  burger: '🍔',
+  dessert: '🍰',
+  drinks: '🥤',
+  veg: '🥗',
+  starters: '🍟',
+  'main course': '🍛',
 };
 
 function getCategoryIcon(name: string): string {
