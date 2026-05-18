@@ -108,7 +108,10 @@ async function bootstrap(): Promise<void> {
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: allowedHeaders.length > 0 ? allowedHeaders : ['Content-Type', 'Authorization'],
+    allowedHeaders:
+      allowedHeaders.length > 0
+        ? allowedHeaders
+        : ['Content-Type', 'Authorization', 'X-Client-Type', 'X-Client'],
     exposedHeaders: exposedHeaders.length > 0 ? exposedHeaders : undefined,
     maxAge: Number.isFinite(corsMaxAgeSeconds) && corsMaxAgeSeconds > 0 ? corsMaxAgeSeconds : 600,
   });
@@ -155,6 +158,7 @@ async function bootstrap(): Promise<void> {
       jsonDocumentUrl: '/api/openapi.json',
       swaggerOptions: {
         persistAuthorization: true,
+        tryItOutEnabled: true,
       },
       customSiteTitle: 'Restaurant API Docs',
     });

@@ -38,9 +38,11 @@ export function LoginPage() {
   });
   const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const from = location.state?.from;
+  const returnPath = from ? `${from.pathname || '/'}${from.search || ''}` : '/';
 
   if (token) {
-    return <Navigate to={location.state?.from?.pathname || '/'} replace />;
+    return <Navigate to={returnPath} replace />;
   }
 
   const handleChange = (event) => {
@@ -65,7 +67,7 @@ export function LoginPage() {
     const result = await dispatch(loginCustomer(form));
 
     if (loginCustomer.fulfilled.match(result)) {
-      navigate(location.state?.from?.pathname || '/', { replace: true });
+      navigate(returnPath, { replace: true });
     }
   };
 
@@ -76,7 +78,7 @@ export function LoginPage() {
     );
 
     if (loginWithFirebaseGoogle.fulfilled.match(result)) {
-      navigate(location.state?.from?.pathname || '/', { replace: true });
+      navigate(returnPath, { replace: true });
     }
   };
 
@@ -87,7 +89,7 @@ export function LoginPage() {
     );
 
     if (loginWithFirebaseFacebook.fulfilled.match(result)) {
-      navigate(location.state?.from?.pathname || '/', { replace: true });
+      navigate(returnPath, { replace: true });
     }
   };
 

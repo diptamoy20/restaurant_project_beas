@@ -6,7 +6,6 @@ import { fetchCart } from '../store/slices/cartSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { NavbarRestaurantSearch } from './NavbarRestaurantSearch.jsx';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
-import { createTableAwarePath, resolveTableId } from '../lib/tableSession';
 import { signOutFromFirebase } from '../lib/firebase';
 import { getUserDisplayName } from '../utils/profile';
 import projectLogo from '../assets/project-logo.svg';
@@ -27,12 +26,11 @@ export function Layout({ children }) {
     (sum, item) => sum + (item.quantity ?? 1),
     0,
   );
-  const tableId = resolveTableId(location.search);
-  const homePath = createTableAwarePath('/', tableId);
-  const menuPath = createTableAwarePath('/menu', tableId);
-  const cartPath = createTableAwarePath('/cart', tableId);
-  const profilePath = createTableAwarePath('/profile', tableId);
-  const ordersPath = createTableAwarePath('/orders', tableId);
+  const homePath = '/';
+  const menuPath = '/menu';
+  const cartPath = '/cart';
+  const profilePath = '/profile';
+  const ordersPath = '/orders';
   const userDisplayName = useMemo(() => getUserDisplayName(user), [user]);
 
   const handleLogout = () => {
@@ -57,6 +55,23 @@ export function Layout({ children }) {
     setMenuOpen(false);
     setProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+
+    if (!params.has('table')) {
+      return;
+    }
+
+    params.delete('table');
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString() ? `?${params.toString()}` : '',
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
     function handleDocumentPointerDown(event) {
@@ -132,6 +147,12 @@ export function Layout({ children }) {
                   Menu
                 </Link>
                 <Link
+                  className={location.pathname === '/orders' ? 'active' : ''}
+                  to={ordersPath}
+                >
+                  Orders
+                </Link>
+                <Link
                   className={location.pathname === '/cart' ? 'active' : ''}
                   to={cartPath}
                 >
@@ -142,12 +163,6 @@ export function Layout({ children }) {
                   {cartCount > 0 ? (
                     <span className="cart-badge">{cartCount}</span>
                   ) : null}
-                </Link>
-                <Link
-                  className={location.pathname === '/orders' ? 'active' : ''}
-                  to={ordersPath}
-                >
-                  Orders
                 </Link>
                 <div className="profile-menu" ref={profileMenuRef}>
                   <button
@@ -287,16 +302,16 @@ export function Layout({ children }) {
                 Menu
               </Link>
               <Link
-                className={location.pathname === '/cart' ? 'active' : ''}
-                to={cartPath}
-              >
-                Cart {cartCount > 0 ? `(${cartCount})` : ''}
-              </Link>
-              <Link
                 className={location.pathname === '/orders' ? 'active' : ''}
                 to={ordersPath}
               >
                 Orders
+              </Link>
+              <Link
+                className={location.pathname === '/cart' ? 'active' : ''}
+                to={cartPath}
+              >
+                Cart {cartCount > 0 ? `(${cartCount})` : ''}
               </Link>
               <Link
                 className={location.pathname === '/profile' ? 'active' : ''}

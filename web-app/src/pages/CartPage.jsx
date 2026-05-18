@@ -92,6 +92,21 @@ export function CartPage() {
       return;
     }
 
+    const checkoutPath = createSessionAwarePath('/checkout', tableId, restaurantId);
+    const [checkoutPathname, checkoutSearch = ''] = checkoutPath.split('?');
+
+    if (!token) {
+      navigate('/login', {
+        state: {
+          from: {
+            pathname: checkoutPathname,
+            search: checkoutSearch ? `?${checkoutSearch}` : '',
+          },
+        },
+      });
+      return;
+    }
+
     if (!restaurantId) {
       setErrorMessage('Restaurant context is missing. Please scan table QR and open menu again.');
       return;
@@ -102,7 +117,7 @@ export function CartPage() {
       return;
     }
 
-    navigate(createSessionAwarePath('/checkout', tableId, restaurantId));
+    navigate(checkoutPath);
   };
 
   return (

@@ -11,9 +11,11 @@ import { Type } from 'class-transformer';
 import { IsNumber } from 'class-validator';
 
 import { MenuResponseDto } from './dto';
+import { BestSellingQueryDto } from './dto/best-selling-query.dto';
 import { MenuItemDto } from './dto/menu-item.dto';
 import { MenuService } from './menu.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
+import { AllowWeb } from '../../common/decorators/client.decorator';
 import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
 
 class GetMenuDto {
@@ -29,24 +31,21 @@ export class MenuController {
   constructor(private readonly menuService: MenuService) {}
 
   @Get('best-selling')
+  @AllowWeb()
   @ApiOperation({ summary: 'Best selling menu items (active, with restaurant)' })
-  @ApiQuery({ name: 'lat', required: false, type: Number })
-  @ApiQuery({ name: 'lng', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiOkResponse({ type: MenuItemDto, isArray: true })
   getBestSelling(
-    @Query('lat') lat?: number,
-    @Query('lng') lng?: number,
-    @Query('limit') limit?: number,
+    @Query() query: BestSellingQueryDto,
   ): ReturnType<MenuService['getBestSellingItems']> {
     return this.menuService.getBestSellingItems({
-      lat: lat !== undefined ? Number(lat) : undefined,
-      lng: lng !== undefined ? Number(lng) : undefined,
-      limit: limit !== undefined ? Number(limit) : undefined,
+      lat: query.lat,
+      lng: query.lng,
+      limit: query.limit,
     });
   }
 
   @Get('restaurant/:restaurantId')
+  @AllowWeb()
   @ApiOperation({ summary: 'Get menu for a restaurant' })
   @ApiParam({ name: 'restaurantId', type: Number, example: 1 })
   @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
