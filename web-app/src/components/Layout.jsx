@@ -152,6 +152,18 @@ export function Layout({ children }) {
                 >
                   Orders
                 </Link>
+                <Link
+                  className={location.pathname === '/cart' ? 'active' : ''}
+                  to={cartPath}
+                >
+                  <span className="cart-link-icon">
+                    <CartIcon />
+                  </span>
+                  Cart
+                  {cartCount > 0 ? (
+                    <span className="cart-badge">{cartCount}</span>
+                  ) : null}
+                </Link>
                 <div className="profile-menu" ref={profileMenuRef}>
                   <button
                     type="button"
@@ -239,18 +251,6 @@ export function Layout({ children }) {
                 </Link>
               </>
             )}
-            <Link
-              className={location.pathname === '/cart' ? 'active' : ''}
-              to={cartPath}
-            >
-              <span className="cart-link-icon">
-                <CartIcon />
-              </span>
-              Cart
-              {cartCount > 0 ? (
-                <span className="cart-badge">{cartCount}</span>
-              ) : null}
-            </Link>
           </nav>
 
           <button
@@ -308,6 +308,12 @@ export function Layout({ children }) {
                 Orders
               </Link>
               <Link
+                className={location.pathname === '/cart' ? 'active' : ''}
+                to={cartPath}
+              >
+                Cart {cartCount > 0 ? `(${cartCount})` : ''}
+              </Link>
+              <Link
                 className={location.pathname === '/profile' ? 'active' : ''}
                 to={profilePath}
               >
@@ -351,14 +357,8 @@ export function Layout({ children }) {
               </Link>
             </>
           )}
-          <Link
-            className={location.pathname === '/cart' ? 'active' : ''}
-            to={cartPath}
-          >
-            Cart {cartCount > 0 ? `(${cartCount})` : ''}
-          </Link>
-        </nav>
-      </aside>
+          </nav>
+        </aside>
       <main className="page">{content}</main>
     </div>
   );
