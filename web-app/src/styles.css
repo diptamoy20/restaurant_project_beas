@@ -35,11 +35,13 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   background: transparent;
+  overflow-x: hidden;
 }
 
 body.drawer-open {
@@ -2090,8 +2092,10 @@ h4 {
 
 .home-menu-browse {
   width: min(100% - 2rem, 1180px);
+  max-width: calc(100% - 2rem);
   margin: 0 auto 4rem;
   padding: 2.5rem 0 1rem;
+  overflow: hidden;
 }
 
 .home-menu-browse-header {
@@ -2133,6 +2137,26 @@ h4 {
 
 .menu-carousel-block {
   margin-bottom: 2.5rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.menu-swiper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.menu-swiper .swiper-wrapper {
+  min-width: 0;
+}
+
+.menu-swiper .swiper-button-prev {
+  left: 0.5rem;
+}
+
+.menu-swiper .swiper-button-next {
+  right: 0.5rem;
 }
 
 .menu-carousel-heading {

@@ -19,12 +19,12 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/menu" element={<MenuPage />} />
+        <Route path="/cart" element={<CartPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ProtectedRoute />}>
-          <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/payment/:orderId" element={<PaymentPage />} />
           <Route path="/profile" element={<ProfilePage />} />

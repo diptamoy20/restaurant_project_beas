@@ -4,8 +4,8 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
 
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ALLOW_WEB_KEY } from '../decorators/client.decorator';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -35,8 +35,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       headers?: { authorization?: string; ['x-client-type']?: string; ['x-client']?: string };
     }>();
 
-    const clientTypeHeader = (request.headers?.['x-client-type'] as string) || request.headers?.['x-client'] as string || '';
-    const clientType = clientTypeHeader?.toLowerCase() === 'mobile' ? 'mobile' : 'web';
+    const clientTypeHeader =
+      (request.headers?.['x-client-type'] as string) ||
+      (request.headers?.['x-client'] as string) ||
+      '';
+    const clientType = clientTypeHeader.trim().toLowerCase() === 'mobile' ? 'mobile' : 'web';
 
     // If controller/method allows web and client is web, skip auth
     if (allowWeb && clientType !== 'mobile') {

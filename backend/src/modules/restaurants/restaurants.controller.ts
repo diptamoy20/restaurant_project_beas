@@ -27,13 +27,13 @@ import { RestaurantResponseDto } from './dto/restaurant-response.dto';
 import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
+import { AllowWeb } from '../../common/decorators/client.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
 import { MenuResponseDto } from '../menu/dto';
 import { MenuService } from '../menu/menu.service';
-import { AllowWeb } from '../../common/decorators/client.decorator';
 
 @Controller(['restaurants', 'v1/restaurants'])
 @ApiTags('Restaurants')

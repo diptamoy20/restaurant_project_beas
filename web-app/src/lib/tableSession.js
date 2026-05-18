@@ -36,19 +36,11 @@ export function resolveRestaurantId(search) {
 }
 
 export function createTableAwarePath(path, tableId) {
-  if (!tableId) {
-    return path;
-  }
-
-  return `${path}?table=${tableId}`;
+  return path;
 }
 
 export function createSessionAwarePath(path, tableId, restaurantId) {
   const params = new URLSearchParams();
-
-  if (tableId) {
-    params.set('table', String(tableId));
-  }
 
   if (restaurantId) {
     params.set('restaurant', String(restaurantId));
