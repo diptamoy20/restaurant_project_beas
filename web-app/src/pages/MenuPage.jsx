@@ -1,24 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   addToCart,
   addToCartAsync,
   clearError,
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
-import { persistRestaurantId, persistTableId } from "../lib/tableSession";
 import { getCachedUserLocation } from "../hooks/useUserLocation";
 
 const HARDCODED_RESTAURANT_ID = "1";
-const HARDCODED_TABLE_ID = "1";
 
 export function MenuPage() {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     items,
     loading,
     error,
     restaurantId: menuRestaurantId,
+    restaurant,
     delivery,
   } = useSelector((state) => state.menu);
   const { loading: cartLoading, error: cartError } = useSelector(
@@ -30,22 +32,25 @@ export function MenuPage() {
   const [resolvedRestaurantId, setResolvedRestaurantId] = useState(
     HARDCODED_RESTAURANT_ID,
   );
-  const tableId = HARDCODED_TABLE_ID;
 
   useEffect(() => {
-    if (tableId) {
-      persistTableId(tableId);
-    }
-  }, [tableId]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const restaurantIdFromUrl = params.get("restaurantId");
+    const tableIdFromUrl = params.get("table");
     const nextRestaurantId = restaurantIdFromUrl || HARDCODED_RESTAURANT_ID;
 
     setResolvedRestaurantId(nextRestaurantId);
-    persistRestaurantId(nextRestaurantId);
-  }, []);
+    if (tableIdFromUrl) {
+      params.delete("table");
+      navigate(
+        {
+          pathname: location.pathname,
+          search: params.toString() ? `?${params.toString()}` : "",
+        },
+        { replace: true },
+      );
+    }
+  }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (resolvedRestaurantId) {
@@ -163,10 +168,7 @@ export function MenuPage() {
         <div>
           <p className="eyebrow">Menu</p>
           <h2>Today's favorites</h2>
-          <p>
-            {tableId ? `Table ${tableId}` : "No table selected"} - Restaurant{" "}
-            {activeRestaurantId}
-          </p>
+          <p>{restaurant?.name ?? `Restaurant ${activeRestaurantId}`}</p>
         </div>
         {delivery ? (
           <div

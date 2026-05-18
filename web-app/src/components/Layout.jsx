@@ -29,7 +29,7 @@ export function Layout({ children }) {
   );
   const tableId = resolveTableId(location.search);
   const homePath = createTableAwarePath('/', tableId);
-  const menuPath = createTableAwarePath('/menu', tableId);
+  const menuPath = '/menu';
   const cartPath = createTableAwarePath('/cart', tableId);
   const profilePath = createTableAwarePath('/profile', tableId);
   const ordersPath = createTableAwarePath('/orders', tableId);
