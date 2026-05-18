@@ -14,7 +14,6 @@ import { MenuResponseDto } from './dto';
 import { MenuItemDto } from './dto/menu-item.dto';
 import { MenuService } from './menu.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { Public } from '../../common/decorators/public.decorator';
 import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
 
 class GetMenuDto {
@@ -25,7 +24,6 @@ class GetMenuDto {
 }
 
 @Controller('menu')
-@Public()
 @ApiTags('Menu')
 export class MenuController {
   constructor(private readonly menuService: MenuService) {}
