@@ -271,7 +271,6 @@ export class AuthController {
     );
   }
 
-  @Public()
   @Get('profile-image/:filename')
   getProfileImage(@Param('filename') filename: string, @Res() response: Response): void {
     const safeFilename = sanitizeProfileImageFilename(filename);
