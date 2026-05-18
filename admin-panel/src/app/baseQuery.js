@@ -12,6 +12,7 @@ const rawBaseQuery = fetchBaseQuery({
     }
 
     headers.set('content-type', 'application/json');
+    headers.set('x-client-type', 'web');
     return headers;
   },
 });

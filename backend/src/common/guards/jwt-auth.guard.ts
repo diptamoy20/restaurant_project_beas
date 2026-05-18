@@ -1,4 +1,4 @@
-import { ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
@@ -34,15 +34,21 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       url?: string;
       headers?: { authorization?: string; ['x-client-type']?: string; ['x-client']?: string };
     }>();
+    const authorization = request.headers?.authorization;
+    const hasAuthorization = (authorization?.trim().length ?? 0) > 0;
 
     const clientTypeHeader =
       (request.headers?.['x-client-type'] as string) ||
       (request.headers?.['x-client'] as string) ||
       '';
-    const clientType = clientTypeHeader.trim().toLowerCase() === 'mobile' ? 'mobile' : 'web';
+    const clientType = clientTypeHeader.trim().toLowerCase();
 
-    // If controller/method allows web and client is web, skip auth
-    if (allowWeb && clientType !== 'mobile') {
+    if (allowWeb && clientType !== 'web' && clientType !== 'mobile') {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    // Web catalog endpoints stay public, but any supplied bearer token must be verified.
+    if (allowWeb && clientType === 'web' && !hasAuthorization) {
       return true;
     }
 
@@ -51,7 +57,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     if (this.configService.get<string>('AUTH_DEBUG') === 'true') {
-      const authorization = request.headers?.authorization;
       const hasBearerToken = authorization?.startsWith('Bearer ') ?? false;
 
       this.logger.debug(

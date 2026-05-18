@@ -54,6 +54,7 @@ async function request(path, options = {}) {
 
   const makeHeaders = (authToken) => ({
     ...(!hasFormDataBody && { "Content-Type": "application/json" }),
+    "X-Client-Type": "web",
     ...(authToken && { Authorization: `Bearer ${authToken}` }),
     ...(fetchOptions.headers || {}),
   });

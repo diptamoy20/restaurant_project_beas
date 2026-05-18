@@ -199,6 +199,7 @@ export class RestaurantsController {
    * Get single restaurant by ID
    */
   @Get(':id')
+  @AllowWeb()
   @ApiOperation({ summary: 'Get restaurant by id' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiOkResponse({ type: RestaurantResponseDto })
