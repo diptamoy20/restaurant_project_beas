@@ -44,7 +44,8 @@ export function CheckoutPage() {
     setStatusMessage('');
 
     if (!user) {
-      setErrorMessage('Please sign in before checkout.');
+      // Redirect to login so user can authenticate and return to checkout
+      navigate('/login', { state: { from: location }, replace: true });
       return;
     }
 
@@ -226,14 +227,36 @@ export function CheckoutPage() {
           {statusMessage ? <div className="order-status-banner success">{statusMessage}</div> : null}
           {errorMessage ? <div className="order-status-banner error">{errorMessage}</div> : null}
 
-          <button
-            type="button"
-            className="place-order-button"
-            disabled={isSubmitting || items.length === 0}
-            onClick={submitCheckout}
-          >
-            {isSubmitting ? 'Processing...' : 'Confirm checkout'}
-          </button>
+          {!user ? (
+            <div className="checkout-auth-cta">
+              <p>Please sign in to complete checkout.</p>
+              <div className="checkout-auth-actions">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => navigate('/login', { state: { from: location } })}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className="cta-button cta-button-primary"
+                  onClick={() => navigate('/register', { state: { from: location } })}
+                >
+                  Register
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="place-order-button"
+              disabled={isSubmitting || items.length === 0}
+              onClick={submitCheckout}
+            >
+              {isSubmitting ? 'Processing...' : 'Confirm checkout'}
+            </button>
+          )}
         </aside>
       </div>
     </section>

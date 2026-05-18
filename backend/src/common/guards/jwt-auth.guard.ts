@@ -32,7 +32,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const request = context.switchToHttp().getRequest<{
       method?: string;
       url?: string;
-      headers?: { authorization?: string; ['x-client-type']?: string };
+      headers?: { authorization?: string; ['x-client-type']?: string; ['x-client']?: string };
     }>();
 
     const clientTypeHeader = (request.headers?.['x-client-type'] as string) || request.headers?.['x-client'] as string || '';

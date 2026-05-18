@@ -3,12 +3,12 @@ import { useSelector } from 'react-redux';
 import { RevealSection } from './RevealSection';
 import { createTableAwarePath, resolveTableId } from '../../lib/tableSession';
 
-const DEFAULT_TABLE_ID = '1';
+
 
 export function HeroSection() {
   const location = useLocation();
   const user = useSelector((state) => state.auth.user);
-  const tableId = resolveTableId(location.search) || DEFAULT_TABLE_ID;
+  const tableId = resolveTableId(location.search);
   const menuPath = createTableAwarePath('/menu', tableId);
 
   return (
