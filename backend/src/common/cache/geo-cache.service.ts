@@ -35,6 +35,19 @@ export class GeoCacheService {
     await this.setInRedis(key, serialized, ttlSeconds);
   }
 
+  async delete(key: string): Promise<void> {
+    this.memoryCache.delete(key);
+    await this.deleteFromRedis(key);
+  }
+
+  deleteMatching(predicate: (key: string) => boolean): void {
+    for (const key of this.memoryCache.keys()) {
+      if (predicate(key)) {
+        this.memoryCache.delete(key);
+      }
+    }
+  }
+
   private getFromMemory(key: string): string | null {
     const entry = this.memoryCache.get(key);
 
@@ -79,6 +92,18 @@ export class GeoCacheService {
       await this.executeRedisCommand(['SETEX', key, String(ttlSeconds), value]);
     } catch (error) {
       this.logger.warn(`Redis SETEX failed: ${(error as Error).message}`);
+    }
+  }
+
+  private async deleteFromRedis(key: string): Promise<void> {
+    if (!this.redisUrl) {
+      return;
+    }
+
+    try {
+      await this.executeRedisCommand(['DEL', key]);
+    } catch (error) {
+      this.logger.warn(`Redis DEL failed: ${(error as Error).message}`);
     }
   }
 

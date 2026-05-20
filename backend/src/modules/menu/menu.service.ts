@@ -7,6 +7,11 @@ import {
   MenuResponseDto,
   MenuRestaurantSummaryDto,
 } from './dto';
+import {
+  AdminCategoryDto,
+  CreateAdminCategoryDto,
+  UpdateAdminCategoryDto,
+} from './dto/admin-category.dto';
 import { CreateAdminMenuItemDto, UpdateAdminMenuItemDto } from './dto/admin-menu-item.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -202,7 +207,131 @@ export class MenuService {
       include: { category: true, variants: true },
     });
 
+    await this.clearMenuCache(restaurantId);
+
     return this.mapMenuItem(created);
+  }
+
+  async getAdminCategoriesForRestaurant(restaurantId: number): Promise<AdminCategoryDto[]> {
+    await this.locationService.ensureRestaurantExists(restaurantId);
+
+    const categories = await this.prisma.category.findMany({
+      where: { restaurantId },
+      include: {
+        menuItems: {
+          select: { isAvailable: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return categories.map((category) => this.mapAdminCategory(category));
+  }
+
+  async createAdminCategory(
+    restaurantId: number,
+    dto: CreateAdminCategoryDto,
+  ): Promise<AdminCategoryDto> {
+    await this.locationService.ensureRestaurantExists(restaurantId);
+
+    const name = dto.name.trim();
+    const duplicate = await this.prisma.category.findFirst({
+      where: {
+        restaurantId,
+        name: { equals: name, mode: 'insensitive' },
+      },
+    });
+
+    if (duplicate) {
+      throw new BadRequestException('A category with this name already exists for this restaurant');
+    }
+
+    const created = await this.prisma.category.create({
+      data: {
+        restaurantId,
+        name,
+        description: dto.description?.trim() || null,
+      },
+      include: {
+        menuItems: {
+          select: { isAvailable: true },
+        },
+      },
+    });
+
+    await this.clearMenuCache(restaurantId);
+
+    return this.mapAdminCategory(created);
+  }
+
+  async updateAdminCategory(
+    categoryId: number,
+    dto: UpdateAdminCategoryDto,
+  ): Promise<AdminCategoryDto> {
+    const existing = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (dto.name && dto.name.trim().toLowerCase() !== existing.name.toLowerCase()) {
+      const duplicate = await this.prisma.category.findFirst({
+        where: {
+          restaurantId: existing.restaurantId,
+          id: { not: categoryId },
+          name: { equals: dto.name.trim(), mode: 'insensitive' },
+        },
+      });
+
+      if (duplicate) {
+        throw new BadRequestException(
+          'A category with this name already exists for this restaurant',
+        );
+      }
+    }
+
+    const updated = await this.prisma.category.update({
+      where: { id: categoryId },
+      data: {
+        name: dto.name?.trim(),
+        description: dto.description === undefined ? undefined : dto.description?.trim() || null,
+      },
+      include: {
+        menuItems: {
+          select: { isAvailable: true },
+        },
+      },
+    });
+
+    await this.clearMenuCache(existing.restaurantId);
+
+    return this.mapAdminCategory(updated);
+  }
+
+  async deleteAdminCategory(categoryId: number): Promise<{ ok: boolean }> {
+    const existing = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        menuItems: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
+    if (existing.menuItems.length > 0) {
+      throw new BadRequestException('Cannot delete a category that has menu items');
+    }
+
+    await this.prisma.category.delete({ where: { id: categoryId } });
+    await this.clearMenuCache(existing.restaurantId);
+
+    return { ok: true };
   }
 
   async updateAdminMenuItem(menuItemId: number, dto: UpdateAdminMenuItemDto): Promise<MenuItemDto> {
@@ -265,6 +394,8 @@ export class MenuService {
       include: { category: true, variants: true },
     });
 
+    await this.clearMenuCache(existing.restaurantId);
+
     return this.mapMenuItem(updated);
   }
 
@@ -290,6 +421,8 @@ export class MenuService {
       await tx.menuItemVariant.deleteMany({ where: { menuItemId } });
       await tx.menuItem.delete({ where: { id: menuItemId } });
     });
+
+    await this.clearMenuCache(existing.restaurantId);
 
     return { ok: true };
   }
@@ -371,6 +504,8 @@ export class MenuService {
         price: v.price,
       })),
       imageUrl: item.imageUrl,
+      description: item.description,
+      ingredients: item.ingredients,
       discountPrice: item.discountPrice,
       foodType: item.foodType,
       spicyLevel: item.spicyLevel,
@@ -378,6 +513,32 @@ export class MenuService {
       isBestSelling: item.isBestSelling,
       preparationTime: item.preparationTime,
     };
+  }
+
+  private mapAdminCategory(category: {
+    id: number;
+    restaurantId: number;
+    name: string;
+    description: string | null;
+    menuItems: { isAvailable: boolean }[];
+  }): AdminCategoryDto {
+    return {
+      id: category.id,
+      restaurantId: category.restaurantId,
+      name: category.name,
+      description: category.description,
+      activeItemCount: category.menuItems.filter((item) => item.isAvailable).length,
+      totalItemCount: category.menuItems.length,
+    };
+  }
+
+  private async clearMenuCache(restaurantId: number): Promise<void> {
+    const globalKey = this.locationService.buildMenuCacheKey(restaurantId);
+
+    this.cache.deleteMatching(
+      (key) => key === globalKey || (key.startsWith('menu:') && key.endsWith(`:${restaurantId}`)),
+    );
+    await this.cache.delete(globalKey);
   }
 
   private groupItemsByCategory(items: MenuItemDto[]): MenuCategoryGroupDto[] {

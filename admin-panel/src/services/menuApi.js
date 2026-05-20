@@ -5,7 +5,7 @@ import { baseQueryWithAuth } from '../app/baseQuery';
 export const menuApi = createApi({
   reducerPath: 'menuApi',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Menu', 'AdminMenu'],
+  tagTypes: ['Menu', 'AdminMenu', 'Category'],
   endpoints: (builder) => ({
     getMenuByRestaurant: builder.query({
       query: (restaurantId) => `/menu/restaurant/${restaurantId}`,
@@ -23,6 +23,7 @@ export const menuApi = createApi({
       }),
       invalidatesTags: (_result, _error, { restaurantId }) => [
         { type: 'AdminMenu', id: restaurantId },
+        { type: 'Category', id: restaurantId },
         'Menu',
       ],
     }),
@@ -33,7 +34,9 @@ export const menuApi = createApi({
         body,
       }),
       invalidatesTags: (_result, _error, { restaurantId }) =>
-        restaurantId ? [{ type: 'AdminMenu', id: restaurantId }, 'Menu'] : ['Menu'],
+        restaurantId
+          ? [{ type: 'AdminMenu', id: restaurantId }, { type: 'Category', id: restaurantId }, 'Menu']
+          : ['Menu'],
     }),
     deleteAdminMenuItem: builder.mutation({
       query: ({ id }) => ({
@@ -41,22 +44,48 @@ export const menuApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: (_result, _error, { restaurantId }) =>
-        restaurantId ? [{ type: 'AdminMenu', id: restaurantId }, 'Menu'] : ['Menu'],
+        restaurantId
+          ? [{ type: 'AdminMenu', id: restaurantId }, { type: 'Category', id: restaurantId }, 'Menu']
+          : ['Menu'],
+    }),
+    getRestaurantCategories: builder.query({
+      query: (restaurantId) => `/admin/restaurants/${restaurantId}/categories`,
+      providesTags: (_result, _error, restaurantId) => [{ type: 'Category', id: restaurantId }],
     }),
     createCategory: builder.mutation({
-      queryFn: async () => ({
-        error: { status: 'CUSTOM_ERROR', error: 'Use menu item categoryName to auto-create categories.' },
+      query: ({ restaurantId, body }) => ({
+        url: `/admin/restaurants/${restaurantId}/categories`,
+        method: 'POST',
+        body,
       }),
+      invalidatesTags: (_result, _error, { restaurantId }) => [
+        { type: 'Category', id: restaurantId },
+        { type: 'AdminMenu', id: restaurantId },
+        'Menu',
+      ],
     }),
     updateCategory: builder.mutation({
-      queryFn: async () => ({
-        error: { status: 'CUSTOM_ERROR', error: 'Category updates are not exposed yet.' },
+      query: ({ id, body }) => ({
+        url: `/admin/categories/${id}`,
+        method: 'PUT',
+        body,
       }),
+      invalidatesTags: (_result, _error, { restaurantId }) => [
+        { type: 'Category', id: restaurantId },
+        { type: 'AdminMenu', id: restaurantId },
+        'Menu',
+      ],
     }),
     deleteCategory: builder.mutation({
-      queryFn: async () => ({
-        error: { status: 'CUSTOM_ERROR', error: 'Category deletion is not exposed yet.' },
+      query: ({ id }) => ({
+        url: `/admin/categories/${id}`,
+        method: 'DELETE',
       }),
+      invalidatesTags: (_result, _error, { restaurantId }) => [
+        { type: 'Category', id: restaurantId },
+        { type: 'AdminMenu', id: restaurantId },
+        'Menu',
+      ],
     }),
   }),
 });
@@ -67,6 +96,7 @@ export const {
   useCreateAdminMenuItemMutation,
   useUpdateAdminMenuItemMutation,
   useDeleteAdminMenuItemMutation,
+  useGetRestaurantCategoriesQuery,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
