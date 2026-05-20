@@ -523,23 +523,33 @@ export class OrdersService {
 
     for (const group of menuItem.addonGroups.filter((candidate) => candidate.isActive)) {
       const groupSelections = selectionsByGroup.get(group.id) ?? [];
-      const minSelect = group.isRequired ? Math.max(group.minSelect ?? 1, 1) : (group.minSelect ?? 0);
+      const minSelect = group.isRequired
+        ? Math.max(group.minSelect ?? 1, 1)
+        : (group.minSelect ?? 0);
       const maxSelect = group.selectionType === 'SINGLE' ? 1 : group.maxSelect;
 
       if (groupSelections.length < minSelect) {
-        throw new BadRequestException(`Please select at least ${minSelect} option(s) for ${group.name}`);
+        throw new BadRequestException(
+          `Please select at least ${minSelect} option(s) for ${group.name}`,
+        );
       }
 
       if (maxSelect !== null && maxSelect !== undefined && groupSelections.length > maxSelect) {
-        throw new BadRequestException(`Please select no more than ${maxSelect} option(s) for ${group.name}`);
+        throw new BadRequestException(
+          `Please select no more than ${maxSelect} option(s) for ${group.name}`,
+        );
       }
     }
 
     return selections.map((selection) => {
-      const group = menuItem.addonGroups.find((candidate) => candidate.id === selection.addonGroupId);
+      const group = menuItem.addonGroups.find(
+        (candidate) => candidate.id === selection.addonGroupId,
+      );
 
       if (!group || !group.isActive) {
-        throw new BadRequestException(`Add-on group ${selection.addonGroupId} is not valid for this item`);
+        throw new BadRequestException(
+          `Add-on group ${selection.addonGroupId} is not valid for this item`,
+        );
       }
 
       const option = group.options.find((candidate) => candidate.id === selection.addonOptionId);

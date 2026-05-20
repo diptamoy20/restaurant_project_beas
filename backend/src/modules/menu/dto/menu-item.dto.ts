@@ -1,8 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
-import { MenuVariantDto } from './menu-variant.dto';
 import { MenuAddonGroupDto } from './addon.dto';
+import { MenuVariantDto } from './menu-variant.dto';
 
 export class MenuCategoryDto {
   @ApiProperty({ example: 1 })
