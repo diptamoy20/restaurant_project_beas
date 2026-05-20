@@ -69,7 +69,7 @@ export function CheckoutPage() {
       restaurantId: Number(restaurantId),
       tableId: tableId ? Number(tableId) : undefined,
       addressId: Number(selectedAddressId),
-      orderType: tableId ? 'DINE_IN' : 'TAKEAWAY',
+      orderType: 'DELIVERY',
       discountAmount: 0,
       items: items.map((item) => ({
         menuItemId: item.menuItemId || item.id,

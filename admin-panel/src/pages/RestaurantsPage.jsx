@@ -8,7 +8,6 @@ import { Loader } from '../components/ui/Loader';
 import { Modal } from '../components/ui/Modal';
 import { Table } from '../components/ui/Table';
 import { TextField } from '../components/ui/TextField';
-import { SelectField } from '../components/ui/SelectField';
 import { PermissionGate } from '../components/PermissionGate';
 import {
   useGetAllRestaurantsQuery,
@@ -35,6 +34,7 @@ const initialFormState = {
 export function RestaurantsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [menuRestaurant, setMenuRestaurant] = useState(null);
+  const [menuMode, setMenuMode] = useState('list');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialFormState);
   const [errors, setErrors] = useState({});
@@ -179,6 +179,11 @@ export function RestaurantsPage() {
     }
   };
 
+  const openMenu = (restaurant, mode) => {
+    setMenuRestaurant(restaurant);
+    setMenuMode(mode);
+  };
+
   return (
     <div className="space-y-6">
       <Card
@@ -268,6 +273,12 @@ export function RestaurantsPage() {
                       action="edit"
                     >
                       <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+                        <Button onClick={() => openMenu(row, 'list')} variant="secondary">
+                          All Menu
+                        </Button>
+                        <Button onClick={() => openMenu(row, 'create')} variant="secondary">
+                          Add Menu
+                        </Button>
                         <Button onClick={() => handleEdit(row)} variant="secondary">
                           Edit
                         </Button>
@@ -282,7 +293,6 @@ export function RestaurantsPage() {
                 },
               ]}
               data={data}
-              onRowClick={(row) => setMenuRestaurant(row)}
             />
           </div>
         ) : null}
@@ -293,6 +303,8 @@ export function RestaurantsPage() {
       <RestaurantMenuModal
         open={Boolean(menuRestaurant)}
         restaurant={menuRestaurant}
+        mode={menuMode}
+        onModeChange={setMenuMode}
         onClose={() => setMenuRestaurant(null)}
       />
 

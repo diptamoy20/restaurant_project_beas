@@ -11,6 +11,16 @@ export const orderApi = createApi({
       query: (orderId) => `/orders/${orderId}`,
       providesTags: (_result, _error, id) => [{ type: 'Order', id }],
     }),
+    listOrders: builder.query({
+      query: (params = {}) => ({
+        url: '/admin/orders',
+        params,
+      }),
+      providesTags: (result) => [
+        'Order',
+        ...(result?.items ?? []).map((order) => ({ type: 'Order', id: order.id })),
+      ],
+    }),
     createOrder: builder.mutation({
       query: (payload) => ({
         url: '/orders',
@@ -32,11 +42,6 @@ export const orderApi = createApi({
         body: { status },
       }),
       invalidatesTags: (_result, _error, { orderId }) => [{ type: 'Order', id: orderId }],
-    }),
-    listOrders: builder.query({
-      queryFn: async () => ({
-        error: { status: 'CUSTOM_ERROR', error: 'Bulk order listing is not exposed yet.' },
-      }),
     }),
   }),
 });

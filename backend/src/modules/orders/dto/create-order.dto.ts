@@ -63,9 +63,10 @@ export class CreateOrderDto {
   @IsInt()
   addressId?: number;
 
-  @ApiProperty({ enum: OrderSource, example: OrderSource.WEBSITE })
+  @ApiPropertyOptional({ enum: OrderSource, example: OrderSource.WEBSITE })
+  @IsOptional()
   @IsIn(Object.values(OrderSource))
-  source!: OrderSource;
+  source?: OrderSource;
 
   @ApiProperty({ enum: ['DINE_IN', 'DELIVERY', 'TAKEAWAY'], example: 'DELIVERY' })
   @IsIn(['DINE_IN', 'DELIVERY', 'TAKEAWAY'])

@@ -1,16 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from './ui/Button';
+import { EmptyState } from './ui/EmptyState';
+import { ErrorState } from './ui/ErrorState';
 import { Loader } from './ui/Loader';
 import { Modal } from './ui/Modal';
+import { SelectField } from './ui/SelectField';
 import { Table } from './ui/Table';
 import { TextField } from './ui/TextField';
-import { SelectField } from './ui/SelectField';
-import { ErrorState } from './ui/ErrorState';
 import {
   useCreateAdminMenuItemMutation,
   useDeleteAdminMenuItemMutation,
   useGetAdminRestaurantMenuQuery,
+  useGetRestaurantCategoriesQuery,
   useUpdateAdminMenuItemMutation,
 } from '../services/menuApi';
 
@@ -19,29 +21,84 @@ const emptyForm = {
   description: '',
   price: '',
   discountPrice: '',
-  categoryName: '',
+  categoryId: '',
   foodType: 'VEG',
-  preparationTime: '',
   imageUrl: '',
   isAvailable: true,
   isBestSelling: false,
-  spicyLevel: '',
   ingredients: '',
 };
 
-export function RestaurantMenuModal({ restaurant, open, onClose }) {
+function toForm(item) {
+  return {
+    name: item.name ?? '',
+    description: item.description ?? '',
+    price: String(item.price ?? ''),
+    discountPrice: item.discountPrice != null ? String(item.discountPrice) : '',
+    categoryId: item.categoryId != null ? String(item.categoryId) : '',
+    foodType: item.foodType ?? 'VEG',
+    imageUrl: item.imageUrl ?? '',
+    isAvailable: item.isAvailable !== false,
+    isBestSelling: Boolean(item.isBestSelling),
+    ingredients: item.ingredients ?? '',
+  };
+}
+
+export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeChange, onClose }) {
   const restaurantId = restaurant?.id;
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [editingItem, setEditingItem] = useState(null);
 
-  const { data, isLoading, error, refetch } = useGetAdminRestaurantMenuQuery(restaurantId, {
+  const showForm = mode === 'create' || Boolean(editingItem);
+
+  const {
+    data,
+    isLoading: isMenuLoading,
+    error: menuError,
+    refetch,
+  } = useGetAdminRestaurantMenuQuery(restaurantId, {
+    skip: !open || !restaurantId,
+  });
+
+  const {
+    data: categories = [],
+    isLoading: isCategoriesLoading,
+    error: categoriesError,
+  } = useGetRestaurantCategoriesQuery(restaurantId, {
     skip: !open || !restaurantId,
   });
 
   const [createItem, createState] = useCreateAdminMenuItemMutation();
   const [updateItem, updateState] = useUpdateAdminMenuItemMutation();
   const [deleteItem, deleteState] = useDeleteAdminMenuItemMutation();
+
+  useEffect(() => {
+    if (!open) {
+      setForm(emptyForm);
+      setErrors({});
+      setEditingItem(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && mode === 'create') {
+      setEditingItem(null);
+      setForm(emptyForm);
+      setErrors({});
+    }
+  }, [mode, open]);
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: '', label: categories.length ? 'Select category' : 'Create a category first' },
+      ...categories.map((category) => ({
+        value: String(category.id),
+        label: category.name,
+      })),
+    ],
+    [categories],
+  );
 
   const mutationError =
     createState.error?.data?.message ||
@@ -53,14 +110,6 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
 
   const menuItems = data?.items ?? [];
 
-  const categoriesHint = useMemo(() => {
-    const names = Array.from(
-      new Set(menuItems.map((item) => item.category?.name).filter(Boolean)),
-    );
-
-    return names.join(', ') || 'Starters, Main Course, Beverages…';
-  }, [menuItems]);
-
   const validate = () => {
     const next = {};
 
@@ -69,19 +118,21 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
     }
 
     const price = Number(form.price);
-
     if (!form.price || Number.isNaN(price) || price <= 0) {
       next.price = 'Enter a valid price';
     }
 
-    if (!form.categoryName.trim()) {
-      next.categoryName = 'Category is required';
+    if (!form.categoryId) {
+      next.categoryId = 'Select a category';
     }
 
     const discount = form.discountPrice ? Number(form.discountPrice) : null;
-
     if (form.discountPrice && (Number.isNaN(discount) || discount < 0)) {
       next.discountPrice = 'Invalid discount price';
+    }
+
+    if (discount !== null && !Number.isNaN(discount) && discount > price) {
+      next.discountPrice = 'Discount price cannot exceed price';
     }
 
     setErrors(next);
@@ -101,13 +152,11 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
       description: form.description.trim() || undefined,
       price: Number(form.price),
       discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
-      categoryName: form.categoryName.trim(),
+      categoryId: Number(form.categoryId),
       foodType: form.foodType,
-      preparationTime: form.preparationTime ? Number(form.preparationTime) : undefined,
       imageUrl: form.imageUrl.trim() || undefined,
       isAvailable: Boolean(form.isAvailable),
       isBestSelling: Boolean(form.isBestSelling),
-      spicyLevel: form.spicyLevel === '' ? undefined : Number(form.spicyLevel),
       ingredients: form.ingredients.trim() || undefined,
     };
 
@@ -124,6 +173,7 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
 
       setForm(emptyForm);
       setEditingItem(null);
+      onModeChange?.('list');
       refetch();
     } catch {
       /* surfaced via mutationError */
@@ -132,20 +182,9 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
 
   const handleEdit = (item) => {
     setEditingItem(item);
-    setForm({
-      name: item.name ?? '',
-      description: item.description ?? '',
-      price: String(item.price ?? ''),
-      discountPrice: item.discountPrice != null ? String(item.discountPrice) : '',
-      categoryName: item.category?.name ?? '',
-      foodType: item.foodType ?? 'VEG',
-      preparationTime: item.preparationTime != null ? String(item.preparationTime) : '',
-      imageUrl: item.imageUrl ?? '',
-      isAvailable: item.isAvailable !== false,
-      isBestSelling: Boolean(item.isBestSelling),
-      spicyLevel: item.spicyLevel != null ? String(item.spicyLevel) : '',
-      ingredients: item.ingredients ?? '',
-    });
+    setForm(toForm(item));
+    setErrors({});
+    onModeChange?.('list');
   };
 
   const handleDelete = async (item) => {
@@ -157,99 +196,117 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
       await deleteItem({ id: item.id, restaurantId }).unwrap();
       refetch();
     } catch {
-      /* mutation error */
+      /* surfaced via mutationError */
     }
   };
+
+  const title = restaurant
+    ? `${showForm ? (editingItem ? 'Edit Menu' : 'Add Menu') : 'All Menu'} - ${restaurant.name}`
+    : 'Menu management';
 
   return (
     <Modal
       footer={
         <div className="flex flex-wrap gap-3">
+          {showForm ? (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setEditingItem(null);
+                setForm(emptyForm);
+                setErrors({});
+                onModeChange?.('list');
+              }}
+            >
+              All Menu
+            </Button>
+          ) : (
+            <Button type="button" variant="secondary" onClick={() => onModeChange?.('create')}>
+              Add Menu
+            </Button>
+          )}
           <Button type="button" variant="secondary" onClick={onClose}>
             Close
           </Button>
-          <Button
-            type="submit"
-            form="restaurant-menu-item-form"
-            disabled={createState.isLoading || updateState.isLoading}
-          >
-            {editingItem ? 'Save changes' : 'Create dish'}
-          </Button>
+          {showForm ? (
+            <Button
+              type="submit"
+              form="restaurant-menu-item-form"
+              disabled={createState.isLoading || updateState.isLoading || !categories.length}
+            >
+              {editingItem ? 'Save Changes' : 'Create Menu'}
+            </Button>
+          ) : null}
         </div>
       }
       onClose={onClose}
       open={open}
-      title={restaurant ? `Menu · ${restaurant.name}` : 'Menu management'}
+      title={title}
+      maxWidth="max-w-6xl"
     >
       <div className="space-y-6">
-        {isLoading ? <Loader label="Loading dishes…" /> : null}
-        {error ? (
-          <ErrorState message={error?.data?.message || error?.error || 'Unable to load dishes.'} />
+        {isMenuLoading || isCategoriesLoading ? <Loader label="Loading menu data..." /> : null}
+        {menuError ? (
+          <ErrorState message={menuError?.data?.message || menuError?.error || 'Unable to load menu.'} />
         ) : null}
-
+        {categoriesError ? (
+          <ErrorState
+            message={
+              categoriesError?.data?.message ||
+              categoriesError?.error ||
+              'Unable to load categories.'
+            }
+          />
+        ) : null}
         {mutationError ? <ErrorState message={mutationError} /> : null}
 
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Existing dishes</p>
-          <div className="mt-3 overflow-x-auto">
+        {!showForm ? (
+          <div className="overflow-x-auto">
             <Table
               columns={[
+                { key: 'name', header: 'Menu Item Name' },
                 {
-                  key: 'name',
-                  header: 'Item',
+                  key: 'category',
+                  header: 'Category',
+                  render: (row) => row.category?.name ?? 'Unassigned',
+                },
+                { key: 'price', header: 'Price', render: (row) => `Rs. ${row.price}` },
+                {
+                  key: 'discountPrice',
+                  header: 'Discount Price',
+                  render: (row) => (row.discountPrice != null ? `Rs. ${row.discountPrice}` : '-'),
+                },
+                { key: 'foodType', header: 'Food Type', render: (row) => row.foodType ?? '-' },
+                {
+                  key: 'isAvailable',
+                  header: 'Availability Status',
                   render: (row) => (
-                    <div>
-                      <p className="font-semibold text-slate-900">{row.name}</p>
-                      <p className="text-xs text-slate-500">{row.category?.name}</p>
-                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        row.isAvailable
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {row.isAvailable ? 'Available' : 'Unavailable'}
+                    </span>
                   ),
                 },
                 {
-                  key: 'price',
-                  header: 'Price',
-                  render: (row) => `Rs. ${row.price}`,
-                },
-                {
-                  key: 'flags',
-                  header: 'Highlights',
-                  render: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                      {row.isBestSelling ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900">
-                          Best seller
-                        </span>
-                      ) : null}
-                      <span
-                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                          row.isAvailable
-                            ? 'bg-emerald-100 text-emerald-900'
-                            : 'bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        {row.isAvailable ? 'Available' : 'Hidden'}
-                      </span>
-                    </div>
-                  ),
+                  key: 'isBestSelling',
+                  header: 'Best Seller Status',
+                  render: (row) => (row.isBestSelling ? 'Best Seller' : '-'),
                 },
                 {
                   key: 'actions',
                   header: 'Actions',
                   render: (row) => (
                     <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        className="px-3 py-1.5 text-xs"
-                        variant="secondary"
-                        onClick={() => handleEdit(row)}
-                      >
+                      <Button className="px-3 py-1.5 text-xs" onClick={() => handleEdit(row)} variant="secondary">
                         Edit
                       </Button>
-                      <Button
-                        type="button"
-                        className="px-3 py-1.5 text-xs"
-                        variant="danger"
-                        onClick={() => handleDelete(row)}
-                      >
+                      <Button className="px-3 py-1.5 text-xs" onClick={() => handleDelete(row)} variant="danger">
                         Delete
                       </Button>
                     </div>
@@ -257,154 +314,127 @@ export function RestaurantMenuModal({ restaurant, open, onClose }) {
                 },
               ]}
               data={menuItems}
-              emptyMessage="No dishes yet — create your first item below."
+              emptyMessage="No menu items found for this restaurant."
             />
           </div>
-        </div>
+        ) : null}
 
-        <form className="grid gap-4 md:grid-cols-2" id="restaurant-menu-item-form" onSubmit={handleSubmit}>
-          <div className="md:col-span-2 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">
-                {editingItem ? 'Edit dish' : 'Add dish'}
-              </p>
-              <p className="text-sm text-slate-500">Existing categories: {categoriesHint}</p>
-            </div>
-            {editingItem ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setEditingItem(null);
-                  setForm(emptyForm);
-                  setErrors({});
-                }}
-              >
-                Cancel edit
-              </Button>
+        {showForm ? (
+          <form className="grid gap-4 md:grid-cols-2" id="restaurant-menu-item-form" onSubmit={handleSubmit}>
+            {!categories.length && !isCategoriesLoading ? (
+              <div className="md:col-span-2">
+                <EmptyState
+                  description="Create a category in Master Category before adding menu items."
+                  title="No categories available"
+                />
+              </div>
             ) : null}
-          </div>
 
-          <TextField
-            required
-            error={errors.name}
-            label="Menu name *"
-            name="name"
-            value={form.name}
-            onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-          />
-
-          <TextField
-            required
-            error={errors.categoryName}
-            label="Category *"
-            name="categoryName"
-            placeholder="e.g., Pizza"
-            value={form.categoryName}
-            onChange={(event) => setForm((prev) => ({ ...prev, categoryName: event.target.value }))}
-          />
-
-          <TextField
-            required
-            error={errors.price}
-            label="Price *"
-            min="0"
-            name="price"
-            step="0.01"
-            type="number"
-            value={form.price}
-            onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
-          />
-
-          <TextField
-            error={errors.discountPrice}
-            label="Discount price"
-            min="0"
-            name="discountPrice"
-            step="0.01"
-            type="number"
-            value={form.discountPrice}
-            onChange={(event) => setForm((prev) => ({ ...prev, discountPrice: event.target.value }))}
-          />
-
-          <SelectField
-            label="Food type"
-            name="foodType"
-            value={form.foodType}
-            onChange={(event) => setForm((prev) => ({ ...prev, foodType: event.target.value }))}
-            options={[
-              { value: 'VEG', label: 'Vegetarian' },
-              { value: 'NON_VEG', label: 'Non-vegetarian' },
-            ]}
-          />
-
-          <TextField
-            label="Preparation time (minutes)"
-            min="1"
-            name="preparationTime"
-            type="number"
-            value={form.preparationTime}
-            onChange={(event) => setForm((prev) => ({ ...prev, preparationTime: event.target.value }))}
-          />
-
-          <TextField
-            label="Image URL"
-            name="imageUrl"
-            type="url"
-            value={form.imageUrl}
-            onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
-          />
-
-          <TextField
-            label="Spicy level (0-5)"
-            max="5"
-            min="0"
-            name="spicyLevel"
-            type="number"
-            value={form.spicyLevel}
-            onChange={(event) => setForm((prev) => ({ ...prev, spicyLevel: event.target.value }))}
-          />
-
-          <label className="flex items-center gap-3 md:col-span-2">
-            <input
-              checked={form.isAvailable}
-              name="isAvailable"
-              type="checkbox"
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, isAvailable: event.target.checked }))
-              }
+            <TextField
+              required
+              error={errors.name}
+              label="Menu Name *"
+              name="name"
+              value={form.name}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             />
-            <span className="text-sm font-medium text-slate-700">Available for ordering</span>
-          </label>
 
-          <label className="flex items-center gap-3 md:col-span-2">
-            <input
-              checked={form.isBestSelling}
-              name="isBestSelling"
-              type="checkbox"
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, isBestSelling: event.target.checked }))
-              }
+            <SelectField
+              required
+              className={errors.categoryId ? 'text-rose-600' : ''}
+              label="Category *"
+              name="categoryId"
+              value={form.categoryId}
+              onChange={(event) => setForm((prev) => ({ ...prev, categoryId: event.target.value }))}
+              options={categoryOptions}
             />
-            <span className="text-sm font-medium text-slate-700">Mark as best selling</span>
-          </label>
+            {errors.categoryId ? (
+              <span className="-mt-3 text-xs text-rose-600 md:col-start-2">{errors.categoryId}</span>
+            ) : null}
 
-          <TextField
-            className="md:col-span-2"
-            label="Ingredients"
-            name="ingredients"
-            value={form.ingredients}
-            onChange={(event) => setForm((prev) => ({ ...prev, ingredients: event.target.value }))}
-          />
+            <TextField
+              required
+              error={errors.price}
+              label="Price *"
+              min="0"
+              name="price"
+              step="0.01"
+              type="number"
+              value={form.price}
+              onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))}
+            />
 
-          <TextField
-            className="md:col-span-2"
-            label="Description"
-            name="description"
-            value={form.description}
-            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-          />
-        </form>
+            <TextField
+              error={errors.discountPrice}
+              label="Discount Price"
+              min="0"
+              name="discountPrice"
+              step="0.01"
+              type="number"
+              value={form.discountPrice}
+              onChange={(event) => setForm((prev) => ({ ...prev, discountPrice: event.target.value }))}
+            />
+
+            <SelectField
+              label="Food Type"
+              name="foodType"
+              value={form.foodType}
+              onChange={(event) => setForm((prev) => ({ ...prev, foodType: event.target.value }))}
+              options={[
+                { value: 'VEG', label: 'Vegetarian' },
+                { value: 'NON_VEG', label: 'Non-vegetarian' },
+              ]}
+            />
+
+            <TextField
+              label="Image URL"
+              name="imageUrl"
+              type="url"
+              value={form.imageUrl}
+              onChange={(event) => setForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
+            />
+
+            <label className="flex items-center gap-3 md:col-span-2">
+              <input
+                checked={form.isAvailable}
+                name="isAvailable"
+                type="checkbox"
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isAvailable: event.target.checked }))
+                }
+              />
+              <span className="text-sm font-medium text-slate-700">Available for Ordering</span>
+            </label>
+
+            <label className="flex items-center gap-3 md:col-span-2">
+              <input
+                checked={form.isBestSelling}
+                name="isBestSelling"
+                type="checkbox"
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isBestSelling: event.target.checked }))
+                }
+              />
+              <span className="text-sm font-medium text-slate-700">Mark as Best Selling</span>
+            </label>
+
+            <TextField
+              className="md:col-span-2"
+              label="Ingredients"
+              name="ingredients"
+              value={form.ingredients}
+              onChange={(event) => setForm((prev) => ({ ...prev, ingredients: event.target.value }))}
+            />
+
+            <TextField
+              className="md:col-span-2"
+              label="Description"
+              name="description"
+              value={form.description}
+              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+            />
+          </form>
+        ) : null}
       </div>
     </Modal>
   );

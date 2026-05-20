@@ -142,6 +142,71 @@ export class OrderRestaurantSummaryDto {
   city!: string | null;
 }
 
+export class OrderCustomerSummaryDto {
+  @ApiProperty({ example: 3 })
+  @IsNumber()
+  id!: number;
+
+  @ApiPropertyOptional({ example: 'Surojit Bera', nullable: true })
+  @IsOptional()
+  @IsString()
+  name!: string | null;
+
+  @ApiPropertyOptional({ example: 'surojit@example.com', nullable: true })
+  @IsOptional()
+  @IsString()
+  email!: string | null;
+
+  @ApiPropertyOptional({ example: '9876543210', nullable: true })
+  @IsOptional()
+  @IsString()
+  phone!: string | null;
+}
+
+export class OrderAddressSummaryDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Home' })
+  @IsString()
+  label!: string;
+
+  @ApiProperty({ example: '45 Residency Road' })
+  @IsString()
+  address!: string;
+
+  @ApiPropertyOptional({ example: 'Kolkata', nullable: true })
+  @IsOptional()
+  @IsString()
+  city!: string | null;
+
+  @ApiPropertyOptional({ example: 'West Bengal', nullable: true })
+  @IsOptional()
+  @IsString()
+  state!: string | null;
+}
+
+export class OrderTableSummaryDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'T1' })
+  @IsString()
+  tableNumber!: string;
+}
+
+export class OrderDeliverySummaryDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'ON_THE_WAY' })
+  @IsString()
+  status!: string;
+}
+
 export class OrderResponseDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -258,4 +323,28 @@ export class OrderResponseDto {
   @ValidateNested()
   @Type(() => OrderRestaurantSummaryDto)
   restaurant?: OrderRestaurantSummaryDto;
+
+  @ApiPropertyOptional({ type: () => OrderCustomerSummaryDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrderCustomerSummaryDto)
+  customer?: OrderCustomerSummaryDto;
+
+  @ApiPropertyOptional({ type: () => OrderAddressSummaryDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrderAddressSummaryDto)
+  address?: OrderAddressSummaryDto | null;
+
+  @ApiPropertyOptional({ type: () => OrderTableSummaryDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrderTableSummaryDto)
+  table?: OrderTableSummaryDto | null;
+
+  @ApiPropertyOptional({ type: () => OrderDeliverySummaryDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrderDeliverySummaryDto)
+  delivery?: OrderDeliverySummaryDto | null;
 }

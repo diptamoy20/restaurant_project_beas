@@ -49,6 +49,14 @@ export class MenuItemDto {
   @IsOptional()
   imageUrl?: string | null;
 
+  @ApiPropertyOptional({ example: 'Fresh basil, tomato, mozzarella', nullable: true })
+  @IsOptional()
+  description?: string | null;
+
+  @ApiPropertyOptional({ example: 'Tomato, basil, mozzarella', nullable: true })
+  @IsOptional()
+  ingredients?: string | null;
+
   @ApiPropertyOptional({ example: 149 })
   @IsOptional()
   discountPrice?: number | null;

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { CreateOrderType } from './types/create-order.type';
 import { ORDER_STATUS } from '../../common/constants/order-status';
@@ -24,8 +25,28 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
     statusLogs: true;
     payments: true;
     restaurant: true;
+    user: true;
+    address: true;
+    table: true;
+    delivery: true;
   };
 }>;
+
+const ORDER_INCLUDE = {
+  items: {
+    include: {
+      menuItem: true,
+      variant: true,
+    },
+  },
+  statusLogs: true,
+  payments: true,
+  restaurant: true,
+  user: true,
+  address: true,
+  table: true,
+  delivery: true,
+} satisfies Prisma.OrderInclude;
 
 @Injectable()
 export class OrdersService {
@@ -35,31 +56,47 @@ export class OrdersService {
     const orders = await this.prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      include: {
-        items: {
-          include: {
-            menuItem: true,
-            variant: true,
-          },
-        },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: ORDER_INCLUDE,
     });
 
     return orders.map((order) => this.mapOrder(order));
   }
 
+  async listOrdersForAdmin(query: AdminOrderQueryDto): Promise<{
+    items: OrderResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const where = this.buildAdminOrderWhere(query);
+
+    const [total, orders] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: ORDER_INCLUDE,
+      }),
+    ]);
+
+    return {
+      items: orders.map((order) => this.mapOrder(order)),
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
+  }
+
   async acceptOrderByAdmin(orderId: number): Promise<OrderResponseDto> {
     const existing = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: {
-        items: { include: { menuItem: true, variant: true } },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: ORDER_INCLUDE,
     });
 
     if (!existing) {
@@ -82,12 +119,7 @@ export class OrdersService {
           create: [{ status: ORDER_STATUS.ACCEPTED }],
         },
       },
-      include: {
-        items: { include: { menuItem: true, variant: true } },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: ORDER_INCLUDE,
     });
 
     return this.mapOrder(order);
@@ -96,12 +128,7 @@ export class OrdersService {
   async updateOrderStatusByAdmin(orderId: number, status: string): Promise<OrderResponseDto> {
     const existing = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: {
-        items: { include: { menuItem: true, variant: true } },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: ORDER_INCLUDE,
     });
 
     if (!existing) {
@@ -128,15 +155,14 @@ export class OrdersService {
       data.deliveredAt = now;
     }
 
+    if (status === ORDER_STATUS.SERVED) {
+      data.deliveredAt = now;
+    }
+
     const order = await this.prisma.order.update({
       where: { id: orderId },
       data,
-      include: {
-        items: { include: { menuItem: true, variant: true } },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: ORDER_INCLUDE,
     });
 
     return this.mapOrder(order);
@@ -145,17 +171,7 @@ export class OrdersService {
   async getOrder(id: number, requester: AuthenticatedUser): Promise<OrderResponseDto> {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: {
-        items: {
-          include: {
-            menuItem: true,
-            variant: true,
-          },
-        },
-        statusLogs: true,
-        payments: true,
-        restaurant: true,
-      },
+      include: ORDER_INCLUDE,
     });
 
     if (!order) {
@@ -266,17 +282,7 @@ export class OrdersService {
             create: [{ status: ORDER_STATUS.PENDING }],
           },
         },
-        include: {
-          items: {
-            include: {
-              menuItem: true,
-              variant: true,
-            },
-          },
-          statusLogs: true,
-          payments: true,
-          restaurant: true,
-        },
+        include: ORDER_INCLUDE,
       });
 
       if (payload.userId) {
@@ -369,6 +375,106 @@ export class OrdersService {
             city: order.restaurant.city,
           }
         : undefined,
+      customer: order.user
+        ? {
+            id: order.user.id,
+            name: order.user.name,
+            email: order.user.email,
+            phone: order.user.phone,
+          }
+        : undefined,
+      address: order.address
+        ? {
+            id: order.address.id,
+            label: order.address.label,
+            address: order.address.address,
+            city: order.address.city,
+            state: order.address.state,
+          }
+        : null,
+      table: order.table
+        ? {
+            id: order.table.id,
+            tableNumber: order.table.tableNumber,
+          }
+        : null,
+      delivery: order.delivery
+        ? {
+            id: order.delivery.id,
+            status: order.delivery.status,
+          }
+        : null,
     };
+  }
+
+  private buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhereInput {
+    const and: Prisma.OrderWhereInput[] = [];
+
+    if (query.timeRange === 'last_1_hour' || query.timeRange === 'last_3_hours') {
+      const hours = query.timeRange === 'last_1_hour' ? 1 : 3;
+      and.push({ createdAt: { gte: new Date(Date.now() - hours * 60 * 60 * 1000) } });
+    }
+
+    if (query.type) {
+      and.push({ orderType: query.type });
+    }
+
+    if (query.payment) {
+      and.push({ paymentMethod: { in: this.mapPaymentFilter(query.payment) } });
+    }
+
+    if (query.status) {
+      and.push({ status: query.status });
+    }
+
+    if (query.action === 'ACCEPT') {
+      and.push({ status: { in: [ORDER_STATUS.PENDING, ORDER_STATUS.PLACED] } });
+    }
+
+    if (query.action === 'REJECT') {
+      and.push({
+        status: {
+          in: [
+            ORDER_STATUS.PENDING,
+            ORDER_STATUS.PLACED,
+            ORDER_STATUS.ACCEPTED,
+            ORDER_STATUS.PREPARING,
+            ORDER_STATUS.OUT_FOR_DELIVERY,
+            ORDER_STATUS.ON_THE_WAY,
+          ],
+        },
+      });
+    }
+
+    const search = query.search?.trim();
+    if (search) {
+      const numericSearch = Number(search.replace(/^#/, ''));
+      const isNumericSearch = Number.isInteger(numericSearch);
+      const searchOr: Prisma.OrderWhereInput[] = isNumericSearch
+        ? [{ id: numericSearch }, { orderNumber: { equals: search, mode: 'insensitive' } }]
+        : [
+            { orderNumber: { contains: search, mode: 'insensitive' } },
+            { restaurant: { name: { contains: search, mode: 'insensitive' } } },
+            { user: { name: { contains: search, mode: 'insensitive' } } },
+            { user: { email: { contains: search, mode: 'insensitive' } } },
+            { user: { phone: { contains: search, mode: 'insensitive' } } },
+          ];
+
+      and.push({ OR: searchOr });
+    }
+
+    return and.length ? { AND: and } : {};
+  }
+
+  private mapPaymentFilter(payment: string): string[] {
+    if (payment === 'CASH') {
+      return ['CASH', 'COD', 'CASH_ON_DELIVERY'];
+    }
+
+    if (payment === 'CARD') {
+      return ['CARD', 'RAZORPAY', 'CREDIT_CARD', 'DEBIT_CARD'];
+    }
+
+    return [payment];
   }
 }
