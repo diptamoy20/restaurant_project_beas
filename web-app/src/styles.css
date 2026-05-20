@@ -42,6 +42,25 @@ body {
   margin: 0;
   background: transparent;
   overflow-x: hidden;
+  max-width: 100%;
+}
+
+#root,
+.app-shell,
+.page {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+main,
+section,
+header,
+footer,
+nav,
+div,
+article,
+aside {
+  min-width: 0;
 }
 
 body.drawer-open {
@@ -107,6 +126,7 @@ textarea {
 img {
   display: block;
   max-width: 100%;
+  height: auto;
 }
 
 h1,
