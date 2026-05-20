@@ -122,8 +122,7 @@ export function AddOnSheet({
               +
             </button>
           </div>
-          <button className="qr-add-item-button" type="button" onClick={onAdd}>
-            <span>[ ]</span>
+          <button className="qr-add-item-button" type="button" onClick={onAdd}>            
             Add item - {formatCurrency(total)}
           </button>
         </div>
