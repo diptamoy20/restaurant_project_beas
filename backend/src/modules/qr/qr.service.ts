@@ -54,6 +54,16 @@ export class QrService {
           },
           include: {
             variants: true,
+            addonGroups: {
+              where: { isActive: true },
+              include: {
+                options: {
+                  where: { isAvailable: true },
+                  orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+                },
+              },
+              orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+            },
           },
           orderBy: { name: 'asc' },
         },
@@ -80,6 +90,20 @@ export class QrService {
           name: variant.name,
           price: variant.price,
           isAvailable: true, // Variants don't have availability flag, assume available
+        })),
+        addonGroups: item.addonGroups.map((group) => ({
+          id: group.id,
+          name: group.name,
+          selectionType: group.selectionType,
+          isRequired: group.isRequired,
+          minSelect: group.minSelect,
+          maxSelect: group.maxSelect,
+          options: group.options.map((option) => ({
+            id: option.id,
+            name: option.name,
+            price: option.price,
+            isAvailable: option.isAvailable,
+          })),
         })),
       })),
     }));
@@ -117,6 +141,7 @@ export class QrService {
         menuItemId: item.menuItemId,
         variantId: item.variantId,
         quantity: item.quantity,
+        addons: item.addons,
       })),
     };
 

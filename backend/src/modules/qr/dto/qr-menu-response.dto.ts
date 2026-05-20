@@ -27,6 +27,59 @@ export class QRMenuItemVariantDto {
   isAvailable!: boolean;
 }
 
+export class QRMenuAddonOptionDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Extra Cheese' })
+  @IsString()
+  name!: string;
+
+  @ApiProperty({ example: 40 })
+  @IsNumber()
+  price!: number;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  isAvailable!: boolean;
+}
+
+export class QRMenuAddonGroupDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Extra Toppings' })
+  @IsString()
+  name!: string;
+
+  @ApiProperty({ example: 'MULTI', enum: ['SINGLE', 'MULTI'] })
+  @IsString()
+  selectionType!: string;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isRequired!: boolean;
+
+  @ApiPropertyOptional({ example: 0, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  minSelect?: number | null;
+
+  @ApiPropertyOptional({ example: 3, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  maxSelect?: number | null;
+
+  @ApiPropertyOptional({ type: () => QRMenuAddonOptionDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QRMenuAddonOptionDto)
+  options?: QRMenuAddonOptionDto[];
+}
+
 export class QRMenuItemDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -69,6 +122,13 @@ export class QRMenuItemDto {
   @ValidateNested({ each: true })
   @Type(() => QRMenuItemVariantDto)
   variants?: QRMenuItemVariantDto[];
+
+  @ApiPropertyOptional({ type: () => QRMenuAddonGroupDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QRMenuAddonGroupDto)
+  addonGroups?: QRMenuAddonGroupDto[];
 }
 
 export class QRMenuCategoryDto {

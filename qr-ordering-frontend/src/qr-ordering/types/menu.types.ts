@@ -5,6 +5,23 @@ export interface QRMenuItemVariant {
   isAvailable: boolean;
 }
 
+export interface QRMenuAddonOption {
+  id: number;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+}
+
+export interface QRMenuAddonGroup {
+  id: number;
+  name: string;
+  selectionType: 'SINGLE' | 'MULTI';
+  isRequired: boolean;
+  minSelect?: number | null;
+  maxSelect?: number | null;
+  options: QRMenuAddonOption[];
+}
+
 export interface QRMenuItem {
   id: number;
   name: string;
@@ -16,6 +33,7 @@ export interface QRMenuItem {
   preparationTime?: number;
   categoryId: number;
   variants?: QRMenuItemVariant[];
+  addonGroups?: QRMenuAddonGroup[];
 }
 
 export interface QRMenuCategory {

@@ -27,6 +27,7 @@ const emptyForm = {
   isAvailable: true,
   isBestSelling: false,
   ingredients: '',
+  addonGroups: [],
 };
 
 function toForm(item) {
@@ -41,6 +42,18 @@ function toForm(item) {
     isAvailable: item.isAvailable !== false,
     isBestSelling: Boolean(item.isBestSelling),
     ingredients: item.ingredients ?? '',
+    addonGroups: (item.addonGroups ?? []).map((group) => ({
+      name: group.name ?? '',
+      selectionType: group.selectionType ?? 'MULTI',
+      isRequired: Boolean(group.isRequired),
+      minSelect: group.minSelect != null ? String(group.minSelect) : '',
+      maxSelect: group.maxSelect != null ? String(group.maxSelect) : '',
+      options: (group.options ?? []).map((option) => ({
+        name: option.name ?? '',
+        price: String(option.price ?? ''),
+        isAvailable: option.isAvailable !== false,
+      })),
+    })),
   };
 }
 
@@ -158,6 +171,26 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
       isAvailable: Boolean(form.isAvailable),
       isBestSelling: Boolean(form.isBestSelling),
       ingredients: form.ingredients.trim() || undefined,
+      addonGroups: form.addonGroups
+        .filter((group) => group.name.trim())
+        .map((group, groupIndex) => ({
+          name: group.name.trim(),
+          selectionType: group.selectionType,
+          isRequired: Boolean(group.isRequired),
+          minSelect: group.minSelect ? Number(group.minSelect) : undefined,
+          maxSelect: group.maxSelect ? Number(group.maxSelect) : undefined,
+          sortOrder: groupIndex,
+          isActive: true,
+          options: group.options
+            .filter((option) => option.name.trim())
+            .map((option, optionIndex) => ({
+              name: option.name.trim(),
+              price: Number(option.price || 0),
+              isAvailable: option.isAvailable !== false,
+              sortOrder: optionIndex,
+            })),
+        }))
+        .filter((group) => group.options.length > 0),
     };
 
     try {
@@ -198,6 +231,83 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
     } catch {
       /* surfaced via mutationError */
     }
+  };
+
+  const addAddonGroup = () => {
+    setForm((prev) => ({
+      ...prev,
+      addonGroups: [
+        ...prev.addonGroups,
+        {
+          name: '',
+          selectionType: 'MULTI',
+          isRequired: false,
+          minSelect: '',
+          maxSelect: '',
+          options: [{ name: '', price: '', isAvailable: true }],
+        },
+      ],
+    }));
+  };
+
+  const updateAddonGroup = (groupIndex, patch) => {
+    setForm((prev) => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map((group, index) =>
+        index === groupIndex ? { ...group, ...patch } : group,
+      ),
+    }));
+  };
+
+  const removeAddonGroup = (groupIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      addonGroups: prev.addonGroups.filter((_, index) => index !== groupIndex),
+    }));
+  };
+
+  const addAddonOption = (groupIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map((group, index) =>
+        index === groupIndex
+          ? {
+              ...group,
+              options: [...group.options, { name: '', price: '', isAvailable: true }],
+            }
+          : group,
+      ),
+    }));
+  };
+
+  const updateAddonOption = (groupIndex, optionIndex, patch) => {
+    setForm((prev) => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map((group, index) =>
+        index === groupIndex
+          ? {
+              ...group,
+              options: group.options.map((option, currentOptionIndex) =>
+                currentOptionIndex === optionIndex ? { ...option, ...patch } : option,
+              ),
+            }
+          : group,
+      ),
+    }));
+  };
+
+  const removeAddonOption = (groupIndex, optionIndex) => {
+    setForm((prev) => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map((group, index) =>
+        index === groupIndex
+          ? {
+              ...group,
+              options: group.options.filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex),
+            }
+          : group,
+      ),
+    }));
   };
 
   const title = restaurant
@@ -297,6 +407,11 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
                   key: 'isBestSelling',
                   header: 'Best Seller Status',
                   render: (row) => (row.isBestSelling ? 'Best Seller' : '-'),
+                },
+                {
+                  key: 'addonGroups',
+                  header: 'Add-ons',
+                  render: (row) => (row.addonGroups?.length ? `${row.addonGroups.length} group(s)` : '-'),
                 },
                 {
                   key: 'actions',
@@ -433,6 +548,136 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
               value={form.description}
               onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
             />
+
+            <section className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-slate-950">Add-On Customizations</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Configure item-specific groups like size, toppings, patty, or extras.
+                  </p>
+                </div>
+                <Button type="button" variant="secondary" onClick={addAddonGroup}>
+                  Add Group
+                </Button>
+              </div>
+
+              {form.addonGroups.length ? (
+                <div className="grid gap-4">
+                  {form.addonGroups.map((group, groupIndex) => (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4" key={groupIndex}>
+                      <div className="grid gap-3 md:grid-cols-[1fr_160px_120px_120px_auto]">
+                        <TextField
+                          label="Group Name"
+                          value={group.name}
+                          onChange={(event) => updateAddonGroup(groupIndex, { name: event.target.value })}
+                        />
+                        <SelectField
+                          label="Type"
+                          value={group.selectionType}
+                          onChange={(event) =>
+                            updateAddonGroup(groupIndex, {
+                              selectionType: event.target.value,
+                              maxSelect: event.target.value === 'SINGLE' ? '1' : group.maxSelect,
+                            })
+                          }
+                          options={[
+                            { value: 'SINGLE', label: 'Single' },
+                            { value: 'MULTI', label: 'Multiple' },
+                          ]}
+                        />
+                        <TextField
+                          label="Min"
+                          min="0"
+                          type="number"
+                          value={group.minSelect}
+                          onChange={(event) => updateAddonGroup(groupIndex, { minSelect: event.target.value })}
+                        />
+                        <TextField
+                          label="Max"
+                          min="1"
+                          type="number"
+                          value={group.maxSelect}
+                          onChange={(event) => updateAddonGroup(groupIndex, { maxSelect: event.target.value })}
+                        />
+                        <Button
+                          className="self-end"
+                          type="button"
+                          variant="danger"
+                          onClick={() => removeAddonGroup(groupIndex)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <label className="mt-3 flex items-center gap-3">
+                        <input
+                          checked={group.isRequired}
+                          type="checkbox"
+                          onChange={(event) =>
+                            updateAddonGroup(groupIndex, { isRequired: event.target.checked })
+                          }
+                        />
+                        <span className="text-sm font-medium text-slate-700">Required group</span>
+                      </label>
+
+                      <div className="mt-4 grid gap-3">
+                        {group.options.map((option, optionIndex) => (
+                          <div
+                            className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-[1fr_140px_auto_auto]"
+                            key={optionIndex}
+                          >
+                            <TextField
+                              label="Option Name"
+                              value={option.name}
+                              onChange={(event) =>
+                                updateAddonOption(groupIndex, optionIndex, { name: event.target.value })
+                              }
+                            />
+                            <TextField
+                              label="Price"
+                              min="0"
+                              step="0.01"
+                              type="number"
+                              value={option.price}
+                              onChange={(event) =>
+                                updateAddonOption(groupIndex, optionIndex, { price: event.target.value })
+                              }
+                            />
+                            <label className="flex items-center gap-2 self-end pb-3 text-sm font-medium text-slate-700">
+                              <input
+                                checked={option.isAvailable}
+                                type="checkbox"
+                                onChange={(event) =>
+                                  updateAddonOption(groupIndex, optionIndex, {
+                                    isAvailable: event.target.checked,
+                                  })
+                                }
+                              />
+                              Available
+                            </label>
+                            <Button
+                              className="self-end"
+                              type="button"
+                              variant="secondary"
+                              onClick={() => removeAddonOption(groupIndex, optionIndex)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                        <Button type="button" variant="secondary" onClick={() => addAddonOption(groupIndex)}>
+                          Add Option
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                  No add-ons configured for this item.
+                </p>
+              )}
+            </section>
           </form>
         ) : null}
       </div>

@@ -2,6 +2,10 @@ export interface QRCreateOrderItem {
   menuItemId: number;
   variantId?: number;
   quantity: number;
+  addons?: {
+    addonGroupId: number;
+    addonOptionId: number;
+  }[];
 }
 
 export interface QRCreateOrderPayload {

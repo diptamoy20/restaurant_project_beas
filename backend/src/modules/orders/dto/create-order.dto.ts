@@ -12,6 +12,20 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+class OrderItemAddonInputDto {
+  @ApiProperty({ example: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  addonGroupId!: number;
+
+  @ApiProperty({ example: 2 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  addonOptionId!: number;
+}
+
 class OrderItemInputDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
@@ -38,6 +52,16 @@ class OrderItemInputDto {
   @IsOptional()
   @IsNumber()
   price?: number;
+
+  @ApiPropertyOptional({
+    example: [{ addonGroupId: 1, addonOptionId: 2 }],
+    description: 'Selected add-on options for this item',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemAddonInputDto)
+  addons?: OrderItemAddonInputDto[];
 }
 
 export class CreateOrderDto {

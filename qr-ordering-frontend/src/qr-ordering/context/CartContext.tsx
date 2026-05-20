@@ -11,7 +11,7 @@ export const CartContext = createContext<CartContextValue | null>(null);
 
 function getAddOnKey(addOns: AddOnIngredient[] = []): string {
   return addOns
-    .map((addOn) => addOn.id)
+    .map((addOn) => `${addOn.addonGroupId}:${addOn.addonOptionId}`)
     .sort()
     .join(',');
 }

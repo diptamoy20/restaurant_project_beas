@@ -19,8 +19,36 @@ import { LocationService } from '../location/location.service';
 
 const MENU_CACHE_TTL_SECONDS = 300;
 
+const MENU_ITEM_INCLUDE = {
+  category: true,
+  variants: true,
+  addonGroups: {
+    where: { isActive: true },
+    include: {
+      options: {
+        where: { isAvailable: true },
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      },
+    },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+  },
+} satisfies Prisma.MenuItemInclude;
+
+const ADMIN_MENU_ITEM_INCLUDE = {
+  category: true,
+  variants: true,
+  addonGroups: {
+    include: {
+      options: {
+        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      },
+    },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+  },
+} satisfies Prisma.MenuItemInclude;
+
 type MenuItemRow = Prisma.MenuItemGetPayload<{
-  include: { category: true; variants: true };
+  include: typeof ADMIN_MENU_ITEM_INCLUDE;
 }>;
 
 @Injectable()
@@ -58,8 +86,7 @@ export class MenuService {
           isAvailable: true,
         },
         include: {
-          category: true,
-          variants: true,
+          ...MENU_ITEM_INCLUDE,
         },
         orderBy: [{ categoryId: 'asc' }, { name: 'asc' }],
       }),
@@ -109,6 +136,16 @@ export class MenuService {
         category: true,
         variants: true,
         restaurant: true,
+        addonGroups: {
+          where: { isActive: true },
+          include: {
+            options: {
+              where: { isAvailable: true },
+              orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+            },
+          },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+        },
       },
       orderBy: [{ popularityScore: 'desc' }, { id: 'desc' }],
       take,
@@ -145,8 +182,7 @@ export class MenuService {
     const items = await this.prisma.menuItem.findMany({
       where: { restaurantId },
       include: {
-        category: true,
-        variants: true,
+        ...ADMIN_MENU_ITEM_INCLUDE,
       },
       orderBy: [{ categoryId: 'asc' }, { name: 'asc' }],
     });
@@ -203,8 +239,30 @@ export class MenuService {
           dto.customizableOptions === undefined
             ? undefined
             : (dto.customizableOptions as Prisma.InputJsonValue),
+        addonGroups: dto.addonGroups?.length
+          ? {
+              create: dto.addonGroups.map((group, groupIndex) => ({
+                restaurantId,
+                name: group.name.trim(),
+                selectionType: group.selectionType,
+                isRequired: group.isRequired ?? false,
+                minSelect: group.minSelect ?? null,
+                maxSelect: group.maxSelect ?? null,
+                sortOrder: group.sortOrder ?? groupIndex,
+                isActive: group.isActive ?? true,
+                options: {
+                  create: group.options.map((option, optionIndex) => ({
+                    name: option.name.trim(),
+                    price: option.price,
+                    isAvailable: option.isAvailable ?? true,
+                    sortOrder: option.sortOrder ?? optionIndex,
+                  })),
+                },
+              })),
+            }
+          : undefined,
       },
-      include: { category: true, variants: true },
+      include: ADMIN_MENU_ITEM_INCLUDE,
     });
 
     await this.clearMenuCache(restaurantId);
@@ -369,29 +427,67 @@ export class MenuService {
       } as CreateAdminMenuItemDto);
     }
 
-    const updated = await this.prisma.menuItem.update({
-      where: { id: menuItemId },
-      data: {
-        name: dto.name?.trim(),
-        description: dto.description === undefined ? undefined : dto.description?.trim() || null,
-        price: dto.price,
-        discountPrice: dto.discountPrice === undefined ? undefined : dto.discountPrice,
-        imageUrl: dto.imageUrl === undefined ? undefined : dto.imageUrl?.trim() || null,
-        foodType: dto.foodType,
-        spicyLevel: dto.spicyLevel === undefined ? undefined : dto.spicyLevel,
-        ingredients: dto.ingredients === undefined ? undefined : dto.ingredients?.trim() || null,
-        isAvailable: dto.isAvailable,
-        isBestSelling: dto.isBestSelling,
-        popularityScore: dto.popularityScore,
-        rating: dto.rating,
-        preparationTime: dto.preparationTime,
-        categoryId,
-        customizableOptions:
-          dto.customizableOptions === undefined
-            ? undefined
-            : (dto.customizableOptions as Prisma.InputJsonValue),
-      },
-      include: { category: true, variants: true },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const item = await tx.menuItem.update({
+        where: { id: menuItemId },
+        data: {
+          name: dto.name?.trim(),
+          description: dto.description === undefined ? undefined : dto.description?.trim() || null,
+          price: dto.price,
+          discountPrice: dto.discountPrice === undefined ? undefined : dto.discountPrice,
+          imageUrl: dto.imageUrl === undefined ? undefined : dto.imageUrl?.trim() || null,
+          foodType: dto.foodType,
+          spicyLevel: dto.spicyLevel === undefined ? undefined : dto.spicyLevel,
+          ingredients: dto.ingredients === undefined ? undefined : dto.ingredients?.trim() || null,
+          isAvailable: dto.isAvailable,
+          isBestSelling: dto.isBestSelling,
+          popularityScore: dto.popularityScore,
+          rating: dto.rating,
+          preparationTime: dto.preparationTime,
+          categoryId,
+          customizableOptions:
+            dto.customizableOptions === undefined
+              ? undefined
+              : (dto.customizableOptions as Prisma.InputJsonValue),
+        },
+      });
+
+      if (dto.addonGroups !== undefined) {
+        await tx.addonGroup.deleteMany({ where: { menuItemId } });
+
+        if (dto.addonGroups.length > 0) {
+          await Promise.all(
+            dto.addonGroups.map((group, groupIndex) =>
+              tx.addonGroup.create({
+                data: {
+                  menuItemId,
+                  restaurantId: existing.restaurantId,
+                  name: group.name.trim(),
+                  selectionType: group.selectionType,
+                  isRequired: group.isRequired ?? false,
+                  minSelect: group.minSelect ?? null,
+                  maxSelect: group.maxSelect ?? null,
+                  sortOrder: group.sortOrder ?? groupIndex,
+                  isActive: group.isActive ?? true,
+                  options: {
+                    create: group.options.map((option, optionIndex) => ({
+                      name: option.name.trim(),
+                      price: option.price,
+                      isAvailable: option.isAvailable ?? true,
+                      sortOrder: option.sortOrder ?? optionIndex,
+                    })),
+                  },
+                },
+              }),
+            ),
+          );
+        }
+      }
+
+      return tx.menuItem.findUniqueOrThrow({
+        where: { id: item.id },
+        include: ADMIN_MENU_ITEM_INCLUDE,
+      });
     });
 
     await this.clearMenuCache(existing.restaurantId);
@@ -502,6 +598,22 @@ export class MenuService {
         id: v.id,
         name: v.name,
         price: v.price,
+      })),
+      addonGroups: item.addonGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        selectionType: group.selectionType,
+        isRequired: group.isRequired,
+        minSelect: group.minSelect,
+        maxSelect: group.maxSelect,
+        sortOrder: group.sortOrder,
+        options: group.options.map((option) => ({
+          id: option.id,
+          name: option.name,
+          price: option.price,
+          isAvailable: option.isAvailable,
+          sortOrder: option.sortOrder,
+        })),
       })),
       imageUrl: item.imageUrl,
       description: item.description,

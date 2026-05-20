@@ -10,11 +10,10 @@ import { AddOnSheet } from '../components/menu/AddOnSheet';
 import { BestSellerStrip } from '../components/menu/BestSellerStrip';
 import { CategoryTabs } from '../components/menu/CategoryTabs';
 import { FoodCard } from '../components/menu/FoodCard';
-import { DEFAULT_ADD_ONS } from '../constants/addOns';
 import { useCart } from '../hooks/useCart';
 import { useMenu } from '../hooks/useMenu';
 import type { AddOnIngredient } from '../types/addOn.types';
-import type { QRMenuItem, QRMenuItemVariant } from '../types/menu.types';
+import type { QRMenuAddonGroup, QRMenuItem, QRMenuItemVariant } from '../types/menu.types';
 import { toNumericRouteId } from '../utils/routeParams';
 
 export function MenuPage() {
@@ -27,6 +26,7 @@ export function MenuPage() {
   const [optionItem, setOptionItem] = useState<QRMenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<QRMenuItemVariant | undefined>();
   const [selectedAddOns, setSelectedAddOns] = useState<AddOnIngredient[]>([]);
+  const [addonValidationMessage, setAddonValidationMessage] = useState('');
   const [sheetQuantity, setSheetQuantity] = useState(1);
   const [hasMinimumSplashElapsed, setHasMinimumSplashElapsed] = useState(false);
   const categories = data?.categories ?? [];
@@ -162,19 +162,75 @@ export function MenuPage() {
     setOptionItem(item);
     setSelectedVariant(defaultVariant);
     setSelectedAddOns([]);
+    setAddonValidationMessage('');
     setSheetQuantity(1);
   };
 
-  const handleToggleAddOn = (addOn: AddOnIngredient) => {
+  const handleToggleAddOn = (group: QRMenuAddonGroup, optionId: number) => {
+    const option = group.options.find((candidate) => candidate.id === optionId);
+
+    if (!option) {
+      return;
+    }
+
+    const addOn: AddOnIngredient = {
+      addonGroupId: group.id,
+      addonGroupName: group.name,
+      addonOptionId: option.id,
+      addonOptionName: option.name,
+      name: option.name,
+      price: option.price,
+    };
+
+    setAddonValidationMessage('');
     setSelectedAddOns((currentAddOns) =>
-      currentAddOns.some((currentAddOn) => currentAddOn.id === addOn.id)
-        ? currentAddOns.filter((currentAddOn) => currentAddOn.id !== addOn.id)
-        : [...currentAddOns, addOn],
+      currentAddOns.some(
+        (currentAddOn) =>
+          currentAddOn.addonGroupId === group.id && currentAddOn.addonOptionId === option.id,
+      )
+        ? currentAddOns.filter(
+            (currentAddOn) =>
+              !(
+                currentAddOn.addonGroupId === group.id &&
+                currentAddOn.addonOptionId === option.id
+              ),
+          )
+        : group.selectionType === 'SINGLE'
+          ? [...currentAddOns.filter((currentAddOn) => currentAddOn.addonGroupId !== group.id), addOn]
+          : [...currentAddOns, addOn],
     );
+  };
+
+  const validateSelectedAddOns = () => {
+    if (!optionItem) {
+      return true;
+    }
+
+    for (const group of optionItem.addonGroups ?? []) {
+      const count = selectedAddOns.filter((addOn) => addOn.addonGroupId === group.id).length;
+      const minSelect = group.isRequired ? Math.max(group.minSelect ?? 1, 1) : (group.minSelect ?? 0);
+      const maxSelect = group.selectionType === 'SINGLE' ? 1 : group.maxSelect;
+
+      if (count < minSelect) {
+        setAddonValidationMessage(`Please select ${minSelect} option(s) for ${group.name}.`);
+        return false;
+      }
+
+      if (maxSelect !== null && maxSelect !== undefined && count > maxSelect) {
+        setAddonValidationMessage(`Please select no more than ${maxSelect} option(s) for ${group.name}.`);
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const handleAddWithOptions = () => {
     if (!optionItem) {
+      return;
+    }
+
+    if (!validateSelectedAddOns()) {
       return;
     }
 
@@ -185,6 +241,7 @@ export function MenuPage() {
     });
     setOptionItem(null);
     setSelectedAddOns([]);
+    setAddonValidationMessage('');
   };
 
   return (
@@ -246,10 +303,10 @@ export function MenuPage() {
       )}
       <AddOnSheet
         item={optionItem}
-        addOns={DEFAULT_ADD_ONS}
         selectedAddOns={selectedAddOns}
         selectedVariantId={selectedVariant?.id}
         quantity={sheetQuantity}
+        validationMessage={addonValidationMessage}
         onSelectVariant={setSelectedVariant}
         onToggleAddOn={handleToggleAddOn}
         onIncrease={() => setSheetQuantity((quantity) => quantity + 1)}
@@ -258,6 +315,7 @@ export function MenuPage() {
         onClose={() => {
           setOptionItem(null);
           setSelectedAddOns([]);
+          setAddonValidationMessage('');
         }}
       />
       <StickyCartCTA />

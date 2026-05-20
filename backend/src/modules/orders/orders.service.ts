@@ -20,6 +20,7 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
       include: {
         menuItem: true;
         variant: true;
+        addons: true;
       };
     };
     statusLogs: true;
@@ -37,6 +38,7 @@ const ORDER_INCLUDE = {
     include: {
       menuItem: true,
       variant: true,
+      addons: true, // Ensure each order item returns its selected order_item_addons relations
     },
   },
   statusLogs: true,
@@ -221,6 +223,11 @@ export class OrdersService {
         },
         include: {
           variants: true,
+          addonGroups: {
+            include: {
+              options: true,
+            },
+          },
         },
       });
       const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
@@ -243,7 +250,9 @@ export class OrdersService {
           throw new BadRequestException(`Variant ${item.variantId} is not valid for this item`);
         }
 
-        const price = variant?.price ?? menuItem.price;
+        const selectedAddons = this.resolveSelectedAddons(item, menuItem);
+        const addonTotal = selectedAddons.reduce((sum, addon) => sum + addon.addonOptionPrice, 0);
+        const price = (variant?.price ?? menuItem.price) + addonTotal;
 
         return {
           menuItemId: item.menuItemId,
@@ -251,6 +260,7 @@ export class OrdersService {
           quantity: item.quantity,
           price,
           totalPrice: price * item.quantity,
+          addons: selectedAddons,
         };
       });
       const totalAmount = orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -276,7 +286,14 @@ export class OrdersService {
           paymentStatus: 'PENDING',
           paymentMethod: payload.paymentMethod,
           items: {
-            create: orderItems,
+            create: orderItems.map((item) => ({
+              menuItemId: item.menuItemId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              price: item.price,
+              totalPrice: item.totalPrice,
+              addons: item.addons.length ? { create: item.addons } : undefined,
+            })),
           },
           statusLogs: {
             create: [{ status: ORDER_STATUS.PENDING }],
@@ -351,6 +368,15 @@ export class OrdersService {
               price: item.variant.price,
             }
           : item.variant,
+        addons: item.addons.map((addon) => ({
+          id: addon.id,
+          addonGroupId: addon.addonGroupId,
+          addonOptionId: addon.addonOptionId,
+          addonGroupName: addon.addonGroupName,
+          addonOptionName: addon.addonOptionName,
+          addonOptionPrice: addon.addonOptionPrice,
+          quantity: addon.quantity,
+        })),
       })),
       statusLogs: order.statusLogs.map((statusLog) => ({
         id: statusLog.id,
@@ -464,6 +490,83 @@ export class OrdersService {
     }
 
     return and.length ? { AND: and } : {};
+  }
+
+  private resolveSelectedAddons(
+    item: CreateOrderType['items'][number],
+    menuItem: Prisma.MenuItemGetPayload<{
+      include: {
+        variants: true;
+        addonGroups: {
+          include: {
+            options: true;
+          };
+        };
+      };
+    }>,
+  ): {
+    addonGroupId: number;
+    addonOptionId: number;
+    addonGroupName: string;
+    addonOptionName: string;
+    addonOptionPrice: number;
+    quantity: number;
+  }[] {
+    const selections = item.addons ?? [];
+    const selectionsByGroup = new Map<number, typeof selections>();
+
+    for (const selection of selections) {
+      const bucket = selectionsByGroup.get(selection.addonGroupId) ?? [];
+      bucket.push(selection);
+      selectionsByGroup.set(selection.addonGroupId, bucket);
+    }
+
+    for (const group of menuItem.addonGroups.filter((candidate) => candidate.isActive)) {
+      const groupSelections = selectionsByGroup.get(group.id) ?? [];
+      const minSelect = group.isRequired
+        ? Math.max(group.minSelect ?? 1, 1)
+        : (group.minSelect ?? 0);
+      const maxSelect = group.selectionType === 'SINGLE' ? 1 : group.maxSelect;
+
+      if (groupSelections.length < minSelect) {
+        throw new BadRequestException(
+          `Please select at least ${minSelect} option(s) for ${group.name}`,
+        );
+      }
+
+      if (maxSelect !== null && maxSelect !== undefined && groupSelections.length > maxSelect) {
+        throw new BadRequestException(
+          `Please select no more than ${maxSelect} option(s) for ${group.name}`,
+        );
+      }
+    }
+
+    return selections.map((selection) => {
+      const group = menuItem.addonGroups.find(
+        (candidate) => candidate.id === selection.addonGroupId,
+      );
+
+      if (!group || !group.isActive) {
+        throw new BadRequestException(
+          `Add-on group ${selection.addonGroupId} is not valid for this item`,
+        );
+      }
+
+      const option = group.options.find((candidate) => candidate.id === selection.addonOptionId);
+
+      if (!option || !option.isAvailable) {
+        throw new BadRequestException(`Add-on option ${selection.addonOptionId} is not available`);
+      }
+
+      return {
+        addonGroupId: group.id,
+        addonOptionId: option.id,
+        addonGroupName: group.name,
+        addonOptionName: option.name,
+        addonOptionPrice: option.price,
+        quantity: 1,
+      };
+    });
   }
 
   private mapPaymentFilter(payment: string): string[] {

@@ -10,6 +10,28 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+export class QRCreateOrderAddonDto {
+  @ApiProperty({
+    example: 1,
+    minimum: 1,
+    description: 'Add-on group ID',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  addonGroupId!: number;
+
+  @ApiProperty({
+    example: 2,
+    minimum: 1,
+    description: 'Add-on option ID',
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  addonOptionId!: number;
+}
+
 export class QRCreateOrderItemDto {
   @ApiProperty({
     example: 1,
@@ -37,6 +59,16 @@ export class QRCreateOrderItemDto {
   @IsInt()
   @Min(1)
   quantity!: number;
+
+  @ApiPropertyOptional({
+    example: [{ addonGroupId: 1, addonOptionId: 2 }],
+    description: 'Selected add-on options for this menu item',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QRCreateOrderAddonDto)
+  addons?: QRCreateOrderAddonDto[];
 }
 
 export class QRCreateOrderDto {

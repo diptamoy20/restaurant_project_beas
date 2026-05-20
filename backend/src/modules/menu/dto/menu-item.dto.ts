@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
+import { MenuAddonGroupDto } from './addon.dto';
 import { MenuVariantDto } from './menu-variant.dto';
 
 export class MenuCategoryDto {
@@ -44,6 +45,11 @@ export class MenuItemDto {
   @ApiProperty({ type: () => MenuVariantDto, isArray: true })
   @IsArray()
   variants!: MenuVariantDto[];
+
+  @ApiPropertyOptional({ type: () => MenuAddonGroupDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  addonGroups?: MenuAddonGroupDto[];
 
   @ApiPropertyOptional({ example: 'https://cdn.example.com/pizza.png', nullable: true })
   @IsOptional()
