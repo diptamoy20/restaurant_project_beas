@@ -172,12 +172,25 @@ function OrderDetailsModal({ orderId, onClose }) {
                 <h4 className="border-b border-slate-200 px-5 py-3 font-semibold text-slate-950">Order Items</h4>
                 <div className="space-y-4 p-5">
                   {(data.items ?? []).map((item) => (
-                    <div className="flex items-center justify-between gap-4" key={item.id}>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-950">{item.menuItem?.name ?? 'Menu Item'}</p>
-                        <p className="text-sm text-slate-500">Qty: {item.quantity}</p>
+                    <div className="space-y-2" key={item.id}>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-950">{item.menuItem?.name ?? 'Menu Item'}</p>
+                          <p className="text-sm text-slate-500">Qty: {item.quantity}</p>
+                          {item.addons?.length ? (
+                            <div className="mt-2 space-y-1 text-sm text-slate-500">
+                              {item.addons.map((addon) => (
+                                <div key={addon.id}>
+                                  <span className="font-medium text-slate-700">{addon.addonGroupName}:</span>{' '}
+                                  {addon.addonOptionName}{addon.quantity > 1 ? ` x${addon.quantity}` : ''}
+                                  <span className="ml-2 text-slate-500">+{formatCurrency(addon.addonOptionPrice)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        <p className="font-semibold text-slate-950">{formatCurrency(item.totalPrice)}</p>
                       </div>
-                      <p className="font-semibold text-slate-950">{formatCurrency(item.totalPrice)}</p>
                     </div>
                   ))}
                   <div className="space-y-2 border-t border-slate-200 pt-4 text-sm">

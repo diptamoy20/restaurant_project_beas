@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsArray,
   IsIn,
   IsInt,
   IsNumber,
@@ -12,7 +13,10 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+
+import { UpsertAddonGroupDto } from './addon.dto';
 
 export class CreateAdminMenuItemDto {
   @ApiProperty({ example: 'Margherita Pizza' })
@@ -100,6 +104,13 @@ export class CreateAdminMenuItemDto {
   @IsOptional()
   @IsObject()
   customizableOptions?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: () => UpsertAddonGroupDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpsertAddonGroupDto)
+  addonGroups?: UpsertAddonGroupDto[];
 
   @ApiPropertyOptional({ example: 10 })
   @IsOptional()
@@ -205,6 +216,13 @@ export class UpdateAdminMenuItemDto {
   @IsOptional()
   @IsObject()
   customizableOptions?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: () => UpsertAddonGroupDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpsertAddonGroupDto)
+  addonGroups?: UpsertAddonGroupDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

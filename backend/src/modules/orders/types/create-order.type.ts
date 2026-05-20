@@ -6,6 +6,11 @@ export type CreateOrderItemType = {
   variantId?: number;
 
   quantity: number;
+
+  addons?: {
+    addonGroupId: number;
+    addonOptionId: number;
+  }[];
 };
 
 export type CreateOrderType = {

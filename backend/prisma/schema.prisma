@@ -111,6 +111,7 @@ model Restaurant {
   tables            RestaurantTable[]
   categories        Category[]
   menuItems         MenuItem[]
+  addonGroups       AddonGroup[]
   orders            Order[]
   deliveryZones     DeliveryZone[]
 
@@ -174,6 +175,7 @@ model MenuItem {
   restaurant          Restaurant        @relation(fields: [restaurantId], references: [id])
   category            Category          @relation(fields: [categoryId], references: [id])
   variants            MenuItemVariant[]
+  addonGroups         AddonGroup[]
   orderItems          OrderItem[]
   cartItems           CartItem[]
 
@@ -190,6 +192,40 @@ model MenuItemVariant {
   cartItems  CartItem[]
 
   @@map("menu_item_variants")
+}
+
+model AddonGroup {
+  id            Int           @id @default(autoincrement())
+  menuItemId    Int           @map("menu_item_id")
+  restaurantId  Int           @map("restaurant_id")
+  name          String
+  selectionType String        @default("MULTI") @map("selection_type")
+  isRequired    Boolean       @default(false) @map("is_required")
+  minSelect     Int?          @map("min_select")
+  maxSelect     Int?          @map("max_select")
+  sortOrder     Int           @default(0) @map("sort_order")
+  isActive      Boolean       @default(true) @map("is_active")
+  menuItem      MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  options       AddonOption[]
+
+  @@index([restaurantId])
+  @@index([menuItemId])
+  @@map("addon_groups")
+}
+
+model AddonOption {
+  id          Int              @id @default(autoincrement())
+  groupId     Int              @map("group_id")
+  name        String
+  price       Float
+  isAvailable Boolean          @default(true) @map("is_available")
+  sortOrder   Int              @default(0) @map("sort_order")
+  group       AddonGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderAddons OrderItemAddon[]
+
+  @@index([groupId])
+  @@map("addon_options")
 }
 
 model Order {
@@ -241,8 +277,26 @@ model OrderItem {
   order      Order            @relation(fields: [orderId], references: [id])
   menuItem   MenuItem         @relation(fields: [menuItemId], references: [id])
   variant    MenuItemVariant? @relation(fields: [variantId], references: [id])
+  addons     OrderItemAddon[]
 
   @@map("order_items")
+}
+
+model OrderItemAddon {
+  id               Int          @id @default(autoincrement())
+  orderItemId      Int          @map("order_item_id")
+  addonGroupId     Int?         @map("addon_group_id")
+  addonOptionId    Int?         @map("addon_option_id")
+  addonGroupName   String       @map("addon_group_name")
+  addonOptionName  String       @map("addon_option_name")
+  addonOptionPrice Float        @map("addon_option_price")
+  quantity         Int          @default(1)
+  orderItem        OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  addonOption      AddonOption? @relation(fields: [addonOptionId], references: [id], onDelete: SetNull)
+
+  @@index([orderItemId])
+  @@index([addonOptionId])
+  @@map("order_item_addons")
 }
 
 model OrderStatusLog {

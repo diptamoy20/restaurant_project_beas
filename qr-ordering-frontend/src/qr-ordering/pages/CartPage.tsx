@@ -46,6 +46,10 @@ export function CartPage() {
         menuItemId: item.menuItemId,
         variantId: item.variant?.id,
         quantity: item.quantity,
+        addons: item.addOns.map((addOn) => ({
+          addonGroupId: addOn.addonGroupId,
+          addonOptionId: addOn.addonOptionId,
+        })),
       })),
     };
 

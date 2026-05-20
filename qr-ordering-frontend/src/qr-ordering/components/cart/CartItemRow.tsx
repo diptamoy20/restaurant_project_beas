@@ -20,7 +20,7 @@ export function CartItemRow({ item, onIncrease, onDecrease, onRemove }: CartItem
             <p>{item.variant ? item.variant.name : 'Regular'}</p>
             {item.addOns.length > 0 ? (
               <p className="qr-cart-addons">
-                Add-ons: {item.addOns.map((addOn) => addOn.name).join(', ')}
+                Add-ons: {item.addOns.map((addOn) => addOn.addonOptionName).join(', ')}
               </p>
             ) : null}
           </div>

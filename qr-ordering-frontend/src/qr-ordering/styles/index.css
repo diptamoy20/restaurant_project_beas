@@ -583,10 +583,47 @@ img {
   color: #fff;
 }
 
-.qr-addon-sheet h3 {
+.qr-addon-group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.qr-addon-group-title h3 {
   margin: 0 0 1.2rem;
   font-size: 1.2rem;
   font-weight: 900;
+}
+
+.qr-addon-group-title span {
+  color: var(--qr-orange-dark);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.qr-addon-groups {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.qr-addon-empty,
+.qr-addon-error {
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.qr-addon-empty {
+  background: rgba(45, 23, 25, 0.05);
+  color: var(--qr-muted);
+}
+
+.qr-addon-error {
+  margin: 1rem 0 0;
+  background: rgba(185, 28, 28, 0.09);
+  color: #991b1b;
 }
 
 .qr-addon-list {

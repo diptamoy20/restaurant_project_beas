@@ -1,16 +1,16 @@
 import type { AddOnIngredient } from '../../types/addOn.types';
-import type { QRMenuItem, QRMenuItemVariant } from '../../types/menu.types';
+import type { QRMenuAddonGroup, QRMenuItem, QRMenuItemVariant } from '../../types/menu.types';
 import { formatCurrency } from '../../utils/formatters';
 import { getMenuItemImage } from '../../utils/images';
 
 interface AddOnSheetProps {
   item: QRMenuItem | null;
-  addOns: AddOnIngredient[];
   selectedAddOns: AddOnIngredient[];
   selectedVariantId?: number;
   quantity: number;
+  validationMessage?: string;
   onSelectVariant: (variant: QRMenuItemVariant) => void;
-  onToggleAddOn: (addOn: AddOnIngredient) => void;
+  onToggleAddOn: (group: QRMenuAddonGroup, optionId: number) => void;
   onIncrease: () => void;
   onDecrease: () => void;
   onAdd: () => void;
@@ -19,10 +19,10 @@ interface AddOnSheetProps {
 
 export function AddOnSheet({
   item,
-  addOns,
   selectedAddOns,
   selectedVariantId,
   quantity,
+  validationMessage,
   onSelectVariant,
   onToggleAddOn,
   onIncrease,
@@ -35,6 +35,7 @@ export function AddOnSheet({
   }
 
   const variants = item.variants?.filter((variant) => variant.isAvailable) ?? [];
+  const addonGroups = item.addonGroups?.filter((group) => group.options.length > 0) ?? [];
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId);
   const addOnsTotal = selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0);
   const itemPrice = (selectedVariant?.price ?? item.price) + addOnsTotal;
@@ -80,26 +81,44 @@ export function AddOnSheet({
           </div>
         ) : null}
 
-        <h3>Add on ingredients</h3>
-        <div className="qr-addon-list">
-          {addOns.map((addOn) => {
-            const isSelected = selectedAddOns.some((selectedAddOn) => selectedAddOn.id === addOn.id);
+        {addonGroups.length > 0 ? (
+          <div className="qr-addon-groups">
+            {addonGroups.map((group) => (
+              <section className="qr-addon-group" key={group.id}>
+                <div className="qr-addon-group-title">
+                  <h3>{group.name}</h3>
+                  <span>{group.isRequired ? 'Required' : group.selectionType === 'SINGLE' ? 'Choose one' : 'Optional'}</span>
+                </div>
+                <div className="qr-addon-list">
+                  {group.options.map((option) => {
+                    const isSelected = selectedAddOns.some(
+                      (addOn) =>
+                        addOn.addonGroupId === group.id && addOn.addonOptionId === option.id,
+                    );
 
-            return (
-              <button
-                className="qr-addon-row"
-                key={addOn.id}
-                type="button"
-                onClick={() => onToggleAddOn(addOn)}
-              >
-                <span>{addOn.name}</span>
-                <i />
-                <strong>{formatCurrency(addOn.price)}</strong>
-                <em className={isSelected ? 'is-selected' : ''} />
-              </button>
-            );
-          })}
-        </div>
+                    return (
+                      <button
+                        className="qr-addon-row"
+                        key={option.id}
+                        type="button"
+                        onClick={() => onToggleAddOn(group, option.id)}
+                      >
+                        <span>{option.name}</span>
+                        <i />
+                        <strong>{formatCurrency(option.price)}</strong>
+                        <em className={isSelected ? 'is-selected' : ''} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="qr-addon-empty">No add-ons available for this item.</div>
+        )}
+
+        {validationMessage ? <p className="qr-addon-error">{validationMessage}</p> : null}
 
         <div className="qr-sheet-actions">
           <div className="qr-stepper qr-stepper--large">
@@ -122,7 +141,7 @@ export function AddOnSheet({
               +
             </button>
           </div>
-          <button className="qr-add-item-button" type="button" onClick={onAdd}>            
+          <button className="qr-add-item-button" type="button" onClick={onAdd}>
             Add item - {formatCurrency(total)}
           </button>
         </div>

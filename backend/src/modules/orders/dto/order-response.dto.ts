@@ -30,6 +30,38 @@ export class OrderVariantSummaryDto {
   price!: number;
 }
 
+export class OrderItemAddonResponseDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiPropertyOptional({ example: 1, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  addonGroupId!: number | null;
+
+  @ApiPropertyOptional({ example: 2, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  addonOptionId!: number | null;
+
+  @ApiProperty({ example: 'Extra Toppings' })
+  @IsString()
+  addonGroupName!: string;
+
+  @ApiProperty({ example: 'Extra Cheese' })
+  @IsString()
+  addonOptionName!: string;
+
+  @ApiProperty({ example: 40 })
+  @IsNumber()
+  addonOptionPrice!: number;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  quantity!: number;
+}
+
 export class OrderItemResponseDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -71,6 +103,13 @@ export class OrderItemResponseDto {
   @ValidateNested()
   @Type(() => OrderVariantSummaryDto)
   variant?: OrderVariantSummaryDto | null;
+
+  @ApiPropertyOptional({ type: () => OrderItemAddonResponseDto, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemAddonResponseDto)
+  addons?: OrderItemAddonResponseDto[];
 }
 
 export class OrderStatusLogResponseDto {
