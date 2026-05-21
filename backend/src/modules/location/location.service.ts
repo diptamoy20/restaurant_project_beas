@@ -38,6 +38,10 @@ type RestaurantExistsRow = {
   id: number;
 };
 
+type CountRow = {
+  count: bigint | number;
+};
+
 export type NearbyRestaurantWithGeo = NearbyRestaurantRow & {
   categories: {
     id: number;
@@ -68,13 +72,13 @@ export class LocationService {
     lat: number;
     lng: number;
     radiusKm: number;
-    page: number;
     limit: number;
+    offset: number;
   }): Promise<NearbyRestaurantWithGeo[]> {
     const cacheKey = this.buildCacheKey('restaurants', params.lat, params.lng, [
       params.radiusKm,
-      params.page,
       params.limit,
+      params.offset,
     ]);
     const cached = await this.cache.get<NearbyRestaurantWithGeo[]>(cacheKey);
 
@@ -82,7 +86,6 @@ export class LocationService {
       return cached;
     }
 
-    const offset = (params.page - 1) * params.limit;
     const point = Prisma.sql`public.ST_SetSRID(public.ST_MakePoint(${params.lng}, ${params.lat}), 4326)`;
     const rows = await this.prisma.$queryRaw<NearbyRestaurantRow[]>(Prisma.sql`
       WITH customer AS (
@@ -162,7 +165,7 @@ export class LocationService {
       FROM restaurant_scope
       ORDER BY "distanceKm" ASC, "availableMenuItemsCount" DESC, "name" ASC
       LIMIT ${params.limit}
-      OFFSET ${offset}
+      OFFSET ${params.offset}
     `);
 
     const restaurantIds = rows.map((row) => row.id);
@@ -192,6 +195,28 @@ export class LocationService {
     await this.cache.set(cacheKey, result, GEO_CACHE_TTL_SECONDS);
 
     return result;
+  }
+
+  async countNearbyRestaurants(params: {
+    lat: number;
+    lng: number;
+    radiusKm: number;
+  }): Promise<number> {
+    const point = Prisma.sql`public.ST_SetSRID(public.ST_MakePoint(${params.lng}, ${params.lat}), 4326)`;
+    const rows = await this.prisma.$queryRaw<CountRow[]>(Prisma.sql`
+      WITH customer AS (
+        SELECT ${point}::public.geography AS geog
+      )
+      SELECT COUNT(*) AS "count"
+      FROM "restaurants" r
+      CROSS JOIN customer
+      WHERE r."is_active" = true
+        AND r."is_location_enabled" = true
+        AND r."location" IS NOT NULL
+        AND public.ST_DWithin(r."location", customer.geog, ${params.radiusKm * 1000})
+    `);
+
+    return Number(rows[0]?.count ?? 0);
   }
 
   async getRestaurantDeliveryQuote(
@@ -256,8 +281,8 @@ export class LocationService {
       lat: params.lat,
       lng: params.lng,
       radiusKm: 25,
-      page: 1,
       limit: 1,
+      offset: 0,
     });
     const first = nearby[0];
     const result: AddressValidationResponseDto = {
@@ -291,12 +316,19 @@ export class LocationService {
     }
   }
 
-  buildMenuCacheKey(restaurantId: number, lat?: number, lng?: number): string {
+  buildMenuCacheKey(
+    restaurantId: number,
+    lat?: number,
+    lng?: number,
+    parts: (string | number)[] = [],
+  ): string {
+    const suffix = parts.length ? `:${parts.join(':')}` : '';
+
     if (lat === undefined || lng === undefined) {
-      return `menu:${restaurantId}:global`;
+      return `menu:${restaurantId}:global${suffix}`;
     }
 
-    return this.buildCacheKey('menu', lat, lng, [restaurantId]);
+    return this.buildCacheKey('menu', lat, lng, [restaurantId, ...parts]);
   }
 
   private async getRestaurantDeliveryRow(

@@ -14,6 +14,11 @@ import {
 } from './dto/admin-category.dto';
 import { CreateAdminMenuItemDto, UpdateAdminMenuItemDto } from './dto/admin-menu-item.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
+import {
+  buildPaginationMeta,
+  normalizePagination,
+  toPrismaPagination,
+} from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
 
@@ -51,6 +56,13 @@ type MenuItemRow = Prisma.MenuItemGetPayload<{
   include: typeof ADMIN_MENU_ITEM_INCLUDE;
 }>;
 
+type MenuQueryOptions = {
+  coordinates?: { lat: number; lng: number };
+  categoryId?: number;
+  limit?: number;
+  offset?: number;
+};
+
 @Injectable()
 export class MenuService {
   constructor(
@@ -61,12 +73,14 @@ export class MenuService {
 
   async getMenuByRestaurant(
     restaurantId: number,
-    coordinates?: { lat: number; lng: number },
+    options: MenuQueryOptions = {},
   ): Promise<MenuResponseDto> {
+    const pagination = normalizePagination(options, { limit: 20, maxLimit: 50 });
     const cacheKey = this.locationService.buildMenuCacheKey(
       restaurantId,
-      coordinates?.lat,
-      coordinates?.lng,
+      options.coordinates?.lat,
+      options.coordinates?.lng,
+      [options.categoryId ?? 'all', pagination.limit, pagination.offset],
     );
     const cached = await this.cache.get<MenuResponseDto>(cacheKey);
 
@@ -76,38 +90,46 @@ export class MenuService {
 
     await this.locationService.ensureRestaurantExists(restaurantId);
 
-    const [restaurant, items] = await Promise.all([
+    const where = this.buildMenuWhere(restaurantId, options.categoryId);
+
+    const categoryWhere = this.buildCategoryWhere(restaurantId, options.categoryId);
+
+    const [restaurant, categoryRows, items] = await Promise.all([
       this.prisma.restaurant.findUnique({
         where: { id: restaurantId },
       }),
+      this.prisma.category.findMany({
+        where: categoryWhere,
+        orderBy: { name: 'asc' },
+      }),
       this.prisma.menuItem.findMany({
-        where: {
-          restaurantId,
-          isAvailable: true,
-        },
+        where,
         include: {
           ...MENU_ITEM_INCLUDE,
         },
         orderBy: [{ categoryId: 'asc' }, { name: 'asc' }],
+        ...toPrismaPagination(pagination),
       }),
     ]);
+    const total = await this.prisma.menuItem.count({ where });
 
-    const delivery = coordinates
+    const delivery = options.coordinates
       ? await this.locationService.getRestaurantDeliveryQuote(
           restaurantId,
-          coordinates.lat,
-          coordinates.lng,
+          options.coordinates.lat,
+          options.coordinates.lng,
         )
       : undefined;
 
     const mappedItems = items.map((item) => this.mapMenuItem(item));
-    const categories = this.groupItemsByCategory(mappedItems);
+    const categories = this.mapMenuCategories(categoryRows, mappedItems);
 
     const response: MenuResponseDto = {
       restaurantId,
       restaurant: restaurant ? this.mapRestaurantSummary(restaurant) : undefined,
       categories,
       items: mappedItems,
+      pagination: buildPaginationMeta(total, pagination),
       deliveryAvailable: delivery?.deliveryAvailable,
       distanceKm: delivery?.distanceKm,
       estimatedDeliveryTimeMinutes: delivery?.estimatedDeliveryTimeMinutes,
@@ -120,18 +142,27 @@ export class MenuService {
     return response;
   }
 
-  async getBestSellingItems(params?: { lat?: number; lng?: number; limit?: number }): Promise<
+  async getBestSellingItems(params?: {
+    lat?: number;
+    lng?: number;
+    limit?: number;
+    categoryId?: number;
+    restaurantId?: number;
+  }): Promise<
     (MenuItemDto & {
       restaurant: MenuRestaurantSummaryDto;
     })[]
   > {
-    const take = Math.min(params?.limit ?? 24, 48);
+    const limit = Math.min(params?.limit ?? 24, 48);
+    const where: Prisma.MenuItemWhereInput = {
+      isBestSelling: true,
+      isAvailable: true,
+      ...(params?.categoryId ? { categoryId: params.categoryId } : {}),
+      ...(params?.restaurantId ? { restaurantId: params.restaurantId } : {}),
+    };
 
     const items = await this.prisma.menuItem.findMany({
-      where: {
-        isBestSelling: true,
-        isAvailable: true,
-      },
+      where,
       include: {
         category: true,
         variants: true,
@@ -148,7 +179,7 @@ export class MenuService {
         },
       },
       orderBy: [{ popularityScore: 'desc' }, { id: 'desc' }],
-      take,
+      ...toPrismaPagination({ limit, offset: 0 }),
     });
 
     const ordered = [...items];
@@ -175,24 +206,29 @@ export class MenuService {
   async getAdminMenuForRestaurant(restaurantId: number): Promise<MenuResponseDto> {
     await this.locationService.ensureRestaurantExists(restaurantId);
 
-    const restaurant = await this.prisma.restaurant.findUnique({
-      where: { id: restaurantId },
-    });
-
-    const items = await this.prisma.menuItem.findMany({
-      where: { restaurantId },
-      include: {
-        ...ADMIN_MENU_ITEM_INCLUDE,
-      },
-      orderBy: [{ categoryId: 'asc' }, { name: 'asc' }],
-    });
+    const [restaurant, categoryRows, items] = await Promise.all([
+      this.prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+      }),
+      this.prisma.category.findMany({
+        where: { restaurantId },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.menuItem.findMany({
+        where: { restaurantId },
+        include: {
+          ...ADMIN_MENU_ITEM_INCLUDE,
+        },
+        orderBy: [{ categoryId: 'asc' }, { name: 'asc' }],
+      }),
+    ]);
 
     const mappedItems = items.map((item) => this.mapMenuItem(item));
 
     return {
       restaurantId,
       restaurant: restaurant ? this.mapRestaurantSummary(restaurant) : undefined,
-      categories: this.groupItemsByCategory(mappedItems),
+      categories: this.mapMenuCategories(categoryRows, mappedItems),
       items: mappedItems,
     };
   }
@@ -566,6 +602,29 @@ export class MenuService {
     throw new BadRequestException('Either categoryId or categoryName is required');
   }
 
+  private buildMenuWhere(restaurantId: number, categoryId?: number): Prisma.MenuItemWhereInput {
+    const where: Prisma.MenuItemWhereInput = {
+      restaurantId,
+      isAvailable: true,
+    };
+
+    if (categoryId === undefined) {
+      return where;
+    }
+
+    return {
+      ...where,
+      categoryId,
+    };
+  }
+
+  private buildCategoryWhere(restaurantId: number, categoryId?: number): Prisma.CategoryWhereInput {
+    return {
+      restaurantId,
+      ...(categoryId !== undefined ? { id: categoryId } : {}),
+    };
+  }
+
   private mapRestaurantSummary(restaurant: {
     id: number;
     name: string;
@@ -648,24 +707,29 @@ export class MenuService {
     const globalKey = this.locationService.buildMenuCacheKey(restaurantId);
 
     this.cache.deleteMatching(
-      (key) => key === globalKey || (key.startsWith('menu:') && key.endsWith(`:${restaurantId}`)),
+      (key) =>
+        key === globalKey ||
+        key.startsWith(`menu:${restaurantId}:`) ||
+        (key.startsWith('menu:') && key.includes(`:${restaurantId}:`)),
     );
     await this.cache.delete(globalKey);
   }
 
-  private groupItemsByCategory(items: MenuItemDto[]): MenuCategoryGroupDto[] {
-    const map = new Map<string, MenuItemDto[]>();
-
-    for (const item of items) {
-      const label = item.category?.name || 'Other';
-      const bucket = map.get(label) ?? [];
-      bucket.push(item);
-      map.set(label, bucket);
-    }
-
-    return [...map.entries()].map(([name, groupItems]) => ({
-      name,
-      items: groupItems,
+  private mapMenuCategories(
+    categories: {
+      id: number;
+      restaurantId: number;
+      name: string;
+      description: string | null;
+    }[],
+    items: MenuItemDto[],
+  ): MenuCategoryGroupDto[] {
+    return categories.map((category) => ({
+      id: category.id,
+      restaurantId: category.restaurantId,
+      name: category.name,
+      description: category.description,
+      items: items.filter((item) => item.categoryId === category.id),
     }));
   }
 

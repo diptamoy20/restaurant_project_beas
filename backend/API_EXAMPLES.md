@@ -78,32 +78,60 @@ Authorization: Bearer <accessToken>
 
 ### Nearby restaurants
 
-`GET /api/restaurants/nearby?latitude=12.9716&longitude=77.5946&radiusKm=10`
+`GET /api/restaurants/nearby?latitude=12.9716&longitude=77.5946&radiusKm=10&limit=20&offset=0`
 
 Sample response:
 
 ```json
-[
-  {
-    "id": 1,
-    "name": "Downtown Spice Hub",
-    "address": "45 Residency Road",
-    "city": "Bengaluru",
-    "latitude": 12.9663,
-    "longitude": 77.6012,
-    "isActive": true,
-    "categories": [
-      {
-        "id": 1,
-        "restaurantId": 1,
-        "name": "Starters",
-        "description": "Quick bites and appetizers"
-      }
-    ],
-    "distanceKm": 0.95
-  }
-]
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "Downtown Spice Hub",
+      "address": "45 Residency Road",
+      "city": "Bengaluru",
+      "latitude": 12.9663,
+      "longitude": 77.6012,
+      "isActive": true,
+      "categories": [
+        {
+          "id": 1,
+          "restaurantId": 1,
+          "name": "Starters",
+          "description": "Quick bites and appetizers"
+        }
+      ],
+      "distanceKm": 0.95
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0,
+  "hasNextPage": false,
+  "hasPreviousPage": false
+}
 ```
+
+### Restaurant menu with category and pagination
+
+`GET /api/v1/restaurants/1/menu?categoryId=2&limit=20&offset=0`
+
+Notes:
+
+- `categoryId` accepts only category id.
+- Response keeps `items` and `categories`, and adds `pagination`.
+
+### Best-selling menu items
+
+```http
+GET /api/menu/best-selling?categoryId=2&restaurantId=1&limit=48
+GET /api/menu/best-selling?categoryId=2&limit=48
+```
+
+Notes:
+
+- `categoryId` filters best-selling items by category.
+- `restaurantId` is optional; omit it to get best-selling items from all restaurants in that category.
 
 ### Create order
 

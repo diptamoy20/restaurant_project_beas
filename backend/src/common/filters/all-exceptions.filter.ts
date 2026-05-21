@@ -33,6 +33,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `${requestContext} ${message}`,
         exception instanceof Error ? exception.stack : undefined,
       );
+    } else if (this.shouldLogAsDebug(request?.method, request?.url, message)) {
+      this.logger.debug(`${requestContext} ${message}`);
     } else if (
       exception instanceof UnauthorizedException ||
       exception instanceof ForbiddenException ||
@@ -83,5 +85,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     return 'Internal server error';
+  }
+
+  private shouldLogAsDebug(
+    method: string | undefined,
+    url: string | undefined,
+    message: string,
+  ): boolean {
+    return (
+      method === 'POST' &&
+      (url === '/api/auth/refresh' || url === '/auth/refresh') &&
+      message === 'Refresh token expired'
+    );
   }
 }

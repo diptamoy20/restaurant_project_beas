@@ -26,4 +26,26 @@ export class BestSellingQueryDto {
   @Min(1)
   @Max(48)
   limit?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter best-selling items by category id',
+    example: 2,
+    minimum: 1,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  categoryId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter best-selling items by restaurant id',
+    example: 1,
+    minimum: 1,
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  restaurantId?: number;
 }

@@ -25,12 +25,14 @@ export function useNearbyRestaurants(location, options = {}) {
           lat: location.lat,
           lng: location.lng,
           radiusKm: options.radiusKm ?? 12,
-          page: options.page ?? 1,
           limit: options.limit ?? 12,
+          offset: options.offset ?? 0,
           signal,
         });
 
-        setRestaurants(Array.isArray(response) ? response : []);
+        setRestaurants(
+          Array.isArray(response) ? response : (response?.items ?? []),
+        );
       } catch (requestError) {
         if (requestError.name === "AbortError") {
           return;
@@ -45,7 +47,7 @@ export function useNearbyRestaurants(location, options = {}) {
         }
       }
     },
-    [location, options.limit, options.page, options.radiusKm],
+    [location, options.limit, options.offset, options.radiusKm],
   );
 
   useEffect(() => {

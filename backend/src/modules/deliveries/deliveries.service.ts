@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 
 import { DeliveryLocationUpdateResponseDto, DeliveryTrackingResponseDto } from './dto';
 import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
+import { toPrismaPagination } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -56,7 +57,7 @@ export class DeliveriesService {
         order: true,
         trackingLogs: {
           orderBy: { recordedAt: 'desc' },
-          take: 20,
+          ...toPrismaPagination({ limit: 20, offset: 0 }),
         },
       },
     });

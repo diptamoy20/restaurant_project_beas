@@ -1,18 +1,20 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
+import { createApi } from "@reduxjs/toolkit/query/react";
 
-import { baseQueryWithAuth } from '../app/baseQuery';
+import { baseQueryWithAuth } from "../app/baseQuery";
 
 export const restaurantApi = createApi({
-  reducerPath: 'restaurantApi',
+  reducerPath: "restaurantApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Restaurant'],
+  tagTypes: ["Restaurant"],
   endpoints: (builder) => ({
     /**
      * Get all restaurants (including inactive) for admin
      */
     getAllRestaurants: builder.query({
-      query: () => '/restaurants/admin/all',
-      providesTags: ['Restaurant'],
+      query: () => "/restaurants/admin/all?limit=50",
+      transformResponse: (response) =>
+        Array.isArray(response) ? response : (response?.items ?? []),
+      providesTags: ["Restaurant"],
     }),
 
     /**
@@ -20,11 +22,11 @@ export const restaurantApi = createApi({
      */
     createRestaurant: builder.mutation({
       query: (data) => ({
-        url: '/restaurants',
-        method: 'POST',
+        url: "/restaurants",
+        method: "POST",
         body: data,
       }),
-      invalidatesTags: ['Restaurant'],
+      invalidatesTags: ["Restaurant"],
     }),
 
     /**
@@ -33,10 +35,10 @@ export const restaurantApi = createApi({
     updateRestaurant: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/restaurants/${id}`,
-        method: 'PATCH',
+        method: "PATCH",
         body: data,
       }),
-      invalidatesTags: ['Restaurant'],
+      invalidatesTags: ["Restaurant"],
     }),
 
     /**
@@ -45,9 +47,9 @@ export const restaurantApi = createApi({
     deleteRestaurant: builder.mutation({
       query: (id) => ({
         url: `/restaurants/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
-      invalidatesTags: ['Restaurant'],
+      invalidatesTags: ["Restaurant"],
     }),
 
     /**
@@ -55,7 +57,7 @@ export const restaurantApi = createApi({
      */
     getRestaurant: builder.query({
       query: (id) => `/restaurants/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Restaurant', id }],
+      providesTags: (result, error, id) => [{ type: "Restaurant", id }],
     }),
   }),
 });

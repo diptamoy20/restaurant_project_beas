@@ -2,7 +2,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
-export class SearchRestaurantsQueryDto {
+import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+
+export class SearchRestaurantsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ example: 'pizza' })
   @IsString()
   @MinLength(1)

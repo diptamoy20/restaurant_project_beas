@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsDate, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 
+import { PaginationMetaDto } from '../../../common/dto/pagination.dto';
+
 export class OrderMenuItemSummaryDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -386,4 +388,12 @@ export class OrderResponseDto {
   @ValidateNested()
   @Type(() => OrderDeliverySummaryDto)
   delivery?: OrderDeliverySummaryDto | null;
+}
+
+export class PaginatedOrderResponseDto extends PaginationMetaDto {
+  @ApiProperty({ type: () => OrderResponseDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderResponseDto)
+  items!: OrderResponseDto[];
 }
