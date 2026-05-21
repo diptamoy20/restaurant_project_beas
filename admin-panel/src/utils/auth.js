@@ -42,12 +42,12 @@ export const defaultPermissionsByRole = {
   },
 };
 
-export function inferUiRole(rawRoles = []) {
-  if (rawRoles.includes('admin')) {
+export function inferUiRole(rawRole = 'staff') {
+  if (rawRole === 'admin') {
     return 'admin';
   }
 
-  if (rawRoles.includes('manager')) {
+  if (rawRole === 'manager') {
     return 'manager';
   }
 

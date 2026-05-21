@@ -34,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
-    if (!Array.isArray(payload.roles)) {
+    if (!Array.isArray(payload.roles) || payload.roles.length === 0) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
@@ -44,7 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       phone: payload.phone,
       profileImageUrl: payload.profileImageUrl ?? null,
-      roles: payload.roles,
+      roles: payload.roles[0],
     };
   }
 }

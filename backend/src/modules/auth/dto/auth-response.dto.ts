@@ -29,10 +29,9 @@ export class AuthUserDto {
   @IsString()
   profileImageUrl!: string | null;
 
-  @ApiProperty({ enum: Role, isArray: true, example: ['admin'] })
-  @IsArray()
-  @IsEnum(Role, { each: true })
-  roles!: Role[];
+  @ApiProperty({ enum: Role, example: 'admin' })
+  @IsEnum(Role)
+  roles!: Role;
 }
 
 export class AuthResponseDto {
