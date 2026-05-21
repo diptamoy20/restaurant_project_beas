@@ -83,6 +83,7 @@ export class QrService {
         imageUrl: item.imageUrl || undefined,
         price: item.price,
         isAvailable: item.isAvailable,
+        isBestSelling: item.isBestSelling,
         preparationTime: item.preparationTime || undefined,
         categoryId: item.categoryId,
         variants: item.variants.map((variant) => ({

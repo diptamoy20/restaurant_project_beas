@@ -107,6 +107,10 @@ export class QRMenuItemDto {
   @IsBoolean()
   isAvailable!: boolean;
 
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  isBestSelling!: boolean;
+
   @ApiPropertyOptional({ example: 15 })
   @IsOptional()
   @IsNumber()

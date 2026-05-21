@@ -39,29 +39,7 @@ export function MenuPage() {
   );
 
   const bestSellerItems = useMemo(() => {
-    const seededBestSellerNames = new Set([
-      'Margherita Pizza',
-      'Veg Burger',
-      'Chicken Burger',
-      'French Fries',
-      'Pasta Alfredo',
-      'Cold Coffee',
-      'Mojito',
-      'Brownie',
-    ]);
-
-    return [...allMenuItems]
-      .sort((firstItem, secondItem) => {
-        const firstRank = seededBestSellerNames.has(firstItem.name) ? 0 : 1;
-        const secondRank = seededBestSellerNames.has(secondItem.name) ? 0 : 1;
-
-        if (firstRank !== secondRank) {
-          return firstRank - secondRank;
-        }
-
-        return firstItem.price - secondItem.price;
-      })
-      .slice(0, 8);
+  return allMenuItems.filter((item) => item.isBestSelling);
   }, [allMenuItems]);
 
   const recommendedItems = useMemo(() => allMenuItems.slice(0, 12), [allMenuItems]);
