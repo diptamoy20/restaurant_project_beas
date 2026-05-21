@@ -8,6 +8,12 @@ import {
   RestaurantResponseDto,
   RestaurantTableResponseDto,
 } from './dto/restaurant-response.dto';
+import {
+  buildPaginationMeta,
+  normalizePagination,
+  PaginatedResult,
+  toPrismaPagination,
+} from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
 
@@ -21,15 +27,28 @@ export class RestaurantsService {
   /**
    * Get all active restaurants
    */
-  async getRestaurants(): Promise<RestaurantResponseDto[]> {
-    const restaurants = await this.prisma.restaurant.findMany({
-      where: { isActive: true },
-      include: { categories: true },
-      orderBy: { name: 'asc' },
-    });
-    return restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
-      this.mapRestaurant(restaurant),
-    );
+  async getRestaurants(query?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResult<RestaurantResponseDto>> {
+    const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
+    const where: Prisma.RestaurantWhereInput = { isActive: true };
+    const [total, restaurants] = await Promise.all([
+      this.prisma.restaurant.count({ where }),
+      this.prisma.restaurant.findMany({
+        where,
+        include: { categories: true },
+        orderBy: { name: 'asc' },
+        ...toPrismaPagination(pagination),
+      }),
+    ]);
+
+    return {
+      items: restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
+        this.mapRestaurant(restaurant),
+      ),
+      ...buildPaginationMeta(total, pagination),
+    };
   }
 
   /**
@@ -52,21 +71,32 @@ export class RestaurantsService {
   async searchRestaurants(
     query: string,
     coords?: { lat: number; lng: number },
-  ): Promise<RestaurantResponseDto[]> {
+    paginationQuery?: { offset?: number; limit?: number },
+  ): Promise<PaginatedResult<RestaurantResponseDto>> {
+    const pagination = normalizePagination(paginationQuery, { limit: 20, maxLimit: 50 });
     const q = query.trim();
 
     if (q.length < 1) {
-      return [];
+      return {
+        items: [],
+        ...buildPaginationMeta(0, pagination),
+      };
     }
 
-    const restaurants = await this.prisma.restaurant.findMany({
-      where: {
-        isActive: true,
-        name: { contains: q, mode: 'insensitive' },
-      },
-      include: { categories: true },
-      take: 40,
-    });
+    const where: Prisma.RestaurantWhereInput = {
+      isActive: true,
+      name: { contains: q, mode: 'insensitive' },
+    };
+
+    const [total, restaurants] = await Promise.all([
+      this.prisma.restaurant.count({ where }),
+      this.prisma.restaurant.findMany({
+        where,
+        include: { categories: true },
+        orderBy: { name: 'asc' },
+        ...toPrismaPagination(pagination),
+      }),
+    ]);
 
     let mapped = restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
       this.mapRestaurant(restaurant),
@@ -82,7 +112,10 @@ export class RestaurantsService {
       mapped.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    return mapped;
+    return {
+      items: mapped,
+      ...buildPaginationMeta(total, pagination),
+    };
   }
 
   /**
@@ -92,31 +125,55 @@ export class RestaurantsService {
     lat: number;
     lng: number;
     radiusKm?: number;
-    page?: number;
     limit?: number;
-  }): Promise<RestaurantResponseDto[]> {
-    const restaurants = await this.locationService.findNearbyRestaurants({
-      lat: params.lat,
-      lng: params.lng,
-      radiusKm: params.radiusKm ?? 10,
-      page: params.page ?? 1,
-      limit: params.limit ?? 20,
-    });
+    offset?: number;
+  }): Promise<PaginatedResult<RestaurantResponseDto>> {
+    const pagination = normalizePagination(params, { limit: 20, maxLimit: 50 });
+    const radiusKm = params.radiusKm ?? 10;
+    const [total, restaurants] = await Promise.all([
+      this.locationService.countNearbyRestaurants({
+        lat: params.lat,
+        lng: params.lng,
+        radiusKm,
+      }),
+      this.locationService.findNearbyRestaurants({
+        lat: params.lat,
+        lng: params.lng,
+        radiusKm,
+        limit: pagination.limit,
+        offset: pagination.offset,
+      }),
+    ]);
 
-    return restaurants.map((restaurant) => this.mapRestaurant(restaurant));
+    return {
+      items: restaurants.map((restaurant) => this.mapRestaurant(restaurant)),
+      ...buildPaginationMeta(total, pagination),
+    };
   }
 
   /**
    * Get all restaurants for admin (including inactive)
    */
-  async getAllRestaurantsForAdmin(): Promise<RestaurantResponseDto[]> {
-    const restaurants = await this.prisma.restaurant.findMany({
-      include: { categories: true },
-      orderBy: [{ createdAt: 'desc' }],
-    });
-    return restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
-      this.mapRestaurant(restaurant),
-    );
+  async getAllRestaurantsForAdmin(query?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<PaginatedResult<RestaurantResponseDto>> {
+    const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
+    const [total, restaurants] = await Promise.all([
+      this.prisma.restaurant.count(),
+      this.prisma.restaurant.findMany({
+        include: { categories: true },
+        orderBy: [{ createdAt: 'desc' }],
+        ...toPrismaPagination(pagination),
+      }),
+    ]);
+
+    return {
+      items: restaurants.map((restaurant: Restaurant & { categories: Category[] }) =>
+        this.mapRestaurant(restaurant),
+      ),
+      ...buildPaginationMeta(total, pagination),
+    };
   }
 
   /**

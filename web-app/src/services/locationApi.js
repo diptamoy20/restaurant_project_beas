@@ -15,16 +15,16 @@ export function getNearbyRestaurants({
   lat,
   lng,
   radiusKm = 10,
-  page = 1,
   limit = 20,
+  offset = 0,
   signal,
 }) {
   const params = new URLSearchParams({
     lat: String(lat),
     lng: String(lng),
     radiusKm: String(radiusKm),
-    page: String(page),
     limit: String(limit),
+    offset: String(offset),
   });
 
   return api.get(`/v1/restaurants/nearby?${params.toString()}`, { signal });
@@ -34,6 +34,9 @@ export function getRestaurantMenuWithLocation({
   restaurantId,
   lat,
   lng,
+  categoryId,
+  limit,
+  offset,
   signal,
 }) {
   const params = new URLSearchParams();
@@ -41,6 +44,18 @@ export function getRestaurantMenuWithLocation({
   if (lat !== undefined && lng !== undefined) {
     params.set("lat", String(lat));
     params.set("lng", String(lng));
+  }
+
+  if (categoryId !== undefined) {
+    params.set("categoryId", String(categoryId));
+  }
+
+  if (limit !== undefined) {
+    params.set("limit", String(limit));
+  }
+
+  if (offset !== undefined) {
+    params.set("offset", String(offset));
   }
 
   const query = params.toString();

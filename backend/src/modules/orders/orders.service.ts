@@ -10,6 +10,12 @@ import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { CreateOrderType } from './types/create-order.type';
 import { ORDER_STATUS } from '../../common/constants/order-status';
+import {
+  buildPaginationMeta,
+  normalizePagination,
+  PaginatedResult,
+  toPrismaPagination,
+} from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -54,25 +60,30 @@ const ORDER_INCLUDE = {
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listMyOrders(userId: number): Promise<OrderResponseDto[]> {
-    const orders = await this.prisma.order.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: ORDER_INCLUDE,
-    });
+  async listMyOrders(
+    userId: number,
+    query?: { offset?: number; limit?: number },
+  ): Promise<PaginatedResult<OrderResponseDto>> {
+    const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
+    const where: Prisma.OrderWhereInput = { userId };
+    const [total, orders] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: ORDER_INCLUDE,
+        ...toPrismaPagination(pagination),
+      }),
+    ]);
 
-    return orders.map((order) => this.mapOrder(order));
+    return {
+      items: orders.map((order) => this.mapOrder(order)),
+      ...buildPaginationMeta(total, pagination),
+    };
   }
 
-  async listOrdersForAdmin(query: AdminOrderQueryDto): Promise<{
-    items: OrderResponseDto[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
+  async listOrdersForAdmin(query: AdminOrderQueryDto): Promise<PaginatedResult<OrderResponseDto>> {
+    const pagination = normalizePagination(query, { limit: 10, maxLimit: 100 });
     const where = this.buildAdminOrderWhere(query);
 
     const [total, orders] = await Promise.all([
@@ -80,18 +91,14 @@ export class OrdersService {
       this.prisma.order.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        ...toPrismaPagination(pagination),
         include: ORDER_INCLUDE,
       }),
     ]);
 
     return {
       items: orders.map((order) => this.mapOrder(order)),
-      total,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
+      ...buildPaginationMeta(total, pagination),
     };
   }
 

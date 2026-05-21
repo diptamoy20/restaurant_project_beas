@@ -1,8 +1,8 @@
-import { api } from '../lib/api';
+import { api } from "../lib/api";
 
 export const orderApi = {
   async createOrder(payload) {
-    return api.post('/orders', payload);
+    return api.post("/orders", payload);
   },
 
   async getOrder(orderId) {
@@ -10,6 +10,7 @@ export const orderApi = {
   },
 
   async getMyOrders() {
-    return api.get('/orders/my-orders');
+    const response = await api.get("/orders/my-orders");
+    return Array.isArray(response) ? response : (response?.items ?? []);
   },
 };

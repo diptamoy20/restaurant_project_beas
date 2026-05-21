@@ -20,6 +20,30 @@ function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean 
   return value.toLowerCase() === 'true';
 }
 
+function mergeCaseInsensitive(values: string[], requiredValues: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of [...values, ...requiredValues]) {
+    const normalized = value.trim();
+
+    if (!normalized) {
+      continue;
+    }
+
+    const key = normalized.toLowerCase();
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push(normalized);
+  }
+
+  return result;
+}
+
 function resolveLogLevels(nodeEnv: string): LogLevel[] {
   const fromEnv = parseCsvEnv(process.env.LOG_LEVELS);
 
@@ -87,7 +111,18 @@ async function bootstrap(): Promise<void> {
     throw new Error('CORS_ORIGINS must be configured in production');
   }
 
-  const allowedHeaders = parseCsvEnv(process.env.CORS_ALLOWED_HEADERS);
+  const requiredCorsHeaders = [
+    'Content-Type',
+    'Authorization',
+    'X-Client-Type',
+    'X-Client',
+    'x-client-type',
+    'x-client',
+  ];
+  const allowedHeaders = mergeCaseInsensitive(
+    parseCsvEnv(process.env.CORS_ALLOWED_HEADERS),
+    requiredCorsHeaders,
+  );
   const exposedHeaders = parseCsvEnv(process.env.CORS_EXPOSED_HEADERS);
   const corsMaxAgeSeconds = Number(process.env.CORS_MAX_AGE_SECONDS ?? '600');
 
@@ -108,10 +143,7 @@ async function bootstrap(): Promise<void> {
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders:
-      allowedHeaders.length > 0
-        ? allowedHeaders
-        : ['Content-Type', 'Authorization', 'X-Client-Type', 'X-Client'],
+    allowedHeaders,
     exposedHeaders: exposedHeaders.length > 0 ? exposedHeaders : undefined,
     maxAge: Number.isFinite(corsMaxAgeSeconds) && corsMaxAgeSeconds > 0 ? corsMaxAgeSeconds : 600,
   });

@@ -141,7 +141,8 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     ),
     BCRYPT_ROUNDS: parseIntInRange(env.BCRYPT_ROUNDS, 'BCRYPT_ROUNDS', 10, 8, 14),
     CORS_ORIGINS: corsOrigins.join(','),
-    CORS_ALLOWED_HEADERS: env.CORS_ALLOWED_HEADERS ?? 'Content-Type, Authorization',
+    CORS_ALLOWED_HEADERS:
+      env.CORS_ALLOWED_HEADERS ?? 'Content-Type, Authorization, X-Client-Type, X-Client',
     CORS_EXPOSED_HEADERS: env.CORS_EXPOSED_HEADERS ?? '',
     CORS_MAX_AGE_SECONDS: parsePositiveInt(env.CORS_MAX_AGE_SECONDS, 'CORS_MAX_AGE_SECONDS', 600),
     TRUST_PROXY: parseBoolean(env.TRUST_PROXY, 'TRUST_PROXY', false),

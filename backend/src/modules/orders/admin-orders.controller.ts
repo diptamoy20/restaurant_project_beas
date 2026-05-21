@@ -10,10 +10,11 @@ import {
 } from '@nestjs/swagger';
 
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
-import { OrderResponseDto } from './dto/order-response.dto';
+import { OrderResponseDto, PaginatedOrderResponseDto } from './dto/order-response.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 
@@ -37,16 +38,10 @@ export class AdminOrdersController {
   })
   @ApiQuery({ name: 'action', required: false, enum: ['ACCEPT', 'REJECT'] })
   @ApiQuery({ name: 'search', required: false })
-  @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiOkResponse({ type: OrderResponseDto, isArray: true })
-  listOrders(@Query() query: AdminOrderQueryDto): Promise<{
-    items: OrderResponseDto[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }> {
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiOkResponse({ type: PaginatedOrderResponseDto })
+  listOrders(@Query() query: AdminOrderQueryDto): Promise<PaginatedResult<OrderResponseDto>> {
     return this.ordersService.listOrdersForAdmin(query);
   }
 

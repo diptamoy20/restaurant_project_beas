@@ -9,6 +9,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { PaginationMetaDto } from '../../../common/dto/pagination.dto';
+
 export class RestaurantCategoryResponseDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -198,4 +200,12 @@ export class RestaurantResponseDto {
   @IsOptional()
   @IsNumber()
   availableMenuItemsCount?: number;
+}
+
+export class PaginatedRestaurantResponseDto extends PaginationMetaDto {
+  @ApiProperty({ type: () => RestaurantResponseDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RestaurantResponseDto)
+  items!: RestaurantResponseDto[];
 }

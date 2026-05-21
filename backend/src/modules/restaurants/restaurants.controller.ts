@@ -22,17 +22,21 @@ import {
 } from '@nestjs/swagger';
 
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
+import { ListRestaurantsQueryDto } from './dto/list-restaurants-query.dto';
 import { NearbyRestaurantsDto } from './dto/nearby-restaurants.dto';
-import { RestaurantResponseDto } from './dto/restaurant-response.dto';
+import {
+  PaginatedRestaurantResponseDto,
+  RestaurantResponseDto,
+} from './dto/restaurant-response.dto';
 import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { AllowWeb } from '../../common/decorators/client.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { CoordinatesQueryDto } from '../location/dto/coordinates-query.dto';
-import { MenuResponseDto } from '../menu/dto';
+import { MenuResponseDto, PaginatedMenuQueryDto } from '../menu/dto';
 import { MenuService } from '../menu/menu.service';
 
 @Controller(['restaurants', 'v1/restaurants'])
@@ -49,9 +53,13 @@ export class RestaurantsController {
   @Get()
   @AllowWeb()
   @ApiOperation({ summary: 'List active restaurants' })
-  @ApiOkResponse({ type: RestaurantResponseDto, isArray: true })
-  async getRestaurants(): Promise<RestaurantResponseDto[]> {
-    return this.restaurantsService.getRestaurants();
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: PaginatedRestaurantResponseDto })
+  async getRestaurants(
+    @Query() query: ListRestaurantsQueryDto,
+  ): Promise<PaginatedResult<RestaurantResponseDto>> {
+    return this.restaurantsService.getRestaurants(query);
   }
 
   /**
@@ -63,15 +71,18 @@ export class RestaurantsController {
   @ApiQuery({ name: 'q', required: true })
   @ApiQuery({ name: 'lat', required: false })
   @ApiQuery({ name: 'lng', required: false })
-  @ApiOkResponse({ type: RestaurantResponseDto, isArray: true })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: PaginatedRestaurantResponseDto })
   async searchRestaurants(
     @Query() query: SearchRestaurantsQueryDto,
-  ): Promise<RestaurantResponseDto[]> {
+  ): Promise<PaginatedResult<RestaurantResponseDto>> {
     return this.restaurantsService.searchRestaurants(
       query.q,
       query.lat !== undefined && query.lng !== undefined
         ? { lat: query.lat, lng: query.lng }
         : undefined,
+      query,
     );
   }
 
@@ -82,10 +93,14 @@ export class RestaurantsController {
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.MANAGER)
   @ApiOperation({ summary: 'Get all restaurants for admin management' })
-  @ApiOkResponse({ type: RestaurantResponseDto, isArray: true })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: PaginatedRestaurantResponseDto })
   @ApiStandardErrorResponses({ unauthorized: true })
-  async getAllRestaurantsForAdmin(): Promise<RestaurantResponseDto[]> {
-    return this.restaurantsService.getAllRestaurantsForAdmin();
+  async getAllRestaurantsForAdmin(
+    @Query() query: ListRestaurantsQueryDto,
+  ): Promise<PaginatedResult<RestaurantResponseDto>> {
+    return this.restaurantsService.getAllRestaurantsForAdmin(query);
   }
 
   /**
@@ -97,26 +112,26 @@ export class RestaurantsController {
   @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
   @ApiQuery({ name: 'lng', required: false, type: Number, example: 88.3639 })
   @ApiQuery({ name: 'radiusKm', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiOkResponse({ type: RestaurantResponseDto, isArray: true })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: PaginatedRestaurantResponseDto })
   @ApiStandardErrorResponses({ badRequest: true })
   async getNearbyRestaurants(
     @Query() query: NearbyRestaurantsDto,
-  ): Promise<RestaurantResponseDto[]> {
+  ): Promise<PaginatedResult<RestaurantResponseDto>> {
     const lat = query.lat ?? query.latitude;
     const lng = query.lng ?? query.longitude;
 
     if (lat === undefined || lng === undefined) {
-      return this.restaurantsService.getRestaurants();
+      return this.restaurantsService.getRestaurants(query);
     }
 
     return this.restaurantsService.findNearbyRestaurants({
       lat,
       lng,
       radiusKm: query.radiusKm ?? 10,
-      page: query.page ?? 1,
       limit: query.limit ?? 20,
+      offset: query.offset ?? 0,
     });
   }
 
@@ -174,11 +189,20 @@ export class RestaurantsController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
   @ApiQuery({ name: 'lng', required: false, type: Number, example: 88.3639 })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    type: Number,
+    description: 'Category id',
+    example: 2,
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
   @ApiOkResponse({ type: MenuResponseDto })
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
   async getRestaurantMenu(
     @Param('id', ParseIntPipe) id: number,
-    @Query() query: CoordinatesQueryDto,
+    @Query() query: PaginatedMenuQueryDto,
   ): Promise<MenuResponseDto> {
     const hasCoordinates =
       query.lat !== undefined ||
@@ -187,12 +211,21 @@ export class RestaurantsController {
       query.longitude !== undefined;
 
     if (!hasCoordinates) {
-      return this.menuService.getMenuByRestaurant(id);
+      return this.menuService.getMenuByRestaurant(id, {
+        categoryId: query.categoryId,
+        limit: query.limit,
+        offset: query.offset,
+      });
     }
 
     const { lat, lng } = query.getCoordinates();
 
-    return this.menuService.getMenuByRestaurant(id, { lat, lng });
+    return this.menuService.getMenuByRestaurant(id, {
+      coordinates: { lat, lng },
+      categoryId: query.categoryId,
+      limit: query.limit,
+      offset: query.offset,
+    });
   }
 
   /**

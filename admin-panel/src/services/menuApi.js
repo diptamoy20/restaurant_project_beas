@@ -1,90 +1,102 @@
-import { createApi } from '@reduxjs/toolkit/query/react';
+import { createApi } from "@reduxjs/toolkit/query/react";
 
-import { baseQueryWithAuth } from '../app/baseQuery';
+import { baseQueryWithAuth } from "../app/baseQuery";
 
 export const menuApi = createApi({
-  reducerPath: 'menuApi',
+  reducerPath: "menuApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Menu', 'AdminMenu', 'Category'],
+  tagTypes: ["Menu", "AdminMenu", "Category"],
   endpoints: (builder) => ({
     getMenuByRestaurant: builder.query({
-      query: (restaurantId) => `/menu/restaurant/${restaurantId}`,
-      providesTags: ['Menu'],
+      query: (restaurantId) => `/menu/restaurant/${restaurantId}?limit=50`,
+      providesTags: ["Menu"],
     }),
     getAdminRestaurantMenu: builder.query({
       query: (restaurantId) => `/admin/restaurants/${restaurantId}/menu`,
-      providesTags: (_result, _error, restaurantId) => [{ type: 'AdminMenu', id: restaurantId }],
+      providesTags: (_result, _error, restaurantId) => [
+        { type: "AdminMenu", id: restaurantId },
+      ],
     }),
     createAdminMenuItem: builder.mutation({
       query: ({ restaurantId, body }) => ({
         url: `/admin/restaurants/${restaurantId}/menu`,
-        method: 'POST',
+        method: "POST",
         body,
       }),
       invalidatesTags: (_result, _error, { restaurantId }) => [
-        { type: 'AdminMenu', id: restaurantId },
-        { type: 'Category', id: restaurantId },
-        'Menu',
+        { type: "AdminMenu", id: restaurantId },
+        { type: "Category", id: restaurantId },
+        "Menu",
       ],
     }),
     updateAdminMenuItem: builder.mutation({
       query: ({ id, body }) => ({
         url: `/admin/menu/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body,
       }),
       invalidatesTags: (_result, _error, { restaurantId }) =>
         restaurantId
-          ? [{ type: 'AdminMenu', id: restaurantId }, { type: 'Category', id: restaurantId }, 'Menu']
-          : ['Menu'],
+          ? [
+              { type: "AdminMenu", id: restaurantId },
+              { type: "Category", id: restaurantId },
+              "Menu",
+            ]
+          : ["Menu"],
     }),
     deleteAdminMenuItem: builder.mutation({
       query: ({ id }) => ({
         url: `/admin/menu/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
       invalidatesTags: (_result, _error, { restaurantId }) =>
         restaurantId
-          ? [{ type: 'AdminMenu', id: restaurantId }, { type: 'Category', id: restaurantId }, 'Menu']
-          : ['Menu'],
+          ? [
+              { type: "AdminMenu", id: restaurantId },
+              { type: "Category", id: restaurantId },
+              "Menu",
+            ]
+          : ["Menu"],
     }),
     getRestaurantCategories: builder.query({
       query: (restaurantId) => `/admin/restaurants/${restaurantId}/categories`,
-      providesTags: (_result, _error, restaurantId) => [{ type: 'Category', id: restaurantId }],
+      providesTags: (_result, _error, restaurantId) => [
+        { type: "Category", id: restaurantId },
+      ],
     }),
     createCategory: builder.mutation({
       query: ({ restaurantId, body }) => ({
         url: `/admin/restaurants/${restaurantId}/categories`,
-        method: 'POST',
+        method: "POST",
         body,
       }),
       invalidatesTags: (_result, _error, { restaurantId }) => [
-        { type: 'Category', id: restaurantId },
-        { type: 'AdminMenu', id: restaurantId },
-        'Menu',
+        { type: "Category", id: restaurantId },
+        { type: "AdminMenu", id: restaurantId },
+        "Menu",
       ],
     }),
     updateCategory: builder.mutation({
       query: ({ id, body }) => ({
         url: `/admin/categories/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body,
       }),
       invalidatesTags: (_result, _error, { restaurantId }) => [
-        { type: 'Category', id: restaurantId },
-        { type: 'AdminMenu', id: restaurantId },
-        'Menu',
+        { type: "Category", id: restaurantId },
+        { type: "AdminMenu", id: restaurantId },
+        "Menu",
       ],
     }),
     deleteCategory: builder.mutation({
       query: ({ id }) => ({
         url: `/admin/categories/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
       invalidatesTags: (_result, _error, { restaurantId }) => [
-        { type: 'Category', id: restaurantId },
-        { type: 'AdminMenu', id: restaurantId },
-        'Menu',
+        { type: "Category", id: restaurantId },
+        { type: "AdminMenu", id: restaurantId },
+        "Menu",
       ],
     }),
   }),

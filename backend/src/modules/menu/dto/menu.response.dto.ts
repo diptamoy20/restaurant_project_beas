@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 
 import { MenuItemDto } from './menu-item.dto';
+import { PaginationMetaDto } from '../../../common/dto/pagination.dto';
 import { DeliveryQuoteDto } from '../../location/dto/location-response.dto';
 
 export class MenuRestaurantSummaryDto {
@@ -35,9 +36,22 @@ export class MenuRestaurantSummaryDto {
 }
 
 export class MenuCategoryGroupDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  restaurantId!: number;
+
   @ApiProperty({ example: 'Pizza' })
   @IsString()
   name!: string;
+
+  @ApiPropertyOptional({ example: 'Freshly baked pizzas', nullable: true })
+  @IsOptional()
+  @IsString()
+  description!: string | null;
 
   @ApiProperty({ type: () => MenuItemDto, isArray: true })
   @IsArray()
@@ -67,6 +81,12 @@ export class MenuResponseDto {
   @ApiProperty({ type: () => MenuItemDto, isArray: true })
   @IsArray()
   items!: MenuItemDto[];
+
+  @ApiPropertyOptional({ type: () => PaginationMetaDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PaginationMetaDto)
+  pagination?: PaginationMetaDto;
 
   @ApiProperty({ example: true, required: false })
   @IsOptional()

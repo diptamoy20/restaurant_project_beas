@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -6,14 +6,16 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { OrderSource } from '@prisma/client';
 
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderResponseDto } from './dto/order-response.dto';
+import { OrderResponseDto, PaginatedOrderResponseDto } from './dto/order-response.dto';
 import { OrdersService } from './orders.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
+import { PaginatedResult, PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -28,9 +30,14 @@ export class OrdersController {
   @Roles(Role.CUSTOMER)
   @Get('my-orders')
   @ApiOperation({ summary: 'List orders for the authenticated customer' })
-  @ApiOkResponse({ type: OrderResponseDto, isArray: true })
-  listMyOrders(@Req() request: { user: AuthenticatedUser }): Promise<OrderResponseDto[]> {
-    return this.ordersService.listMyOrders(request.user.id);
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: PaginatedOrderResponseDto })
+  listMyOrders(
+    @Req() request: { user: AuthenticatedUser },
+    @Query() query: PaginationQueryDto,
+  ): Promise<PaginatedResult<OrderResponseDto>> {
+    return this.ordersService.listMyOrders(request.user.id, query);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER)
