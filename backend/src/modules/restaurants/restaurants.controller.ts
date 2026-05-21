@@ -31,9 +31,9 @@ import {
 import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { AllowWeb } from '../../common/decorators/client.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { MenuResponseDto, PaginatedMenuQueryDto } from '../menu/dto';

@@ -14,8 +14,8 @@ import {
 } from './dto/notification-response.dto';
 import { NotificationsService } from './notifications.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { PaginatedResult, PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { PaginatedResult, PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
 

@@ -14,8 +14,8 @@ import { OrderResponseDto, PaginatedOrderResponseDto } from './dto/order-respons
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
 
 @Controller('admin/orders')
