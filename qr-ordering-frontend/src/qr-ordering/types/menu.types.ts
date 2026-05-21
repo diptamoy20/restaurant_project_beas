@@ -30,6 +30,7 @@ export interface QRMenuItem {
   image?: string;
   imageUrl?: string;
   isAvailable: boolean;
+  isBestSelling: boolean;
   preparationTime?: number;
   categoryId: number;
   variants?: QRMenuItemVariant[];
