@@ -1102,13 +1102,14 @@ export class AuthService {
   }
 
   private toAuthUser(user: PrismaUserWithRoles): AuthenticatedUser {
+    const roles = this.mapRoles(user);
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       phone: user.phone,
       profileImageUrl: user.profileImageUrl,
-      roles: this.mapRoles(user),
+      roles: roles[0] ?? Role.CUSTOMER,
     };
   }
 

@@ -39,16 +39,16 @@ export function LoginPage() {
       }).unwrap();
 
       const authResponse = response?.data ?? response;
-      const userRoles = Array.isArray(authResponse.user?.roles) ? authResponse.user.roles : [];
+      const userRole = authResponse.user?.roles;
 
-      const hasAdminAccess = userRoles.some((role) => ALLOWED_ADMIN_ROLES.has(role));
+      const hasAdminAccess = ALLOWED_ADMIN_ROLES.has(userRole);
 
       if (!hasAdminAccess) {
         setFormError('Account is not authorized for admin portal.');
         return;
       }
 
-      const role = inferUiRole(userRoles);
+      const role = inferUiRole(userRole);
 
       dispatch(
         setCredentials({
