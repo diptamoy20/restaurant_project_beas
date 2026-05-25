@@ -76,6 +76,10 @@ export function CheckoutPage() {
         variantId: item.variantId || undefined,
         quantity: item.quantity,
         price: item.price,
+        addons: (item.addOns ?? []).map((addon) => ({
+          addonGroupId: addon.addonGroupId,
+          addonOptionId: addon.addonOptionId,
+        })),
       })),
     };
 

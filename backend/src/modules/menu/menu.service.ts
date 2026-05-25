@@ -233,6 +233,81 @@ export class MenuService {
     };
   }
 
+  async getFrequentItems(
+    restaurantId: number,
+    userId?: number,
+  ): Promise<MenuItemDto[]> {
+    if (!userId) {
+      return [];
+    }
+
+    const lastOrders = await this.prisma.order.findMany({
+      where: {
+        userId,
+        restaurantId,
+        status: { notIn: ['CANCELLED', 'REJECTED'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { id: true },
+    });
+
+    if (lastOrders.length === 0) {
+      return [];
+    }
+
+    const orderIds = lastOrders.map((o) => o.id);
+
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: {
+        orderId: { in: orderIds },
+      },
+      select: {
+        menuItemId: true,
+      },
+    });
+
+    if (orderItems.length === 0) {
+      return [];
+    }
+
+    const frequencies: Record<number, number> = {};
+    for (const item of orderItems) {
+      frequencies[item.menuItemId] = (frequencies[item.menuItemId] ?? 0) + 1;
+    }
+
+    const sortedMenuItemIds = Object.keys(frequencies)
+      .map(Number)
+      .sort((a, b) => frequencies[b] - frequencies[a])
+      .slice(0, 10);
+
+    if (sortedMenuItemIds.length === 0) {
+      return [];
+    }
+
+    const items = await this.prisma.menuItem.findMany({
+      where: {
+        id: { in: sortedMenuItemIds },
+        restaurantId,
+        isAvailable: true,
+      },
+      include: {
+        ...MENU_ITEM_INCLUDE,
+      },
+    });
+
+    const itemMap = new Map(items.map((item) => [item.id, item]));
+    const result: MenuItemDto[] = [];
+    for (const id of sortedMenuItemIds) {
+      const item = itemMap.get(id);
+      if (item) {
+        result.push(this.mapMenuItem(item));
+      }
+    }
+
+    return result;
+  }
+
   async createAdminMenuItem(
     restaurantId: number,
     dto: CreateAdminMenuItemDto,

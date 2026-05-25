@@ -25,8 +25,7 @@ export function CartPage() {
   const token = useSelector((state) => state.auth.token);
   const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
   const [errorMessage, setErrorMessage] = useState('');
-  // Temporarily hardcoded for local testing.
-  // Dynamic URL/session/cart-based restaurant-table resolution is intentionally disabled.
+  
   const tableId = HARDCODED_TABLE_ID;
   const restaurantId = HARDCODED_RESTAURANT_ID;
 
@@ -49,38 +48,38 @@ export function CartPage() {
   const totalAmount = calculateTotal(subtotal, TAXES_AND_FEES);
 
   const increaseQuantity = (item) => {
-    const itemId = item.menuItemId || item.id;
+    const key = item.cartKey;
     const nextQuantity = item.quantity + 1;
 
-    dispatch(increaseQuantityAction(itemId));
+    dispatch(increaseQuantityAction(key));
 
     if (token) {
-      dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+      dispatch(updateCartItemAsync({ cartKey: key, quantity: nextQuantity }));
     }
   };
 
   const decreaseQuantity = (item) => {
-    const itemId = item.menuItemId || item.id;
+    const key = item.cartKey;
     const nextQuantity = item.quantity - 1;
 
-    dispatch(decreaseQuantityAction(itemId));
+    dispatch(decreaseQuantityAction(key));
 
     if (token) {
       if (nextQuantity <= 0) {
-        dispatch(removeFromCartAsync(itemId));
+        dispatch(removeFromCartAsync(key));
       } else {
-        dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+        dispatch(updateCartItemAsync({ cartKey: key, quantity: nextQuantity }));
       }
     }
   };
 
   const removeItem = (item) => {
-    const itemId = item.menuItemId || item.id;
+    const key = item.cartKey;
 
-    dispatch(removeItemAction(itemId));
+    dispatch(removeItemAction(key));
 
     if (token) {
-      dispatch(removeFromCartAsync(itemId));
+      dispatch(removeFromCartAsync(key));
     }
   };
 
@@ -139,16 +138,30 @@ export function CartPage() {
           {items.length === 0 ? (
             <div className="empty-state">Your cart is empty.</div>
           ) : (
-            !!items && items.map((item) => {
+            items.map((item) => {
               const itemSubtotal = item.price * item.quantity;
 
               return (
-                <article key={item.id || item.menuItemId} className="cart-item-card">
+                <article key={item.cartKey} className="cart-item-card">
                   <div className="cart-item-main">
                     <div>
                       <span className="pill">{item.category?.name}</span>
                       <h3>{item.name}</h3>
-                      <p className="line-item-meta">${item.price.toFixed(2)} per item</p>
+                      <p className="line-item-meta">Rs. {item.price.toFixed(0)} per item</p>
+                      
+                      {/* Render customizations */}
+                      {(item.variant || (item.addOns && item.addOns.length > 0)) && (
+                        <div className="cart-item-customizations">
+                          {item.variant && (
+                            <span>Size: {item.variant.name}</span>
+                          )}
+                          {(item.addOns ?? []).map((addon) => (
+                            <span key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}>
+                              + {addon.addonOptionName || addon.name} (+ Rs. {addon.price.toFixed(0)})
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -182,7 +195,7 @@ export function CartPage() {
 
                     <div className="cart-item-total">
                       <span>Subtotal</span>
-                      <strong>${itemSubtotal.toFixed(2)}</strong>
+                      <strong>Rs. {itemSubtotal.toFixed(0)}</strong>
                     </div>
                   </div>
                 </article>
@@ -195,15 +208,15 @@ export function CartPage() {
           <div className="cart-summary-rows">
             <div className="total-row">
               <span>Subtotal</span>
-              <strong>${subtotal.toFixed(2)}</strong>
+              <strong>Rs. {subtotal.toFixed(0)}</strong>
             </div>
             <div className="total-row">
               <span>Taxes & fees</span>
-              <strong>${TAXES_AND_FEES.toFixed(2)}</strong>
+              <strong>Rs. {TAXES_AND_FEES.toFixed(0)}</strong>
             </div>
             <div className="total-row total-row-highlighted">
               <span>Final Total</span>
-              <strong>${totalAmount.toFixed(2)}</strong>
+              <strong>Rs. {totalAmount.toFixed(0)}</strong>
             </div>
           </div>
 
