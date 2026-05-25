@@ -39,6 +39,7 @@ model User {
   payments               Payment[]
   couponUsages           CouponUsage[]
   socialAccounts         SocialAccount[]
+  deliveryAgent          DeliveryAgent?
 
   @@map("users")
 }
@@ -326,11 +327,14 @@ model OrderStatusLog {
 
 model DeliveryAgent {
   id          Int        @id @default(autoincrement())
+  userId      Int?       @unique @map("user_id")
   name        String
   phone       String
   isAvailable Boolean    @default(true) @map("is_available")
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   deliveries  Delivery[]
 
+  @@index([phone])
   @@map("delivery_agents")
 }
 

@@ -230,6 +230,42 @@ POST /api/qr/order
 
 QR order response includes `subtotalAmount`, `taxableAmount`, `gstRate`, `cgstAmount`, `sgstAmount`, `taxAmount`, and `finalAmount`.
 
+## Delivery Boy Mobile APIs
+
+Use a `delivery_boy` access token. All `/api/deliveries/me/*` routes resolve the delivery agent from the authenticated user and only return assigned deliveries.
+
+```http
+GET /api/deliveries/me/dashboard
+GET /api/deliveries/me/orders?status=ASSIGNED&limit=20&offset=0
+GET /api/deliveries/me/orders/:orderId
+PATCH /api/deliveries/me/availability
+PATCH /api/deliveries/me/orders/:orderId/accept
+PATCH /api/deliveries/me/orders/:orderId/status
+POST /api/deliveries/me/location
+```
+
+```json
+{
+  "isAvailable": true
+}
+```
+
+```json
+{
+  "status": "ON_THE_WAY"
+}
+```
+
+```json
+{
+  "orderId": 1025,
+  "latitude": 22.5726,
+  "longitude": 88.3639,
+  "speed": 22,
+  "heading": 135
+}
+```
+
 ## Other Protected APIs
 
 ```http
@@ -250,6 +286,13 @@ GET /api/admin/orders
 PATCH /api/admin/orders/:id/accept
 PATCH /api/admin/orders/:id/status
 GET /api/membership/user/:userId
+GET /api/deliveries/me/dashboard
+GET /api/deliveries/me/orders
+GET /api/deliveries/me/orders/:orderId
+PATCH /api/deliveries/me/availability
+PATCH /api/deliveries/me/orders/:orderId/accept
+PATCH /api/deliveries/me/orders/:orderId/status
+POST /api/deliveries/me/location
 POST /api/deliveries/location
 GET /api/deliveries/order/:orderId/track
 GET /api/notifications/user/:userId

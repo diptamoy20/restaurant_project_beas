@@ -480,7 +480,7 @@ async function main(): Promise<void> {
     roleId: customerRole.id,
   });
 
-  await ensureUser({
+  const deliveryBoy = await ensureUser({
     name: 'Delivery Boy',
     email: 'delivery@example.com',
     phone: '+919900000004',
@@ -767,17 +767,32 @@ async function main(): Promise<void> {
       },
     });
 
-    const deliveryAgent =
-      (await prisma.deliveryAgent.findFirst({
-        where: { phone: '+919900000099' },
-      })) ??
-      (await prisma.deliveryAgent.create({
-        data: {
-          name: 'Ravi Kumar',
-          phone: '+919900000099',
-          isAvailable: false,
+    const deliveryAgent = await prisma.deliveryAgent
+      .findFirst({
+        where: {
+          OR: [{ userId: deliveryBoy.id }, { phone: '+919900000004' }],
         },
-      }));
+      })
+      .then((agent) =>
+        agent
+          ? prisma.deliveryAgent.update({
+              where: { id: agent.id },
+              data: {
+                userId: deliveryBoy.id,
+                name: 'Surojit Bera',
+                phone: '+919900000004',
+                isAvailable: false,
+              },
+            })
+          : prisma.deliveryAgent.create({
+              data: {
+                userId: deliveryBoy.id,
+                name: 'Surojit Bera',
+                phone: '+919900000004',
+                isAvailable: false,
+              },
+            }),
+      );
 
     const delivery = await prisma.delivery.create({
       data: {

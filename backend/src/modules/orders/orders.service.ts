@@ -237,49 +237,43 @@ export class OrdersService {
         transaction,
       );
 
-      const createdOrder = await transaction.order.create({
-        data: {
-          userId: payload.userId ?? null,
-          restaurantId: payload.restaurantId,
-          tableId: payload.tableId,
-          addressId: payload.addressId,
-          orderNumber: `ORD-${Date.now()}`,
-          status: ORDER_STATUS.PENDING,
-          source: payload.source,
-          orderType: payload.orderType,
-          totalAmount: billing.mrpSubtotal,
-          discountAmount:
-            billing.menuDiscountAmount +
-            billing.couponDiscountAmount +
-            billing.manualDiscountAmount,
-          finalAmount: billing.finalAmount,
-          subtotalAmount: billing.subtotalAmount,
-          menuDiscountAmount: billing.menuDiscountAmount,
-          couponDiscountAmount: billing.couponDiscountAmount,
-          manualDiscountAmount: billing.manualDiscountAmount,
-          taxableAmount: billing.taxableAmount,
-          gstRate: billing.gstRate,
-          cgstAmount: billing.cgstAmount,
-          sgstAmount: billing.sgstAmount,
-          igstAmount: billing.igstAmount,
-          taxAmount: billing.taxAmount,
-          paymentStatus: 'PENDING',
-          paymentMethod: payload.paymentMethod,
-          items: {
-            create: billing.items.map((item) => ({
-              menuItemId: item.menuItemId,
-              variantId: item.variantId ?? undefined,
-              quantity: item.quantity,
-              price: item.unitPrice,
-              totalPrice: item.totalPrice,
-              addons: item.addons.length ? { create: item.addons } : undefined,
-            })),
-          },
-          statusLogs: {
-            create: [{ status: ORDER_STATUS.PENDING }],
-          },
+      const createdOrder = await this.createOrderWithUniqueNumber(transaction, {
+        userId: payload.userId ?? null,
+        restaurantId: payload.restaurantId,
+        tableId: payload.tableId,
+        addressId: payload.addressId,
+        status: ORDER_STATUS.PENDING,
+        source: payload.source,
+        orderType: payload.orderType,
+        totalAmount: billing.mrpSubtotal,
+        discountAmount:
+          billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
+        finalAmount: billing.finalAmount,
+        subtotalAmount: billing.subtotalAmount,
+        menuDiscountAmount: billing.menuDiscountAmount,
+        couponDiscountAmount: billing.couponDiscountAmount,
+        manualDiscountAmount: billing.manualDiscountAmount,
+        taxableAmount: billing.taxableAmount,
+        gstRate: billing.gstRate,
+        cgstAmount: billing.cgstAmount,
+        sgstAmount: billing.sgstAmount,
+        igstAmount: billing.igstAmount,
+        taxAmount: billing.taxAmount,
+        paymentStatus: 'PENDING',
+        paymentMethod: payload.paymentMethod,
+        items: {
+          create: billing.items.map((item) => ({
+            menuItemId: item.menuItemId,
+            variantId: item.variantId ?? undefined,
+            quantity: item.quantity,
+            price: item.unitPrice,
+            totalPrice: item.totalPrice,
+            addons: item.addons.length ? { create: item.addons } : undefined,
+          })),
         },
-        include: ORDER_INCLUDE,
+        statusLogs: {
+          create: [{ status: ORDER_STATUS.PENDING }],
+        },
       });
 
       if (billing.couponId && payload.userId) {
@@ -432,6 +426,55 @@ export class OrdersService {
           }
         : null,
     };
+  }
+
+  private async createOrderWithUniqueNumber(
+    transaction: Prisma.TransactionClient,
+    data: Omit<Prisma.OrderUncheckedCreateInput, 'orderNumber'>,
+  ): Promise<OrderWithRelations> {
+    const maxAttempts = 5;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await transaction.order.create({
+          data: {
+            ...data,
+            orderNumber: await this.generateOrderNumber(transaction),
+          },
+          include: ORDER_INCLUDE,
+        });
+      } catch (error) {
+        if (this.isOrderNumberUniqueConflict(error) && attempt < maxAttempts) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw new BadRequestException('Unable to allocate a unique order number');
+  }
+
+  private async generateOrderNumber(transaction: Prisma.TransactionClient): Promise<string> {
+    const [sequenceValue] = await transaction.$queryRaw<{ nextNumber: bigint }[]>`
+      SELECT nextval('orders_order_number_seq')::bigint AS "nextNumber"
+    `;
+
+    if (!sequenceValue) {
+      throw new BadRequestException('Unable to allocate an order number');
+    }
+
+    return `ORD-${sequenceValue.nextNumber.toString()}`;
+  }
+
+  private isOrderNumberUniqueConflict(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+      return false;
+    }
+
+    const target = error.meta?.target;
+
+    return Array.isArray(target) && target.includes('order_number');
   }
 
   private buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhereInput {

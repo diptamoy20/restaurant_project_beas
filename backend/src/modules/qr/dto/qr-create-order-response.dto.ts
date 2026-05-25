@@ -6,7 +6,7 @@ export class QRCreateOrderResponseDto {
   @IsNumber()
   orderId!: number;
 
-  @ApiProperty({ example: 'ORD-1640995200000', description: 'Order number' })
+  @ApiProperty({ example: 'ORD-1001', description: 'Short sequential order number' })
   @IsString()
   orderNumber!: string;
 

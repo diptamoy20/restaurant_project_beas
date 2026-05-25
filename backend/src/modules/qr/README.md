@@ -101,7 +101,7 @@ Notes:
 ```json
 {
   "orderId": 123,
-  "orderNumber": "ORD-1640995200000",
+  "orderNumber": "ORD-1001",
   "status": "PENDING",
   "estimatedTime": 20,
   "subtotalAmount": 500,

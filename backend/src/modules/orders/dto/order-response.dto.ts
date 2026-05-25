@@ -272,7 +272,7 @@ export class OrderResponseDto {
   @IsNumber()
   addressId!: number | null;
 
-  @ApiProperty({ example: 'ORD-1713570000000' })
+  @ApiProperty({ example: 'ORD-1001' })
   @IsString()
   orderNumber!: string;
 
