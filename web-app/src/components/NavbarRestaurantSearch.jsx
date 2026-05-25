@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSelectedRestaurant } from '../context/SelectedRestaurantContext.jsx';
-import { useNearbyRestaurants } from '../hooks/useNearbyRestaurants';
-import { useUserLocation } from '../hooks/useUserLocation';
-import { searchRestaurants } from '../services/locationApi';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
+import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
+import { useUserLocation } from "../hooks/useUserLocation";
+import { searchRestaurants } from "../services/locationApi";
 
 export function NavbarRestaurantSearch() {
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location, { limit: 16 });
-  const { selectedRestaurantId, setSelectedRestaurantId } = useSelectedRestaurant();
+  const { selectedRestaurantId, setSelectedRestaurantId } =
+    useSelectedRestaurant();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [remoteResults, setRemoteResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const wrapRef = useRef(null);
@@ -21,9 +22,9 @@ export function NavbarRestaurantSearch() {
       }
     };
 
-    document.addEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
 
-    return () => document.removeEventListener('mousedown', handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   useEffect(() => {
@@ -46,7 +47,9 @@ export function NavbarRestaurantSearch() {
           signal: controller.signal,
         });
 
-        setRemoteResults(Array.isArray(results) ? results : []);
+        setRemoteResults(
+          Array.isArray(results) ? results : (results?.items ?? []),
+        );
       } catch {
         setRemoteResults([]);
       } finally {
@@ -102,7 +105,7 @@ export function NavbarRestaurantSearch() {
         onClick={() => setOpen((current) => !current)}
       >
         <span className="navbar-restaurant-trigger-label">
-          {selectedLabel ? selectedLabel : 'Choose restaurant'}
+          {selectedLabel ? selectedLabel : "Choose restaurant"}
         </span>
         <span className="navbar-restaurant-chevron" aria-hidden>
           ▾
@@ -139,13 +142,13 @@ export function NavbarRestaurantSearch() {
                   type="button"
                   className={
                     restaurant.id === selectedRestaurantId
-                      ? 'navbar-restaurant-option is-active'
-                      : 'navbar-restaurant-option'
+                      ? "navbar-restaurant-option is-active"
+                      : "navbar-restaurant-option"
                   }
                   onClick={() => {
                     setSelectedRestaurantId(restaurant.id);
                     setOpen(false);
-                    setQuery('');
+                    setQuery("");
                   }}
                 >
                   <span>{restaurant.name}</span>
@@ -160,8 +163,8 @@ export function NavbarRestaurantSearch() {
           {!displayList.length && !nearby.loading ? (
             <p className="navbar-restaurant-hint">
               {query.trim().length >= 2
-                ? 'No matches for that search.'
-                : 'Enable location or type at least two letters to search farther away.'}
+                ? "No matches for that search."
+                : "Enable location or type at least two letters to search farther away."}
             </p>
           ) : null}
         </div>

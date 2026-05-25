@@ -1,4 +1,37 @@
-const AUTH_STORAGE_KEY = 'restaurant-web-auth';
+const AUTH_STORAGE_KEY = "restaurant-web-auth";
+
+function decodeJwtExpiry(token) {
+  try {
+    const payload = token?.split(".")?.[1];
+
+    if (!payload) {
+      return null;
+    }
+
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      "=",
+    );
+    const decoded = JSON.parse(atob(padded));
+
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveRefreshExpiry(parsed) {
+  if (parsed?.refreshTokenExpiresAt) {
+    const timestamp = Date.parse(parsed.refreshTokenExpiresAt);
+
+    if (Number.isFinite(timestamp)) {
+      return timestamp;
+    }
+  }
+
+  return decodeJwtExpiry(parsed?.refreshToken);
+}
 
 function readStorage(storage) {
   try {
@@ -14,9 +47,20 @@ function readStorage(storage) {
       return null;
     }
 
+    const refreshTokenExpiresAtMs = resolveRefreshExpiry(parsed);
+
+    if (
+      refreshTokenExpiresAtMs !== null &&
+      refreshTokenExpiresAtMs <= Date.now()
+    ) {
+      storage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+
     return {
       token: parsed.token,
       refreshToken: parsed.refreshToken ?? null,
+      refreshTokenExpiresAt: parsed.refreshTokenExpiresAt ?? null,
       user: parsed.user,
     };
   } catch {
@@ -38,6 +82,7 @@ export function saveUserToStorage(auth, rememberMe = true) {
     JSON.stringify({
       token: auth.token,
       refreshToken: auth.refreshToken,
+      refreshTokenExpiresAt: auth.refreshTokenExpiresAt,
       user: auth.user,
     }),
   );

@@ -1,5 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsNumber, IsString, ValidateNested } from 'class-validator';
+
+import { PaginationMetaDto } from '../../../common/dto/pagination.dto';
 
 export class NotificationResponseDto {
   @ApiProperty({ example: 1 })
@@ -21,4 +24,12 @@ export class NotificationResponseDto {
   @ApiProperty({ example: false })
   @IsBoolean()
   isRead!: boolean;
+}
+
+export class PaginatedNotificationResponseDto extends PaginationMetaDto {
+  @ApiProperty({ type: () => NotificationResponseDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NotificationResponseDto)
+  items!: NotificationResponseDto[];
 }

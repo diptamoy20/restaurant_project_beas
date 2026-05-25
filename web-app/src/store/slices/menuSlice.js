@@ -17,7 +17,10 @@ export const fetchMenu = createAsyncThunk(
       let resolvedRestaurantId = restaurantId;
 
       if (!resolvedRestaurantId) {
-        const restaurants = await api.get("/restaurants");
+        const restaurantsResponse = await api.get("/restaurants?limit=50");
+        const restaurants = Array.isArray(restaurantsResponse)
+          ? restaurantsResponse
+          : (restaurantsResponse?.items ?? []);
         resolvedRestaurantId = restaurants?.[0]?.id || "1";
       }
 
@@ -26,9 +29,12 @@ export const fetchMenu = createAsyncThunk(
             restaurantId: resolvedRestaurantId,
             lat: coordinates.lat,
             lng: coordinates.lng,
+            limit: 50,
             signal,
           })
-        : await api.get(`/menu/restaurant/${resolvedRestaurantId}`, { signal });
+        : await api.get(`/menu/restaurant/${resolvedRestaurantId}?limit=50`, {
+            signal,
+          });
 
       return {
         restaurantId: response?.restaurantId ?? resolvedRestaurantId,
