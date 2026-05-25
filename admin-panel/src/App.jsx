@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AdminLayout } from './layouts/AdminLayout';
 import { CategoriesPage } from './pages/CategoriesPage';
+import { CouponsPage } from './pages/CouponsPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
@@ -32,6 +33,10 @@ export default function App() {
 
           <Route element={<ProtectedRoute module="categories" />}>
             <Route element={<CategoriesPage />} path="/categories" />
+          </Route>
+
+          <Route element={<ProtectedRoute module="coupons" />}>
+            <Route element={<CouponsPage />} path="/coupons" />
           </Route>
 
           <Route element={<ProtectedRoute module="customers" />}>

@@ -32,7 +32,7 @@ export function resolveTableId(search) {
 
 export function resolveRestaurantId(search) {
   const params = new URLSearchParams(search);
-  return params.get('restaurant') || getPersistedRestaurantId() || '';
+  return params.get('restaurant') || params.get('restaurantId') || getPersistedRestaurantId() || '';
 }
 
 export function createTableAwarePath(path, tableId) {
@@ -41,6 +41,10 @@ export function createTableAwarePath(path, tableId) {
 
 export function createSessionAwarePath(path, tableId, restaurantId) {
   const params = new URLSearchParams();
+
+  if (tableId) {
+    params.set('table', String(tableId));
+  }
 
   if (restaurantId) {
     params.set('restaurant', String(restaurantId));

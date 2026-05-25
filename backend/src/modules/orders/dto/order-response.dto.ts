@@ -272,7 +272,7 @@ export class OrderResponseDto {
   @IsNumber()
   addressId!: number | null;
 
-  @ApiProperty({ example: 'ORD-1713570000000' })
+  @ApiProperty({ example: 'ORD-1001' })
   @IsString()
   orderNumber!: string;
 
@@ -288,6 +288,19 @@ export class OrderResponseDto {
   @IsNumber()
   totalAmount!: number;
 
+  @ApiProperty({ example: 27 })
+  @IsNumber()
+  deliveryCharge!: number;
+
+  @ApiProperty({ example: 10 })
+  @IsNumber()
+  packagingCharge!: number;
+
+  @ApiPropertyOptional({ example: 1.13, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  deliveryDistanceKm!: number | null;
+
   @ApiPropertyOptional({ example: 20, nullable: true })
   @IsOptional()
   @IsNumber()
@@ -296,6 +309,46 @@ export class OrderResponseDto {
   @ApiProperty({ example: 358 })
   @IsNumber()
   finalAmount!: number;
+
+  @ApiProperty({ example: 450 })
+  @IsNumber()
+  subtotalAmount!: number;
+
+  @ApiProperty({ example: 50 })
+  @IsNumber()
+  menuDiscountAmount!: number;
+
+  @ApiProperty({ example: 40 })
+  @IsNumber()
+  couponDiscountAmount!: number;
+
+  @ApiProperty({ example: 0 })
+  @IsNumber()
+  manualDiscountAmount!: number;
+
+  @ApiProperty({ example: 410 })
+  @IsNumber()
+  taxableAmount!: number;
+
+  @ApiProperty({ example: 5 })
+  @IsNumber()
+  gstRate!: number;
+
+  @ApiProperty({ example: 10.25 })
+  @IsNumber()
+  cgstAmount!: number;
+
+  @ApiProperty({ example: 10.25 })
+  @IsNumber()
+  sgstAmount!: number;
+
+  @ApiProperty({ example: 0 })
+  @IsNumber()
+  igstAmount!: number;
+
+  @ApiProperty({ example: 20.5 })
+  @IsNumber()
+  taxAmount!: number;
 
   @ApiProperty({ example: 'PENDING' })
   @IsString()

@@ -39,6 +39,7 @@ model User {
   payments               Payment[]
   couponUsages           CouponUsage[]
   socialAccounts         SocialAccount[]
+  deliveryAgent          DeliveryAgent?
 
   @@map("users")
 }
@@ -104,6 +105,14 @@ model Restaurant {
   description       String?
   imageUrl          String?                               @map("image_url")
   deliveryRadiusKm  Float                                 @default(8) @map("delivery_radius_km")
+  deliveryEnabled   Boolean                               @default(true) @map("delivery_enabled")
+  deliveryBaseFee   Float                                 @default(20) @map("delivery_base_fee")
+  deliveryBaseDistanceKm Float                            @default(1) @map("delivery_base_distance_km")
+  deliveryPerKmFee  Float                                 @default(7) @map("delivery_per_km_fee")
+  deliveryFeeMin    Float?                                @map("delivery_fee_min")
+  deliveryFeeCap    Float?                                @map("delivery_fee_cap")
+  freeDeliveryMinAmount Float?                            @map("free_delivery_min_amount")
+  packagingCharge   Float                                 @default(0) @map("packaging_charge")
   isLocationEnabled Boolean                               @default(true) @map("is_location_enabled")
   isActive          Boolean                               @default(true) @map("is_active")
   createdAt         DateTime                              @default(now()) @map("created_at")
@@ -114,6 +123,11 @@ model Restaurant {
   addonGroups       AddonGroup[]
   orders            Order[]
   deliveryZones     DeliveryZone[]
+  coupons           Coupon[]
+  gstin             String?                               @map("gstin")
+  gstRate           Float                                 @default(5) @map("gst_rate")
+  gstEnabled        Boolean                               @default(true) @map("gst_enabled")
+  gstMode           String                                @default("EXCLUSIVE") @map("gst_mode")
 
   @@map("restaurants")
 }
@@ -239,8 +253,21 @@ model Order {
   source               OrderSource      @default(WEBSITE)
   orderType            String           @map("order_type")
   totalAmount          Float            @map("total_amount")
+  deliveryCharge       Float            @default(0) @map("delivery_charge")
+  packagingCharge      Float            @default(0) @map("packaging_charge")
+  deliveryDistanceKm   Float?           @map("delivery_distance_km")
   discountAmount       Float?           @map("discount_amount")
   finalAmount          Float            @map("final_amount")
+  subtotalAmount       Float            @default(0) @map("subtotal_amount")
+  menuDiscountAmount   Float            @default(0) @map("menu_discount_amount")
+  couponDiscountAmount Float            @default(0) @map("coupon_discount_amount")
+  manualDiscountAmount Float            @default(0) @map("manual_discount_amount")
+  taxableAmount        Float            @default(0) @map("taxable_amount")
+  gstRate              Float            @default(0) @map("gst_rate")
+  cgstAmount           Float            @default(0) @map("cgst_amount")
+  sgstAmount           Float            @default(0) @map("sgst_amount")
+  igstAmount           Float            @default(0) @map("igst_amount")
+  taxAmount            Float            @default(0) @map("tax_amount")
   paymentStatus        String           @map("payment_status")
   paymentMethod        String?          @map("payment_method")
   razorpayOrderId      String?          @map("razorpay_order_id")
@@ -311,11 +338,14 @@ model OrderStatusLog {
 
 model DeliveryAgent {
   id          Int        @id @default(autoincrement())
+  userId      Int?       @unique @map("user_id")
   name        String
   phone       String
   isAvailable Boolean    @default(true) @map("is_available")
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   deliveries  Delivery[]
 
+  @@index([phone])
   @@map("delivery_agents")
 }
 
@@ -390,26 +420,44 @@ model LoyaltyTransaction {
 }
 
 model Coupon {
-  id             Int           @id @default(autoincrement())
-  code           String        @unique
-  discountType   String        @map("discount_type")
-  discountValue  Float         @map("discount_value")
-  minOrderAmount Float?        @map("min_order_amount")
-  expiryDate     DateTime?     @map("expiry_date")
-  usages         CouponUsage[]
+  id                 Int           @id @default(autoincrement())
+  restaurantId       Int?          @map("restaurant_id")
+  code               String
+  description        String?
+  discountType       String        @map("discount_type")
+  discountValue      Float         @map("discount_value")
+  maxDiscountAmount  Float?        @map("max_discount_amount")
+  minOrderAmount     Float?        @map("min_order_amount")
+  startsAt           DateTime?     @map("starts_at")
+  expiresAt          DateTime?     @map("expiry_date")
+  usageLimitTotal    Int?          @map("usage_limit_total")
+  usageLimitPerUser  Int?          @map("usage_limit_per_user")
+  isActive           Boolean       @default(true) @map("is_active")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  restaurant         Restaurant?   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  usages             CouponUsage[]
 
+  @@index([restaurantId])
+  @@index([code, restaurantId])
+  @@index([isActive])
   @@map("coupons")
 }
 
 model CouponUsage {
-  id       Int    @id @default(autoincrement())
-  couponId Int    @map("coupon_id")
-  userId   Int    @map("user_id")
-  orderId  Int    @map("order_id")
-  coupon   Coupon @relation(fields: [couponId], references: [id])
-  user     User   @relation(fields: [userId], references: [id])
-  order    Order  @relation(fields: [orderId], references: [id])
+  id             Int      @id @default(autoincrement())
+  couponId       Int      @map("coupon_id")
+  userId         Int      @map("user_id")
+  orderId        Int      @map("order_id")
+  discountAmount Float    @default(0) @map("discount_amount")
+  createdAt      DateTime @default(now()) @map("created_at")
+  coupon         Coupon   @relation(fields: [couponId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
+  order          Order    @relation(fields: [orderId], references: [id])
 
+  @@index([couponId])
+  @@index([userId])
+  @@unique([couponId, orderId])
   @@map("coupon_usages")
 }
 

@@ -30,5 +30,9 @@ export type CreateOrderType = {
 
   discountAmount?: number;
 
+  manualDiscountAmount?: number;
+
+  couponCode?: string;
+
   items: CreateOrderItemType[];
 };

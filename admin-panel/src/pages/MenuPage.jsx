@@ -20,9 +20,15 @@ const initialItemForm = {
   name: '',
   description: '',
   price: '',
+  discountPrice: '',
   category: '',
   isAvailable: true,
 };
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function MenuPage() {
   const [restaurantId, setRestaurantId] = useState('1');
@@ -60,6 +66,7 @@ export function MenuPage() {
         name: form.name,
         description: form.description || undefined,
         price: Number(form.price),
+        discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
         categoryName: form.category,
         foodType: 'VEG',
         isAvailable: form.isAvailable,
@@ -111,7 +118,12 @@ export function MenuPage() {
                 ),
               },
               { key: 'category', header: 'Category', render: (row) => row.category?.name ?? 'Unassigned' },
-              { key: 'price', header: 'Price', render: (row) => `Rs. ${row.price}` },
+              { key: 'price', header: 'Price', render: (row) => formatCurrency.format(row.price) },
+              {
+                key: 'discountPrice',
+                header: 'Discount Price',
+                render: (row) => (row.discountPrice != null ? formatCurrency.format(row.discountPrice) : '-'),
+              },
               {
                 key: 'isAvailable',
                 header: 'Availability',
@@ -140,6 +152,7 @@ export function MenuPage() {
                               name: row.name,
                               description: row.description ?? undefined,
                               price: row.price,
+                              discountPrice: row.discountPrice ?? undefined,
                               categoryName: row.category?.name,
                               foodType: row.foodType ?? 'VEG',
                               isAvailable: row.isAvailable,
@@ -217,10 +230,16 @@ export function MenuPage() {
             value={form.category}
           />
           <TextField
-            label="Price"
+            label="Price (₹)"
             onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
             type="number"
             value={form.price}
+          />
+          <TextField
+            label="Discount Price (₹)"
+            onChange={(event) => setForm((current) => ({ ...current, discountPrice: event.target.value }))}
+            type="number"
+            value={form.discountPrice}
           />
           <TextField
             label="Availability"

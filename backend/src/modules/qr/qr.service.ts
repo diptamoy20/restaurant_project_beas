@@ -137,7 +137,6 @@ export class QrService {
       source: OrderSource.QR_DINE_IN,
       orderType: 'DINE_IN',
       paymentMethod: orderData.paymentMethod,
-      discountAmount: 0,
       items: orderData.items.map((item) => ({
         menuItemId: item.menuItemId,
         variantId: item.variantId,
@@ -158,6 +157,12 @@ export class QrService {
       status: order.status,
       estimatedTime,
       finalAmount: order.finalAmount,
+      subtotalAmount: order.subtotalAmount,
+      taxableAmount: order.taxableAmount,
+      gstRate: order.gstRate,
+      cgstAmount: order.cgstAmount,
+      sgstAmount: order.sgstAmount,
+      taxAmount: order.taxAmount,
     };
   }
 

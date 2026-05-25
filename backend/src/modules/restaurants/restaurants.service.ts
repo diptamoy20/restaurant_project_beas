@@ -184,6 +184,7 @@ export class RestaurantsService {
     if (!this.isValidCoordinates(data.latitude, data.longitude)) {
       throw new BadRequestException('Invalid coordinates provided');
     }
+    this.validateDeliveryPricing(data);
 
     try {
       // Create restaurant without location field first
@@ -198,8 +199,19 @@ export class RestaurantsService {
           description: data.description ?? null,
           imageUrl: data.imageUrl ?? null,
           deliveryRadiusKm: data.deliveryRadiusKm ?? 8,
+          deliveryEnabled: data.deliveryEnabled ?? true,
+          deliveryBaseFee: data.deliveryBaseFee ?? 20,
+          deliveryBaseDistanceKm: data.deliveryBaseDistanceKm ?? 1,
+          deliveryPerKmFee: data.deliveryPerKmFee ?? 7,
+          deliveryFeeMin: data.deliveryFeeMin ?? null,
+          deliveryFeeCap: data.deliveryFeeCap ?? null,
+          freeDeliveryMinAmount: data.freeDeliveryMinAmount ?? null,
+          packagingCharge: data.packagingCharge ?? 0,
           isLocationEnabled: data.isLocationEnabled ?? true,
           isActive: data.isActive ?? true,
+          gstin: data.gstin?.trim().toUpperCase() || null,
+          gstRate: data.gstRate ?? 5,
+          gstEnabled: data.gstEnabled ?? true,
         },
         include: { categories: true },
       });
@@ -242,6 +254,7 @@ export class RestaurantsService {
         throw new BadRequestException('Invalid coordinates provided');
       }
     }
+    this.validateDeliveryPricing(data);
 
     try {
       const updateData: Prisma.RestaurantUpdateInput = {
@@ -252,8 +265,19 @@ export class RestaurantsService {
         description: data.description,
         imageUrl: data.imageUrl,
         deliveryRadiusKm: data.deliveryRadiusKm,
+        deliveryEnabled: data.deliveryEnabled,
+        deliveryBaseFee: data.deliveryBaseFee,
+        deliveryBaseDistanceKm: data.deliveryBaseDistanceKm,
+        deliveryPerKmFee: data.deliveryPerKmFee,
+        deliveryFeeMin: data.deliveryFeeMin,
+        deliveryFeeCap: data.deliveryFeeCap,
+        freeDeliveryMinAmount: data.freeDeliveryMinAmount,
+        packagingCharge: data.packagingCharge,
         isLocationEnabled: data.isLocationEnabled,
         isActive: data.isActive,
+        gstin: data.gstin === undefined ? undefined : data.gstin?.trim().toUpperCase() || null,
+        gstRate: data.gstRate,
+        gstEnabled: data.gstEnabled,
       };
 
       // Remove undefined values
@@ -326,6 +350,18 @@ export class RestaurantsService {
    */
   private isValidCoordinates(lat: number, lng: number): boolean {
     return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  private validateDeliveryPricing(data: CreateRestaurantDto | UpdateRestaurantDto): void {
+    if (
+      data.deliveryFeeCap !== undefined &&
+      data.deliveryFeeCap !== null &&
+      data.deliveryFeeMin !== undefined &&
+      data.deliveryFeeMin !== null &&
+      data.deliveryFeeCap < data.deliveryFeeMin
+    ) {
+      throw new BadRequestException('Delivery max fee cannot be less than min fee');
+    }
   }
 
   private haversineKm(lat: number, lng: number, rLat: number, rLng: number): number {
@@ -410,6 +446,14 @@ export class RestaurantsService {
     description?: string | null;
     imageUrl?: string | null;
     deliveryRadiusKm?: number;
+    deliveryEnabled?: boolean;
+    deliveryBaseFee?: number;
+    deliveryBaseDistanceKm?: number;
+    deliveryPerKmFee?: number;
+    deliveryFeeMin?: number | null;
+    deliveryFeeCap?: number | null;
+    freeDeliveryMinAmount?: number | null;
+    packagingCharge?: number;
     isLocationEnabled?: boolean;
     isActive: boolean;
     createdAt?: Date;
@@ -438,6 +482,9 @@ export class RestaurantsService {
     deliveryFee?: number;
     minimumOrderAmount?: number | null;
     availableMenuItemsCount?: number;
+    gstin?: string | null;
+    gstRate?: number;
+    gstEnabled?: boolean;
   }): RestaurantResponseDto {
     return {
       id: restaurant.id,
@@ -451,6 +498,14 @@ export class RestaurantsService {
       imageUrl: restaurant.imageUrl,
       isActive: restaurant.isActive,
       deliveryRadiusKm: restaurant.deliveryRadiusKm,
+      deliveryEnabled: restaurant.deliveryEnabled,
+      deliveryBaseFee: restaurant.deliveryBaseFee,
+      deliveryBaseDistanceKm: restaurant.deliveryBaseDistanceKm,
+      deliveryPerKmFee: restaurant.deliveryPerKmFee,
+      deliveryFeeMin: restaurant.deliveryFeeMin,
+      deliveryFeeCap: restaurant.deliveryFeeCap,
+      freeDeliveryMinAmount: restaurant.freeDeliveryMinAmount,
+      packagingCharge: restaurant.packagingCharge,
       isLocationEnabled: restaurant.isLocationEnabled,
       categories: restaurant.categories.map((category) => this.mapRestaurantCategory(category)),
       tables: restaurant.tables?.map((table) => this.mapRestaurantTable(table)),
@@ -461,6 +516,9 @@ export class RestaurantsService {
       deliveryFee: restaurant.deliveryFee,
       minimumOrderAmount: restaurant.minimumOrderAmount,
       availableMenuItemsCount: restaurant.availableMenuItemsCount,
+      gstin: restaurant.gstin,
+      gstRate: restaurant.gstRate,
+      gstEnabled: restaurant.gstEnabled,
     };
   }
 }

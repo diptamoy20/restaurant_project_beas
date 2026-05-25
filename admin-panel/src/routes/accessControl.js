@@ -5,6 +5,7 @@ export const routeDefinitions = [
   { path: '/orders', label: 'Orders', module: 'orders' },
   { path: '/restaurants', label: 'Manage Restaurants', module: 'restaurants' },
   { path: '/categories', label: 'Categories', module: 'categories' },
+  { path: '/coupons', label: 'Coupons', module: 'coupons' },
   { path: '/customers', label: 'Customers', module: 'customers' },
   { path: '/payments', label: 'Payments', module: 'payments' },
   { path: '/staff', label: 'Staff', module: 'staff' },

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   addToCart,
@@ -9,15 +9,35 @@ import {
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
 import { getCachedUserLocation } from "../hooks/useUserLocation";
+import {
+  persistRestaurantId,
+  persistTableId,
+  resolveRestaurantId,
+  resolveTableId,
+} from "../lib/tableSession";
 import { MenuSlideCard } from "../utils/MenuSlideCard";
 
 const HARDCODED_RESTAURANT_ID = "1";
+const formatRupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+
+function formatDeliveryLine(delivery) {
+  const distance = delivery.distanceKm != null ? `${delivery.distanceKm} km away · ` : "";
+  const time = `${delivery.estimatedDeliveryTimeMinutes ?? "—"} min · `;
+  const fee =
+    Number(delivery.deliveryFee ?? 0) === 0
+      ? "Free delivery"
+      : `${formatRupees.format(delivery.deliveryFee)} delivery`;
+
+  return `${distance}${time}${fee}`;
+}
 
 export function MenuPage() {
   const dispatch = useDispatch();
   const location = useLocation();
-  const navigate = useNavigate();
-  
   const {
     items,
     loading,
@@ -31,9 +51,9 @@ export function MenuPage() {
   const { loading: cartLoading, error: cartError } = useSelector(
     (state) => state.cart,
   );
-  
+
   const isAuthenticated = useSelector((state) => !!state.auth.token);
-  
+
   const [resolvedRestaurantId, setResolvedRestaurantId] = useState(
     HARDCODED_RESTAURANT_ID,
   );
@@ -56,23 +76,17 @@ export function MenuPage() {
   const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const restaurantIdFromUrl = params.get("restaurantId");
-    const tableIdFromUrl = params.get("table");
-    const nextRestaurantId = restaurantIdFromUrl || HARDCODED_RESTAURANT_ID;
+    const nextRestaurantId = resolveRestaurantId(location.search) || HARDCODED_RESTAURANT_ID;
+    const nextTableId = resolveTableId(location.search);
 
     setResolvedRestaurantId(nextRestaurantId);
-    if (tableIdFromUrl) {
-      params.delete("table");
-      navigate(
-        {
-          pathname: location.pathname,
-          search: params.toString() ? `?${params.toString()}` : "",
-        },
-        { replace: true },
-      );
+    if (nextRestaurantId) {
+      persistRestaurantId(nextRestaurantId);
     }
-  }, [location.pathname, location.search, navigate]);
+    if (nextTableId) {
+      persistTableId(nextTableId);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (resolvedRestaurantId) {
@@ -203,7 +217,7 @@ export function MenuPage() {
   const handleToggleAddon = (group, option) => {
     setSelectedAddons((current) => {
       const isSelected = current.some((addon) => addon.addonOptionId === option.id);
-      
+
       if (isSelected) {
         return current.filter((addon) => addon.addonOptionId !== option.id);
       }
@@ -253,7 +267,7 @@ export function MenuPage() {
     const activeGroups = customizingItem.addonGroups?.filter((g) => g.options.length > 0) || [];
     for (const group of activeGroups) {
       const selections = selectedAddons.filter((addon) => addon.addonGroupId === group.id);
-      
+
       const minSelect = group.isRequired
         ? Math.max(group.minSelect ?? 1, 1)
         : (group.minSelect ?? 0);
@@ -345,12 +359,16 @@ export function MenuPage() {
             <strong>
               {delivery.deliveryAvailable
                 ? "Delivery available"
-                : "Outside delivery area"}
+                : "Delivery unavailable"}
             </strong>
             <span>
-              {delivery.distanceKm} km - {delivery.estimatedDeliveryTimeMinutes}{" "}
-              min - Rs. {Number(delivery.deliveryFee ?? 0).toFixed(0)} fee
+              {delivery.deliveryAvailable
+                ? formatDeliveryLine(delivery)
+                : `${delivery.distanceKm ?? "—"} km away · ${delivery.deliveryUnavailableReason ?? delivery.reason ?? "Outside delivery range"}`}
             </span>
+            {delivery.deliveryAvailable && delivery.freeDeliveryMinAmount ? (
+              <span>Free delivery above {formatRupees.format(delivery.freeDeliveryMinAmount)}</span>
+            ) : null}
           </div>
         ) : null}
         {cartMessage ? (
@@ -395,7 +413,7 @@ export function MenuPage() {
                   <div className="frequent-card-info">
                     <h4>{item.name}</h4>
                     <div className="frequent-card-footer">
-                      <span className="frequent-card-price">Rs. {Number(price).toFixed(0)}</span>
+                      <span className="frequent-card-price">{formatRupees.format(price)}</span>
                       <button
                         type="button"
                         className="frequent-add-btn"
@@ -536,7 +554,7 @@ export function MenuPage() {
                 <div className="customizer-header-copy">
                   <h2>{customizingItem.name}</h2>
                   <p>{customizingItem.description || "Freshly cooked to your requirements."}</p>
-                  <strong>Rs. {Number(customizedUnitPrice).toFixed(0)}</strong>
+                  <strong>{formatRupees.format(customizedUnitPrice)}</strong>
                 </div>
               </div>
               <button
@@ -563,7 +581,7 @@ export function MenuPage() {
                         onClick={() => setSelectedVariant(v)}
                       >
                         <span>{v.name}</span>
-                        <strong>Rs. {Number(v.price).toFixed(0)}</strong>
+                        <strong>{formatRupees.format(v.price)}</strong>
                       </div>
                     ))}
                   </div>
@@ -574,7 +592,7 @@ export function MenuPage() {
               {customizingItem.addonGroups &&
                 customizingItem.addonGroups.filter((g) => g.options.length > 0).map((group) => {
                   const maxSelect = group.selectionType === "SINGLE" ? 1 : group.maxSelect;
-                  
+
                   return (
                     <div key={`addon-group-${group.id}`} className="customizer-option-group">
                       <div className="customizer-group-title">
@@ -590,7 +608,7 @@ export function MenuPage() {
                           {group.isRequired ? "Required" : "Optional"}
                         </span>
                       </div>
-                      
+
                       <div className="customizer-option-list">
                         {group.options.map((opt) => {
                           const isChecked = selectedAddons.some(
@@ -613,7 +631,7 @@ export function MenuPage() {
                                 />
                                 <span>{opt.name}</span>
                               </label>
-                              <span className="customizer-option-price">+ Rs. {opt.price.toFixed(0)}</span>
+                              <span className="customizer-option-price">+ {formatRupees.format(opt.price)}</span>
                             </div>
                           );
                         })}
@@ -652,7 +670,7 @@ export function MenuPage() {
                 className="primary-btn customizer-add-btn"
                 onClick={handleAddCustomizedToCart}
               >
-                Add Item - Rs. {Number(customizedUnitPrice * customizerQuantity).toFixed(0)}
+                Add Item - {formatRupees.format(customizedUnitPrice * customizerQuantity)}
               </button>
             </div>
           </div>

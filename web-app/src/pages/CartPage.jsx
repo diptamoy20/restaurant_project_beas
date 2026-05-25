@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   decreaseQuantity as decreaseQuantityAction,
   increaseQuantity as increaseQuantityAction,
@@ -12,22 +12,40 @@ import {
   createSessionAwarePath,
   persistRestaurantId,
   persistTableId,
+  resolveRestaurantId,
+  resolveTableId,
 } from '../lib/tableSession';
 
-const TAXES_AND_FEES = 0;
-const HARDCODED_RESTAURANT_ID = '1';
-const HARDCODED_TABLE_ID = '1';
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function CartPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const items = useSelector((state) => state.cart.items);
   const token = useSelector((state) => state.auth.token);
   const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
   const [errorMessage, setErrorMessage] = useState('');
-  
-  const tableId = HARDCODED_TABLE_ID;
-  const restaurantId = HARDCODED_RESTAURANT_ID;
+  const cartRestaurantId = useMemo(
+    () => items.find((item) => item.restaurantId)?.restaurantId ?? '',
+    [items],
+  );
+  const tableId = resolveTableId(location.search);
+  const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
+  const restaurantName =
+    items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant?.name ||
+    items.find((item) => item.restaurant?.name)?.restaurant?.name ||
+    '';
+  const restaurantLabel = restaurantName || (restaurantId ? `Restaurant #${restaurantId}` : '');
+  const contextText = tableId
+    ? `Ordering for Table ${tableId}${restaurantLabel ? ` at ${restaurantLabel}` : ''}`
+    : restaurantLabel
+      ? `Ordering from ${restaurantLabel}`
+      : 'Review your items before checkout. GST and coupons are calculated at checkout.';
 
   useEffect(() => {
     if (tableId) {
@@ -45,7 +63,6 @@ export function CartPage() {
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [items],
   );
-  const totalAmount = calculateTotal(subtotal, TAXES_AND_FEES);
 
   const increaseQuantity = (item) => {
     const key = item.cartKey;
@@ -126,9 +143,7 @@ export function CartPage() {
           <p className="eyebrow">Cart</p>
           <h2>Your order summary</h2>
           <p className="cart-supporting-copy">
-            {tableId
-              ? `Ordering for table ${tableId} at restaurant ${restaurantId || 'N/A'}`
-              : 'Review your items before placing the order.'}
+            {contextText}
           </p>
         </div>
       </div>
@@ -147,9 +162,7 @@ export function CartPage() {
                     <div>
                       <span className="pill">{item.category?.name}</span>
                       <h3>{item.name}</h3>
-                      <p className="line-item-meta">Rs. {item.price.toFixed(0)} per item</p>
-                      
-                      {/* Render customizations */}
+                      <p className="line-item-meta">{formatCurrency.format(item.price)} per item</p>
                       {(item.variant || (item.addOns && item.addOns.length > 0)) && (
                         <div className="cart-item-customizations">
                           {item.variant && (
@@ -157,7 +170,7 @@ export function CartPage() {
                           )}
                           {(item.addOns ?? []).map((addon) => (
                             <span key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}>
-                              + {addon.addonOptionName || addon.name} (+ Rs. {addon.price.toFixed(0)})
+                              + {addon.addonOptionName || addon.name} (+ {formatCurrency.format(addon.price)})
                             </span>
                           ))}
                         </div>
@@ -195,7 +208,7 @@ export function CartPage() {
 
                     <div className="cart-item-total">
                       <span>Subtotal</span>
-                      <strong>Rs. {itemSubtotal.toFixed(0)}</strong>
+                      <strong>{formatCurrency.format(itemSubtotal)}</strong>
                     </div>
                   </div>
                 </article>
@@ -208,16 +221,13 @@ export function CartPage() {
           <div className="cart-summary-rows">
             <div className="total-row">
               <span>Subtotal</span>
-              <strong>Rs. {subtotal.toFixed(0)}</strong>
-            </div>
-            <div className="total-row">
-              <span>Taxes & fees</span>
-              <strong>Rs. {TAXES_AND_FEES.toFixed(0)}</strong>
+              <strong>{formatCurrency.format(subtotal)}</strong>
             </div>
             <div className="total-row total-row-highlighted">
-              <span>Final Total</span>
-              <strong>Rs. {totalAmount.toFixed(0)}</strong>
+              <span>Estimated Total</span>
+              <strong>{formatCurrency.format(subtotal)}</strong>
             </div>
+            <p className="cart-tax-note">GST, coupons, and payable total are calculated on checkout.</p>
           </div>
 
           {errorMessage || cartError ? (

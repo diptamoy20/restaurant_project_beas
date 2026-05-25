@@ -19,6 +19,7 @@ import {
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { BillingService } from '../billing/billing.service';
 
 type OrderWithRelations = Prisma.OrderGetPayload<{
   include: {
@@ -58,7 +59,10 @@ const ORDER_INCLUDE = {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billingService: BillingService,
+  ) {}
 
   async listMyOrders(
     userId: number,
@@ -221,93 +225,72 @@ export class OrdersService {
         }
       }
 
-      const menuItemIds = [...new Set(payload.items.map((item) => item.menuItemId))];
-      const menuItems = await transaction.menuItem.findMany({
-        where: {
-          id: {
-            in: menuItemIds,
-          },
-        },
-        include: {
-          variants: true,
-          addonGroups: {
-            include: {
-              options: true,
-            },
-          },
-        },
-      });
-      const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
-      const orderItems = payload.items.map((item) => {
-        const menuItem = menuItemById.get(item.menuItemId);
-
-        if (!menuItem || !menuItem.isAvailable) {
-          throw new BadRequestException(`Menu item ${item.menuItemId} is not available`);
-        }
-
-        if (menuItem.restaurantId !== payload.restaurantId) {
-          throw new BadRequestException('Cart contains menu items from another restaurant');
-        }
-
-        const variant = item.variantId
-          ? menuItem.variants.find((candidate) => candidate.id === item.variantId)
-          : null;
-
-        if (item.variantId && !variant) {
-          throw new BadRequestException(`Variant ${item.variantId} is not valid for this item`);
-        }
-
-        const selectedAddons = this.resolveSelectedAddons(item, menuItem);
-        const addonTotal = selectedAddons.reduce((sum, addon) => sum + addon.addonOptionPrice, 0);
-        const price = (variant?.price ?? menuItem.price) + addonTotal;
-
-        return {
-          menuItemId: item.menuItemId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price,
-          totalPrice: price * item.quantity,
-          addons: selectedAddons,
-        };
-      });
-      const totalAmount = orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      const discountAmount = payload.discountAmount ?? 0;
-
-      if (discountAmount < 0 || discountAmount > totalAmount) {
-        throw new BadRequestException('Discount amount is not valid for this order');
-      }
-
-      const createdOrder = await transaction.order.create({
-        data: {
-          userId: payload.userId ?? null,
+      const billing = await this.billingService.calculateQuote(
+        {
           restaurantId: payload.restaurantId,
-          tableId: payload.tableId,
+          userId: payload.userId,
           addressId: payload.addressId,
-          orderNumber: `ORD-${Date.now()}`,
-          status: ORDER_STATUS.PENDING,
-          source: payload.source,
           orderType: payload.orderType,
-          totalAmount,
-          discountAmount,
-          finalAmount: totalAmount - discountAmount,
-          paymentStatus: 'PENDING',
-          paymentMethod: payload.paymentMethod,
-          items: {
-            create: orderItems.map((item) => ({
-              menuItemId: item.menuItemId,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              price: item.price,
-              totalPrice: item.totalPrice,
-              addons: item.addons.length ? { create: item.addons } : undefined,
-            })),
-          },
-          statusLogs: {
-            create: [{ status: ORDER_STATUS.PENDING }],
-          },
+          items: payload.items,
+          couponCode: payload.couponCode,
+          manualDiscountAmount: payload.manualDiscountAmount,
+          allowManualDiscount: payload.source === 'ADMIN',
         },
-        include: ORDER_INCLUDE,
+        transaction,
+      );
+
+      const createdOrder = await this.createOrderWithUniqueNumber(transaction, {
+        userId: payload.userId ?? null,
+        restaurantId: payload.restaurantId,
+        tableId: payload.tableId,
+        addressId: payload.addressId,
+        status: ORDER_STATUS.PENDING,
+        source: payload.source,
+        orderType: payload.orderType,
+        totalAmount: billing.mrpSubtotal,
+        deliveryCharge: billing.deliveryCharge,
+        packagingCharge: billing.packagingCharge,
+        deliveryDistanceKm: billing.deliveryDistanceKm,
+        discountAmount:
+          billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
+        finalAmount: billing.finalAmount,
+        subtotalAmount: billing.subtotalAmount,
+        menuDiscountAmount: billing.menuDiscountAmount,
+        couponDiscountAmount: billing.couponDiscountAmount,
+        manualDiscountAmount: billing.manualDiscountAmount,
+        taxableAmount: billing.taxableAmount,
+        gstRate: billing.gstRate,
+        cgstAmount: billing.cgstAmount,
+        sgstAmount: billing.sgstAmount,
+        igstAmount: billing.igstAmount,
+        taxAmount: billing.taxAmount,
+        paymentStatus: 'PENDING',
+        paymentMethod: payload.paymentMethod,
+        items: {
+          create: billing.items.map((item) => ({
+            menuItemId: item.menuItemId,
+            variantId: item.variantId ?? undefined,
+            quantity: item.quantity,
+            price: item.unitPrice,
+            totalPrice: item.totalPrice,
+            addons: item.addons.length ? { create: item.addons } : undefined,
+          })),
+        },
+        statusLogs: {
+          create: [{ status: ORDER_STATUS.PENDING }],
+        },
       });
+
+      if (billing.couponId && payload.userId) {
+        await transaction.couponUsage.create({
+          data: {
+            couponId: billing.couponId,
+            userId: payload.userId,
+            orderId: createdOrder.id,
+            discountAmount: billing.couponDiscountAmount,
+          },
+        });
+      }
 
       if (payload.userId) {
         await transaction.cartItem.deleteMany({
@@ -341,8 +324,21 @@ export class OrdersService {
       status: order.status,
       orderType: order.orderType,
       totalAmount: order.totalAmount,
+      deliveryCharge: order.deliveryCharge,
+      packagingCharge: order.packagingCharge,
+      deliveryDistanceKm: order.deliveryDistanceKm,
       discountAmount: order.discountAmount,
       finalAmount: order.finalAmount,
+      subtotalAmount: order.subtotalAmount,
+      menuDiscountAmount: order.menuDiscountAmount,
+      couponDiscountAmount: order.couponDiscountAmount,
+      manualDiscountAmount: order.manualDiscountAmount,
+      taxableAmount: order.taxableAmount,
+      gstRate: order.gstRate,
+      cgstAmount: order.cgstAmount,
+      sgstAmount: order.sgstAmount,
+      igstAmount: order.igstAmount,
+      taxAmount: order.taxAmount,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
       razorpayOrderId: order.razorpayOrderId,
@@ -438,6 +434,55 @@ export class OrdersService {
           }
         : null,
     };
+  }
+
+  private async createOrderWithUniqueNumber(
+    transaction: Prisma.TransactionClient,
+    data: Omit<Prisma.OrderUncheckedCreateInput, 'orderNumber'>,
+  ): Promise<OrderWithRelations> {
+    const maxAttempts = 5;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await transaction.order.create({
+          data: {
+            ...data,
+            orderNumber: await this.generateOrderNumber(transaction),
+          },
+          include: ORDER_INCLUDE,
+        });
+      } catch (error) {
+        if (this.isOrderNumberUniqueConflict(error) && attempt < maxAttempts) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw new BadRequestException('Unable to allocate a unique order number');
+  }
+
+  private async generateOrderNumber(transaction: Prisma.TransactionClient): Promise<string> {
+    const [sequenceValue] = await transaction.$queryRaw<{ nextNumber: bigint }[]>`
+      SELECT nextval('orders_order_number_seq')::bigint AS "nextNumber"
+    `;
+
+    if (!sequenceValue) {
+      throw new BadRequestException('Unable to allocate an order number');
+    }
+
+    return `ORD-${sequenceValue.nextNumber.toString()}`;
+  }
+
+  private isOrderNumberUniqueConflict(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+      return false;
+    }
+
+    const target = error.meta?.target;
+
+    return Array.isArray(target) && target.includes('order_number');
   }
 
   private buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhereInput {

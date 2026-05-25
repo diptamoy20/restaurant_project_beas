@@ -7,6 +7,12 @@ import { Table } from '../components/ui/Table';
 import { TextField } from '../components/ui/TextField';
 import { useInitiatePaymentMutation } from '../services/paymentApi';
 
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
+
 export function PaymentsPage() {
   const [history, setHistory] = useState([]);
   const [filters, setFilters] = useState({ date: '', status: '' });
@@ -61,7 +67,7 @@ export function PaymentsPage() {
             onChange={(event) => setForm((current) => ({ ...current, transactionId: event.target.value }))}
             value={form.transactionId}
           />
-          <TextField label="Amount" onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} value={form.amount} />
+          <TextField label="Amount (₹)" onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} value={form.amount} />
           <TextField label="Status" onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))} value={form.status} />
           <TextField label="Method" onChange={(event) => setForm((current) => ({ ...current, method: event.target.value }))} value={form.method} />
           <Button className="md:col-span-2 xl:col-span-3" disabled={isLoading} type="submit">
@@ -93,7 +99,7 @@ export function PaymentsPage() {
             columns={[
               { key: 'transactionId', header: 'Transaction' },
               { key: 'orderId', header: 'Order ID' },
-              { key: 'amount', header: 'Amount', render: (row) => `Rs. ${row.amount}` },
+              { key: 'amount', header: 'Amount', render: (row) => formatCurrency.format(row.amount) },
               { key: 'status', header: 'Status' },
               { key: 'createdDate', header: 'Date' },
             ]}

@@ -8,6 +8,8 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  IsString,
+  Matches,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -96,12 +98,30 @@ export class CreateOrderDto {
   @IsIn(['DINE_IN', 'DELIVERY', 'TAKEAWAY'])
   orderType!: string;
 
-  @ApiPropertyOptional({ example: 20 })
+  @ApiPropertyOptional({
+    example: 20,
+    deprecated: true,
+    description:
+      'Deprecated. Customers cannot control discounts; use couponCode. Admin may use manualDiscountAmount.',
+  })
   @Type(() => Number)
   @IsOptional()
   @IsNumber()
   @Min(0)
   discountAmount?: number;
+
+  @ApiPropertyOptional({ example: 20, description: 'Admin/manager manual discount only' })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  manualDiscountAmount?: number;
+
+  @ApiPropertyOptional({ example: 'WELCOME50' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]+$/)
+  couponCode?: string;
 
   @ApiProperty({ type: () => OrderItemInputDto, isArray: true })
   @IsArray()

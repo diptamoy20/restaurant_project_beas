@@ -5,6 +5,11 @@ import { getOrder } from '../store/slices/orderSlice';
 import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
 
 const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function PaymentPage() {
   const dispatch = useDispatch();
@@ -89,7 +94,7 @@ export function PaymentPage() {
         </div>
         <div className="total-row total-row-highlighted">
           <span>Amount to pay</span>
-          <strong>${displayAmount.toFixed(2)}</strong>
+          <strong>{formatCurrency.format(displayAmount)}</strong>
         </div>
         {displayStatus !== 'PAID' ? (
           <button

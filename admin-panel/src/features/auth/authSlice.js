@@ -11,7 +11,7 @@ const persistedAuth = loadPersistedAuth();
 
 const initialState = {
   user: persistedAuth?.user ?? null,
-  token: persistedAuth?.token ?? null,
+  token: persistedAuth?.token ?? persistedAuth?.accessToken ?? null,
   role: persistedAuth?.role ?? null,
   permissions: persistedAuth?.permissions ?? {},
 };
@@ -23,7 +23,7 @@ const authSlice = createSlice({
     setCredentials: (state, action) => {
       const role = action.payload.role ?? inferUiRole(action.payload.user?.roles);
       state.user = action.payload.user;
-      state.token = action.payload.token;
+      state.token = action.payload.token ?? action.payload.accessToken;
       state.role = role;
       state.permissions = normalizePermissions(action.payload.permissions, role);
     },
