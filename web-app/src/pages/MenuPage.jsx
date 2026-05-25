@@ -8,6 +8,7 @@ import {
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
 import { getCachedUserLocation } from "../hooks/useUserLocation";
+import { MenuSlideCard } from "../utils/MenuSlideCard";
 
 const HARDCODED_RESTAURANT_ID = "1";
 
@@ -199,48 +200,7 @@ export function MenuPage() {
 
       <div className="menu-grid">
         {items.map((item) => (
-          <article key={item.id} className="menu-card">
-            <span className="pill">
-              {item.category?.name || "Uncategorized"}
-            </span>
-            <h3>{item.name}</h3>
-            <p>${item.price.toFixed(2)}</p>
-            <div className="menu-card-actions">
-              <div
-                className="quantity-selector"
-                aria-label={`Quantity for ${item.name}`}
-              >
-                <button
-                  type="button"
-                  className="quantity-button"
-                  aria-label={`Decrease quantity for ${item.name}`}
-                  onClick={() =>
-                    updateQuantity(item.id, getQuantity(item.id) - 1)
-                  }
-                >
-                  -
-                </button>
-                <span className="quantity-value">{getQuantity(item.id)}</span>
-                <button
-                  type="button"
-                  className="quantity-button"
-                  aria-label={`Increase quantity for ${item.name}`}
-                  onClick={() =>
-                    updateQuantity(item.id, getQuantity(item.id) + 1)
-                  }
-                >
-                  +
-                </button>
-              </div>
-              <button
-                type="button"
-                disabled={cartLoading}
-                onClick={() => handleAddToCart(item)}
-              >
-                {cartLoading ? "Adding..." : "Add to cart"}
-              </button>
-            </div>
-          </article>
+          <MenuSlideCard item={item} onAdd={() => handleAddToCart(item)} />
         ))}
       </div>
     </section>
