@@ -223,7 +223,7 @@ export function MenuPage() {
               {item.category?.name || "Uncategorized"}
             </span>
             <h3>{item.name}</h3>
-            <p>${item.price.toFixed(2)}</p>
+            <p>{formatRupees.format(item.price)}</p>
             <div className="menu-card-actions">
               <div
                 className="quantity-selector"

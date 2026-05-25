@@ -384,7 +384,7 @@ export function CouponsPage() {
                     ? `${row.discountValue}%${row.maxDiscountAmount ? ` up to ${formatCurrency.format(row.maxDiscountAmount)}` : ''}`
                     : formatCurrency.format(row.discountValue),
               },
-              { key: 'minOrderAmount', header: 'Min Order', render: (row) => row.minOrderAmount ? formatCurrency.format(row.minOrderAmount) : '-' },
+              { key: 'minOrderAmount', header: 'Min Order (₹)', render: (row) => row.minOrderAmount ? formatCurrency.format(row.minOrderAmount) : '-' },
               { key: 'usageCount', header: 'Used' },
               { key: 'isActive', header: 'Status', render: (row) => (row.isActive ? 'Active' : 'Inactive') },
               {
@@ -561,7 +561,7 @@ export function CouponsPage() {
               />
               <TextField
                 error={formErrors.discountValue}
-                label={form.discountType === 'PERCENTAGE' ? 'Discount Percent' : 'Discount Amount'}
+                label={form.discountType === 'PERCENTAGE' ? 'Discount Percent' : 'Discount Amount (₹)'}
                 min="0"
                 max={form.discountType === 'PERCENTAGE' ? '100' : undefined}
                 step="0.01"
@@ -573,7 +573,7 @@ export function CouponsPage() {
               />
               <TextField
                 error={formErrors.maxDiscountAmount}
-                label="Max Discount Cap"
+                label="Max Discount Cap (₹)"
                 min="0"
                 step="0.01"
                 type="number"
@@ -583,7 +583,7 @@ export function CouponsPage() {
               />
               <TextField
                 error={formErrors.minOrderAmount}
-                label="Minimum Order"
+                label="Minimum Order (₹)"
                 min="0"
                 step="0.01"
                 type="number"

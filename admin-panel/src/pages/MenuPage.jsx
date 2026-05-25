@@ -24,6 +24,11 @@ const initialItemForm = {
   category: '',
   isAvailable: true,
 };
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function MenuPage() {
   const [restaurantId, setRestaurantId] = useState('1');
@@ -113,11 +118,11 @@ export function MenuPage() {
                 ),
               },
               { key: 'category', header: 'Category', render: (row) => row.category?.name ?? 'Unassigned' },
-              { key: 'price', header: 'Price', render: (row) => `Rs. ${row.price}` },
+              { key: 'price', header: 'Price', render: (row) => formatCurrency.format(row.price) },
               {
                 key: 'discountPrice',
                 header: 'Discount Price',
-                render: (row) => (row.discountPrice != null ? `Rs. ${row.discountPrice}` : '-'),
+                render: (row) => (row.discountPrice != null ? formatCurrency.format(row.discountPrice) : '-'),
               },
               {
                 key: 'isAvailable',
@@ -225,13 +230,13 @@ export function MenuPage() {
             value={form.category}
           />
           <TextField
-            label="Price"
+            label="Price (₹)"
             onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
             type="number"
             value={form.price}
           />
           <TextField
-            label="Discount Price"
+            label="Discount Price (₹)"
             onChange={(event) => setForm((current) => ({ ...current, discountPrice: event.target.value }))}
             type="number"
             value={form.discountPrice}

@@ -363,7 +363,7 @@ function MenuSlideCard({ item, onAdd, subtitle }) {
         <h4>{item.name}</h4>
 
         <div className="menu-slide-meta">
-          <span className="menu-slide-price">Rs. {Number(price).toFixed(0)}</span>
+          <span className="menu-slide-price">{formatRupees.format(price)}</span>
           {item.rating != null ? (
             <span className="menu-slide-rating">★ {item.rating.toFixed(1)}</span>
           ) : null}

@@ -2,6 +2,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { addToCart } from '../../store/slices/cartSlice';
 import { RevealSection } from './RevealSection';
+
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
+
 export function FeaturedMenu() {
   const dispatch = useDispatch();
   const items = useSelector((state) => state.menu.items.slice(0, 4));
@@ -28,7 +35,7 @@ export function FeaturedMenu() {
                 <p>{item.description}</p>
               </div>
               <div className="featured-dish-footer">
-                <strong>${item.price.toFixed(2)}</strong>
+                <strong>{formatCurrency.format(item.price)}</strong>
                 <button
                   type="button"
                   className="add-cart-inline"

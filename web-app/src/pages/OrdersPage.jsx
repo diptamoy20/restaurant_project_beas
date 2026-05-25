@@ -16,6 +16,11 @@ const STATUS_THEME = {
 };
 
 const POLL_MS = 22_000;
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
 
 export function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -105,7 +110,7 @@ export function OrdersPage() {
                   <span>
                     {line.menuItem?.name ?? 'Item'} × {line.quantity}
                   </span>
-                  <span>Rs. {Number(line.totalPrice).toFixed(0)}</span>
+                  <span>{formatCurrency.format(line.totalPrice)}</span>
                 </li>
               ))}
             </ul>
@@ -113,7 +118,7 @@ export function OrdersPage() {
             <footer className="order-card-footer">
               <div>
                 <p className="order-meta-label">Total</p>
-                <p className="order-meta-value">Rs. {Number(order.finalAmount).toFixed(0)}</p>
+                <p className="order-meta-value">{formatCurrency.format(order.finalAmount)}</p>
               </div>
               <div>
                 <p className="order-meta-label">Placed</p>
