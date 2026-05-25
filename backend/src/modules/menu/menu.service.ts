@@ -233,10 +233,7 @@ export class MenuService {
     };
   }
 
-  async getFrequentItems(
-    restaurantId: number,
-    userId?: number,
-  ): Promise<MenuItemDto[]> {
+  async getFrequentItems(restaurantId: number, userId?: number): Promise<MenuItemDto[]> {
     if (!userId) {
       return [];
     }
