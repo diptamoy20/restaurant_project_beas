@@ -24,6 +24,12 @@ class GetMenuDto {
   restaurantId!: number;
 }
 
+type RequestWithUser = {
+  user?: {
+    id?: number;
+  };
+};
+
 @Controller('menu')
 @ApiTags('Menu')
 export class MenuController {
@@ -54,7 +60,7 @@ export class MenuController {
   @ApiOkResponse({ type: MenuItemDto, isArray: true })
   getFrequent(
     @Param('restaurantId', ParseIntPipe) restaurantId: number,
-    @Req() request: any,
+    @Req() request: RequestWithUser,
   ): Promise<MenuItemDto[]> {
     const userId = request.user?.id;
     return this.menuService.getFrequentItems(restaurantId, userId);
