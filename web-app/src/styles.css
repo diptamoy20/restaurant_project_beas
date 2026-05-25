@@ -1409,6 +1409,248 @@ h4 {
   margin-bottom: 1rem;
 }
 
+.cart-tax-note {
+  margin: -0.15rem 0 0;
+  color: var(--color-copy-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.bill-summary-rows {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+
+.bill-row {
+  display: grid;
+  grid-template-columns: max-content minmax(24px, 1fr) max-content;
+  align-items: baseline;
+  gap: 0.65rem;
+  color: var(--color-copy);
+  font-size: 0.95rem;
+}
+
+.bill-row i {
+  border-bottom: 1px dashed rgba(15, 23, 42, 0.22);
+  transform: translateY(-0.22rem);
+}
+
+.bill-row strong {
+  color: var(--color-heading);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.bill-row-discount span,
+.bill-row-discount strong {
+  color: #15803d;
+}
+
+.bill-tax-breakup {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: -0.25rem;
+  padding-left: 0.75rem;
+}
+
+.bill-row-muted {
+  font-size: 0.84rem;
+  color: var(--color-copy-muted);
+}
+
+.bill-row-muted strong {
+  color: var(--color-copy-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.bill-row-payable {
+  margin-top: 0.35rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.12);
+  font-weight: 800;
+}
+
+.bill-row-payable span,
+.bill-row-payable strong {
+  color: var(--color-primary-strong);
+  font-size: 1.08rem;
+}
+
+.checkout-coupon-row {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.checkout-coupon-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.checkout-coupon-row span {
+  color: var(--color-copy-muted);
+  font-size: 0.86rem;
+}
+
+.checkout-coupon-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+}
+
+.coupon-input {
+  min-width: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  padding: 0.75rem 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.checkout-offer-hint {
+  margin: 0;
+  color: var(--color-copy-muted);
+  font-size: 0.86rem;
+}
+
+.checkout-offer-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.checkout-view-offers {
+  justify-self: start;
+  min-height: auto;
+  padding: 0.2rem 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-primary);
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.checkout-view-offers:hover,
+.checkout-view-offers:focus-visible {
+  transform: none;
+  box-shadow: none;
+  color: var(--color-primary-strong);
+}
+
+.checkout-offer-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px dashed rgba(22, 101, 52, 0.38);
+  border-radius: var(--radius-sm);
+  background: rgba(22, 101, 52, 0.06);
+}
+
+.checkout-offer-card.is-disabled {
+  border-color: rgba(100, 116, 139, 0.28);
+  background: rgba(100, 116, 139, 0.06);
+}
+
+.checkout-offer-card p,
+.checkout-offer-card small {
+  display: block;
+  margin: 0.2rem 0 0;
+  color: var(--color-copy-muted);
+  font-size: 0.84rem;
+}
+
+.checkout-offer-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.checkout-offer-title span {
+  border-radius: 999px;
+  padding: 0.18rem 0.48rem;
+  background: rgba(22, 101, 52, 0.12);
+  color: #166534;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.checkout-offer-card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.checkout-offer-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(16, 48, 28, 0.34);
+}
+
+.checkout-offer-dialog {
+  width: min(560px, 100%);
+  max-height: min(78vh, 680px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.checkout-offer-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.1rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.checkout-offer-dialog-header h3 {
+  margin: 0 0 0.25rem;
+}
+
+.checkout-offer-dialog-header p {
+  margin: 0;
+  color: var(--color-copy-muted);
+  font-size: 0.9rem;
+}
+
+.checkout-offer-dialog-close {
+  min-height: auto;
+  padding: 0.45rem 0.7rem;
+  background: rgba(26, 71, 42, 0.08);
+  color: var(--color-primary-strong);
+  box-shadow: none;
+  font-size: 0.82rem;
+}
+
+.checkout-offer-dialog-close:hover,
+.checkout-offer-dialog-close:focus-visible {
+  box-shadow: none;
+}
+
+.checkout-offer-dialog-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
 .total-row-highlighted {
   padding: 1rem;
   border-radius: var(--radius-md);
@@ -1999,6 +2241,25 @@ h4 {
     position: sticky;
     top: auto;
     bottom: 1rem;
+  }
+
+  .checkout-coupon-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-offer-dialog-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .checkout-offer-dialog {
+    width: 100%;
+    max-height: 82vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .checkout-offer-card {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -3254,6 +3515,7 @@ h4 {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
+  line-clamp: 1;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
 }

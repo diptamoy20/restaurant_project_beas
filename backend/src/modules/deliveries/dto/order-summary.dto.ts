@@ -6,7 +6,7 @@ export class OrderSummaryDto {
   @IsNumber()
   id!: number;
 
-  @ApiProperty({ example: 'ORD-DEMO-1001' })
+  @ApiProperty({ example: 'ORD-1001' })
   @IsString()
   orderNumber!: string;
 

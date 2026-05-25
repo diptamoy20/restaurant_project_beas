@@ -64,8 +64,18 @@ export class OrdersController {
     @Req() request: { user: AuthenticatedUser },
   ): Promise<OrderResponseDto> {
     const normalizedPayload = request.user.roles.includes(Role.CUSTOMER)
-      ? { ...payload, userId: request.user.id, source: payload.source || OrderSource.WEBSITE }
-      : { ...payload, source: payload.source || OrderSource.ADMIN };
+      ? {
+          ...payload,
+          userId: request.user.id,
+          source: payload.source || OrderSource.WEBSITE,
+          discountAmount: undefined,
+          manualDiscountAmount: undefined,
+        }
+      : {
+          ...payload,
+          source: payload.source || OrderSource.ADMIN,
+          manualDiscountAmount: payload.manualDiscountAmount ?? payload.discountAmount,
+        };
 
     return this.ordersService.createOrder(normalizedPayload);
   }

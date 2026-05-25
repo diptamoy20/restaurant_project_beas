@@ -21,6 +21,12 @@ export interface QRCreateOrderResponse {
   status: string;
   estimatedTime: number;
   finalAmount: number;
+  subtotalAmount?: number;
+  taxableAmount?: number;
+  gstRate?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  taxAmount?: number;
 }
 
 export interface QRStoredOrderSuccess extends QRCreateOrderResponse {

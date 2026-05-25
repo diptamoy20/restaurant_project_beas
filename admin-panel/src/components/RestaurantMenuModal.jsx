@@ -29,6 +29,11 @@ const emptyForm = {
   ingredients: '',
   addonGroups: [],
 };
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 function toForm(item) {
   return {
@@ -381,11 +386,11 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
                   header: 'Category',
                   render: (row) => row.category?.name ?? 'Unassigned',
                 },
-                { key: 'price', header: 'Price', render: (row) => `Rs. ${row.price}` },
+                { key: 'price', header: 'Price', render: (row) => formatCurrency.format(row.price) },
                 {
                   key: 'discountPrice',
                   header: 'Discount Price',
-                  render: (row) => (row.discountPrice != null ? `Rs. ${row.discountPrice}` : '-'),
+                  render: (row) => (row.discountPrice != null ? formatCurrency.format(row.discountPrice) : '-'),
                 },
                 { key: 'foodType', header: 'Food Type', render: (row) => row.foodType ?? '-' },
                 {
@@ -470,7 +475,7 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
             <TextField
               required
               error={errors.price}
-              label="Price *"
+              label="Price (₹) *"
               min="0"
               name="price"
               step="0.01"
@@ -481,7 +486,7 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
 
             <TextField
               error={errors.discountPrice}
-              label="Discount Price"
+              label="Discount Price (₹)"
               min="0"
               name="discountPrice"
               step="0.01"
@@ -634,7 +639,7 @@ export function RestaurantMenuModal({ restaurant, open, mode = 'list', onModeCha
                               }
                             />
                             <TextField
-                              label="Price"
+                              label="Price (₹)"
                               min="0"
                               step="0.01"
                               type="number"

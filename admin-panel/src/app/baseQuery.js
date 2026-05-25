@@ -1,11 +1,21 @@
 import { fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
 import { logout } from '../features/auth/authSlice';
+import { loadPersistedAuth } from '../utils/auth';
+
+function getAuthToken(state) {
+  if (state.auth.token) {
+    return state.auth.token;
+  }
+
+  const persistedAuth = loadPersistedAuth();
+  return persistedAuth?.token ?? persistedAuth?.accessToken ?? null;
+}
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001/api').replace(/\/$/, ''),
   prepareHeaders: (headers, { getState }) => {
-    const token = getState().auth.token;
+    const token = getAuthToken(getState());
 
     if (token) {
       headers.set('authorization', `Bearer ${token}`);

@@ -194,12 +194,67 @@ export class RestaurantResponseDto {
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()
+  deliveryEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsNumber()
+  deliveryBaseFee?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  deliveryBaseDistanceKm?: number;
+
+  @ApiPropertyOptional({ example: 7 })
+  @IsOptional()
+  @IsNumber()
+  deliveryPerKmFee?: number;
+
+  @ApiPropertyOptional({ example: 20, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  deliveryFeeMin?: number | null;
+
+  @ApiPropertyOptional({ example: 99, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  deliveryFeeCap?: number | null;
+
+  @ApiPropertyOptional({ example: 499, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  freeDeliveryMinAmount?: number | null;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  packagingCharge?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
   isLocationEnabled?: boolean;
 
   @ApiPropertyOptional({ example: 12 })
   @IsOptional()
   @IsNumber()
   availableMenuItemsCount?: number;
+
+  @ApiPropertyOptional({ example: '29ABCDE1234F1Z5', nullable: true })
+  @IsOptional()
+  @IsString()
+  gstin?: string | null;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  gstRate?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  gstEnabled?: boolean;
 }
 
 export class PaginatedRestaurantResponseDto extends PaginationMetaDto {

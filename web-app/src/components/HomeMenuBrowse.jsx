@@ -33,6 +33,23 @@ const swiperBreakpoints = {
   },
 };
 
+const formatRupees = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
+
+function formatDeliveryLine(delivery) {
+  const distance = delivery.distanceKm != null ? `${delivery.distanceKm} km away · ` : '';
+  const time = `${delivery.estimatedDeliveryTimeMinutes ?? '—'} min · `;
+  const fee =
+    Number(delivery.deliveryFee ?? 0) === 0
+      ? 'Free delivery'
+      : `${formatRupees.format(delivery.deliveryFee)} delivery`;
+
+  return `${distance}${time}${fee}`;
+}
+
 export function HomeMenuBrowse({ restaurantId, coordinates }) {
   const dispatch = useDispatch();
   const {
@@ -203,13 +220,16 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
             <strong>
               {delivery.deliveryAvailable
                 ? 'Delivery available'
-                : 'Outside delivery zone'}
+                : 'Delivery unavailable'}
             </strong>
             <span>
-              {delivery.distanceKm != null ? `${delivery.distanceKm} km · ` : ''}
-              {delivery.estimatedDeliveryTimeMinutes ?? '—'} min · Rs.{' '}
-              {Number(delivery.deliveryFee ?? 0).toFixed(0)} fee
+              {delivery.deliveryAvailable
+                ? formatDeliveryLine(delivery)
+                : `${delivery.distanceKm ?? '—'} km away · ${delivery.deliveryUnavailableReason ?? delivery.reason ?? 'Outside delivery range'}`}
             </span>
+            {delivery.deliveryAvailable && delivery.freeDeliveryMinAmount ? (
+              <span>Free delivery above {formatRupees.format(delivery.freeDeliveryMinAmount)}</span>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -314,5 +334,3 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
     </section>
   );
 }
-
-

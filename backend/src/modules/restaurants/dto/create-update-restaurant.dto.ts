@@ -9,6 +9,8 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
+  Max,
   Min,
 } from 'class-validator';
 
@@ -75,6 +77,60 @@ export class CreateRestaurantDto {
   @Type(() => Number)
   deliveryRadiusKm?: number;
 
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  deliveryEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 20, default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseFee?: number;
+
+  @ApiPropertyOptional({ example: 1, default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseDistanceKm?: number;
+
+  @ApiPropertyOptional({ example: 7, default: 7 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryPerKmFee?: number;
+
+  @ApiPropertyOptional({ example: 20, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeMin?: number;
+
+  @ApiPropertyOptional({ example: 99, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeCap?: number;
+
+  @ApiPropertyOptional({ example: 499, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  freeDeliveryMinAmount?: number;
+
+  @ApiPropertyOptional({ example: 10, default: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  packagingCharge?: number;
+
   @ApiPropertyOptional({
     example: true,
     description: 'Whether location-based delivery is enabled',
@@ -92,6 +148,25 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: '29ABCDE1234F1Z5', description: '15-character GSTIN' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Z]{15}$/)
+  gstin?: string;
+
+  @ApiPropertyOptional({ example: 5, default: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(28)
+  @Type(() => Number)
+  gstRate?: number;
+
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  gstEnabled?: boolean;
 }
 
 /**
@@ -156,6 +231,60 @@ export class UpdateRestaurantDto {
   @Type(() => Number)
   deliveryRadiusKm?: number;
 
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  deliveryEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseFee?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseDistanceKm?: number;
+
+  @ApiPropertyOptional({ example: 7 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryPerKmFee?: number;
+
+  @ApiPropertyOptional({ example: 20, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeMin?: number;
+
+  @ApiPropertyOptional({ example: 99, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeCap?: number;
+
+  @ApiPropertyOptional({ example: 499, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  freeDeliveryMinAmount?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  packagingCharge?: number;
+
   @ApiPropertyOptional({
     example: true,
     description: 'Whether location-based delivery is enabled',
@@ -171,4 +300,23 @@ export class UpdateRestaurantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: '29ABCDE1234F1Z5', description: '15-character GSTIN' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Z]{15}$/)
+  gstin?: string;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(28)
+  @Type(() => Number)
+  gstRate?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  gstEnabled?: boolean;
 }

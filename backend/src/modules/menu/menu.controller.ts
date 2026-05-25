@@ -16,6 +16,7 @@ import { MenuItemDto } from './dto/menu-item.dto';
 import { MenuService } from './menu.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { AllowWeb } from '../../common/decorators/client.decorator';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 class GetMenuDto {
   @ApiProperty({ example: 1 })
@@ -60,7 +61,7 @@ export class MenuController {
   @ApiOkResponse({ type: MenuItemDto, isArray: true })
   getFrequent(
     @Param('restaurantId', ParseIntPipe) restaurantId: number,
-    @Req() request: RequestWithUser,
+    @Req() request: { user: AuthenticatedUser },
   ): Promise<MenuItemDto[]> {
     const userId = request.user?.id;
     return this.menuService.getFrequentItems(restaurantId, userId);

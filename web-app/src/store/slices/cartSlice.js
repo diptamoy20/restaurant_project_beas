@@ -216,9 +216,16 @@ const cartSlice = createSlice({
       })
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.syncing = false;
-        state.items = Array.isArray(action.payload)
+        const serverItems = Array.isArray(action.payload)
           ? action.payload.map(normalizeCartItem)
           : [];
+
+        if (serverItems.length === 0 && state.items.length > 0) {
+          saveCartToStorage(state.items);
+          return;
+        }
+
+        state.items = serverItems;
         saveCartToStorage(state.items);
       })
       .addCase(fetchCart.rejected, (state, action) => {

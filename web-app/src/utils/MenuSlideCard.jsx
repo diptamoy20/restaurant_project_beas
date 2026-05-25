@@ -1,5 +1,11 @@
 import { useState } from 'react';
 
+const formatRupees = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
+
 export function MenuSlideCard({ item, onAdd, subtitle }) {
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
 
@@ -86,7 +92,7 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
         </p>
 
         <div className="menu-slide-meta">
-          <span className="menu-slide-price">Rs. {Number(price).toFixed(0)}</span>
+          <span className="menu-slide-price">{formatRupees.format(price)}</span>
           {item.rating != null ? (
             <span className="menu-slide-rating">★ {item.rating.toFixed(1)}</span>
           ) : null}

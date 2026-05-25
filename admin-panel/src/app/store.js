@@ -5,6 +5,7 @@ import uiReducer from '../features/ui/uiSlice';
 import { analyticsApi } from '../services/analyticsApi';
 import { authApi } from '../services/authApi';
 import { customerApi } from '../services/customerApi';
+import { couponApi } from '../services/couponApi';
 import { menuApi } from '../services/menuApi';
 import { orderApi } from '../services/orderApi';
 import { paymentApi } from '../services/paymentApi';
@@ -21,6 +22,7 @@ export const store = configureStore({
     [menuApi.reducerPath]: menuApi.reducer,
     [orderApi.reducerPath]: orderApi.reducer,
     [customerApi.reducerPath]: customerApi.reducer,
+    [couponApi.reducerPath]: couponApi.reducer,
     [paymentApi.reducerPath]: paymentApi.reducer,
     [analyticsApi.reducerPath]: analyticsApi.reducer,
     [restaurantApi.reducerPath]: restaurantApi.reducer,
@@ -32,6 +34,7 @@ export const store = configureStore({
       menuApi.middleware,
       orderApi.middleware,
       customerApi.middleware,
+      couponApi.middleware,
       paymentApi.middleware,
       analyticsApi.middleware,
       restaurantApi.middleware,
