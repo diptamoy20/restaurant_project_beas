@@ -65,38 +65,38 @@ export function CartPage() {
   );
 
   const increaseQuantity = (item) => {
-    const itemId = item.menuItemId || item.id;
+    const key = item.cartKey;
     const nextQuantity = item.quantity + 1;
 
-    dispatch(increaseQuantityAction(itemId));
+    dispatch(increaseQuantityAction(key));
 
     if (token) {
-      dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+      dispatch(updateCartItemAsync({ cartKey: key, quantity: nextQuantity }));
     }
   };
 
   const decreaseQuantity = (item) => {
-    const itemId = item.menuItemId || item.id;
+    const key = item.cartKey;
     const nextQuantity = item.quantity - 1;
 
-    dispatch(decreaseQuantityAction(itemId));
+    dispatch(decreaseQuantityAction(key));
 
     if (token) {
       if (nextQuantity <= 0) {
-        dispatch(removeFromCartAsync(itemId));
+        dispatch(removeFromCartAsync(key));
       } else {
-        dispatch(updateCartItemAsync({ menuItemId: itemId, payload: { quantity: nextQuantity } }));
+        dispatch(updateCartItemAsync({ cartKey: key, quantity: nextQuantity }));
       }
     }
   };
 
   const removeItem = (item) => {
-    const itemId = item.menuItemId || item.id;
+    const key = item.cartKey;
 
-    dispatch(removeItemAction(itemId));
+    dispatch(removeItemAction(key));
 
     if (token) {
-      dispatch(removeFromCartAsync(itemId));
+      dispatch(removeFromCartAsync(key));
     }
   };
 
@@ -153,16 +153,28 @@ export function CartPage() {
           {items.length === 0 ? (
             <div className="empty-state">Your cart is empty.</div>
           ) : (
-            !!items && items.map((item) => {
+            items.map((item) => {
               const itemSubtotal = item.price * item.quantity;
 
               return (
-                <article key={item.id || item.menuItemId} className="cart-item-card">
+                <article key={item.cartKey} className="cart-item-card">
                   <div className="cart-item-main">
                     <div>
                       <span className="pill">{item.category?.name}</span>
                       <h3>{item.name}</h3>
                       <p className="line-item-meta">{formatCurrency.format(item.price)} per item</p>
+                      {(item.variant || (item.addOns && item.addOns.length > 0)) && (
+                        <div className="cart-item-customizations">
+                          {item.variant && (
+                            <span>Size: {item.variant.name}</span>
+                          )}
+                          {(item.addOns ?? []).map((addon) => (
+                            <span key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}>
+                              + {addon.addonOptionName || addon.name} (+ {formatCurrency.format(addon.price)})
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"
