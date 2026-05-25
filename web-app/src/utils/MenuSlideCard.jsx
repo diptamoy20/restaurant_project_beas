@@ -84,7 +84,6 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
             </>
           ) : null}
         </p>
-        </p>
 
         <div className="menu-slide-meta">
           <span className="menu-slide-price">Rs. {Number(price).toFixed(0)}</span>
