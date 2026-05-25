@@ -1,139 +1,88 @@
 # Backend API Examples
 
-## Authentication
+Base URL: `http://localhost:4000/api`
 
-### Register customer
+Swagger UI: `/api/docs` when docs are enabled.
 
-`POST /api/auth/register`
-
-```json
-{
-  "name": "Alice Customer",
-  "email": "alice@example.com",
-  "phone": "+919911112222",
-  "password": "password123"
-}
-```
-
-Response:
-
-```json
-{
-  "accessToken": "jwt-token",
-  "tokenType": "Bearer",
-  "user": {
-    "id": 10,
-    "name": "Alice Customer",
-    "email": "alice@example.com",
-    "phone": "+919911112222",
-    "roles": ["customer"]
-  }
-}
-```
-
-### Role-based login
-
-`POST /api/auth/login/role`
-
-```json
-{
-  "email": "admin@example.com",
-  "password": "password123",
-  "role": "admin"
-}
-```
-
-Response:
-
-```json
-{
-  "accessToken": "jwt-token",
-  "tokenType": "Bearer",
-  "user": {
-    "id": 1,
-    "name": "Admin User",
-    "email": "admin@example.com",
-    "phone": "+919900000002",
-    "roles": ["admin"]
-  }
-}
-```
-
-### Auth header
-
-Use this on protected APIs:
+Use protected APIs with:
 
 ```http
 Authorization: Bearer <accessToken>
 ```
 
-## RBAC
+## Auth
 
-- `admin`: full platform access
-- `manager`: order/dashboard/operations access
-- `customer`: customer ordering, membership, payment, menu, nearby restaurant access
-- `delivery_boy`: delivery tracking and delivery-side notifications
+```http
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/social-login
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+POST /api/auth/refresh
+POST /api/auth/logout
+GET /api/auth/me
+PATCH /api/auth/me
+POST /api/auth/me/profile-image
+```
 
-## Protected APIs
-
-### Nearby restaurants
-
-`GET /api/restaurants/nearby?latitude=12.9716&longitude=77.5946&radiusKm=10&limit=20&offset=0`
-
-Sample response:
+Login body:
 
 ```json
 {
-  "items": [
-    {
-      "id": 1,
-      "name": "Downtown Spice Hub",
-      "address": "45 Residency Road",
-      "city": "Bengaluru",
-      "latitude": 12.9663,
-      "longitude": 77.6012,
-      "isActive": true,
-      "categories": [
-        {
-          "id": 1,
-          "restaurantId": 1,
-          "name": "Starters",
-          "description": "Quick bites and appetizers"
-        }
-      ],
-      "distanceKm": 0.95
-    }
-  ],
-  "total": 1,
-  "limit": 20,
-  "offset": 0,
-  "hasNextPage": false,
-  "hasPreviousPage": false
+  "email": "customer@example.com",
+  "password": "password123"
 }
 ```
 
-### Restaurant menu with category and pagination
+## Checkout Quote With GST And Coupon
 
-`GET /api/v1/restaurants/1/menu?categoryId=2&limit=20&offset=0`
+`POST /api/checkout/quote`
 
-Notes:
-
-- `categoryId` accepts only category id.
-- Response keeps `items` and `categories`, and adds `pagination`.
-
-### Best-selling menu items
-
-```http
-GET /api/menu/best-selling?categoryId=2&restaurantId=1&limit=48
-GET /api/menu/best-selling?categoryId=2&limit=48
+```json
+{
+  "restaurantId": 1,
+  "addressId": 1,
+  "orderType": "DELIVERY",
+  "couponCode": "WELCOME50",
+  "items": [
+    {
+      "menuItemId": 1,
+      "variantId": 2,
+      "quantity": 2,
+      "addons": [
+        {
+          "addonGroupId": 1,
+          "addonOptionId": 2
+        }
+      ]
+    }
+  ]
+}
 ```
 
-Notes:
+Response totals are calculated on the backend:
 
-- `categoryId` filters best-selling items by category.
-- `restaurantId` is optional; omit it to get best-selling items from all restaurants in that category.
+```json
+{
+  "restaurantId": 1,
+  "currency": "INR",
+  "mrpSubtotal": 500,
+  "subtotalAmount": 450,
+  "menuDiscountAmount": 50,
+  "couponCode": "WELCOME50",
+  "couponDiscountAmount": 40,
+  "manualDiscountAmount": 0,
+  "taxableAmount": 410,
+  "gstRate": 5,
+  "cgstAmount": 10.25,
+  "sgstAmount": 10.25,
+  "igstAmount": 0,
+  "taxAmount": 20.5,
+  "finalAmount": 430.5
+}
+```
 
-### Create order
+## Orders
 
 `POST /api/orders`
 
@@ -143,13 +92,12 @@ Notes:
   "restaurantId": 1,
   "addressId": 1,
   "orderType": "DELIVERY",
-  "discountAmount": 20,
+  "couponCode": "WELCOME50",
   "items": [
     {
       "menuItemId": 1,
       "variantId": 1,
-      "quantity": 2,
-      "price": 189
+      "quantity": 2
     }
   ]
 }
@@ -157,71 +105,153 @@ Notes:
 
 Notes:
 
-- For `customer` users, backend overrides `userId` from the JWT token.
-- `admin` can create orders for any user.
+- Customer `userId` is taken from JWT.
+- Customer `discountAmount` is ignored.
+- Admin/manager may send `manualDiscountAmount`.
+- Razorpay order amount uses server `finalAmount`.
 
-### Initiate payment
+## Payments
 
-`POST /api/payments/initiate`
+```http
+POST /api/payments/razorpay/order
+POST /api/payments/razorpay/verify
+POST /api/payments/razorpay/failure
+POST /api/payments/cod/confirm
+```
+
+Create Razorpay order:
 
 ```json
 {
-  "orderId": 1,
-  "userId": 3,
-  "transactionId": "TXN-20260417-001",
-  "amount": 268,
-  "status": "SUCCESS",
-  "method": "UPI"
+  "orderId": 1
 }
 ```
 
-### Update delivery location
+## Admin Coupons
 
-`POST /api/deliveries/location`
+Coupon codes are unique per restaurant scope. Use `restaurantId: null` or omit it for a global coupon.
+The same code can be reused for different restaurants, but not twice for the same restaurant.
+If a global and restaurant coupon share one code, checkout uses the restaurant coupon first.
+
+```http
+GET /api/admin/coupons?restaurantId=1&status=active&search=WELCOME&limit=20
+GET /api/admin/coupons/:id
+POST /api/admin/coupons
+POST /api/admin/coupons/bulk
+PATCH /api/admin/coupons/:id
+DELETE /api/admin/coupons/:id
+```
+
+Create coupon:
 
 ```json
 {
-  "deliveryId": 1,
-  "latitude": 12.971,
-  "longitude": 77.599,
-  "speed": 22,
-  "heading": 135
+  "restaurantId": 1,
+  "code": "WELCOME50",
+  "description": "Welcome offer",
+  "discountType": "PERCENTAGE",
+  "discountValue": 10,
+  "maxDiscountAmount": 100,
+  "minOrderAmount": 299,
+  "startsAt": "2026-05-25T00:00:00.000Z",
+  "expiresAt": "2026-06-25T23:59:59.000Z",
+  "usageLimitTotal": 500,
+  "usageLimitPerUser": 1,
+  "isActive": true
 }
 ```
 
-### Track order delivery
-
-`GET /api/deliveries/order/1/track`
-
-Sample response:
+Create same coupon for multiple restaurants:
 
 ```json
 {
-  "deliveryId": 1,
-  "status": "ON_THE_WAY",
-  "agent": {
-    "id": 1,
-    "name": "Ravi Kumar",
-    "phone": "+919900000099",
-    "isAvailable": false
-  },
-  "orderNumber": "ORD-DEMO-1001",
-  "latestLocation": {
-    "id": 2,
-    "deliveryId": 1,
-    "latitude": 12.971,
-    "longitude": 77.599,
-    "speed": 22,
-    "heading": 135,
-    "recordedAt": "2026-04-17T09:45:00.000Z"
-  },
-  "trackingHistory": []
+  "restaurantIds": [1, 2, 3],
+  "code": "WELCOME50",
+  "description": "Welcome offer",
+  "discountType": "PERCENTAGE",
+  "discountValue": 10,
+  "maxDiscountAmount": 100,
+  "minOrderAmount": 299,
+  "usageLimitTotal": 500,
+  "usageLimitPerUser": 1,
+  "isActive": true
 }
 ```
 
-## Demo users
+## Restaurants
 
-- `admin@example.com` / `password123`
-- `manager@example.com` / `password123`
-- `customer@example.com` / `password123`
-- `delivery@example.com` / `password123`
+Restaurant create/update supports Indian GST billing fields:
+
+```json
+{
+  "name": "Downtown Spice Hub",
+  "address": "45 Residency Road",
+  "city": "Bengaluru",
+  "latitude": 12.9663,
+  "longitude": 77.6012,
+  "deliveryRadiusKm": 8,
+  "gstin": "29ABCDE1234F1Z5",
+  "gstRate": 5,
+  "gstEnabled": true,
+  "isActive": true
+}
+```
+
+## Public Restaurant And Menu
+
+```http
+GET /api/restaurants?limit=20&offset=0
+GET /api/restaurants/search?q=spice
+GET /api/v1/restaurants/nearby?lat=12.9716&lng=77.5946&radiusKm=10
+GET /api/restaurants/:id
+GET /api/v1/restaurants/:id/menu?categoryId=2&limit=20
+GET /api/menu/restaurant/:restaurantId?limit=50
+GET /api/menu/best-selling?restaurantId=1&limit=12
+POST /api/v1/address/validate
+```
+
+## Admin Menu
+
+Menu item create/update supports `discountPrice`. If no variant is selected at checkout, backend uses `discountPrice` when it is lower than `price`.
+
+```http
+GET /api/admin/restaurants/:restaurantId/menu
+POST /api/admin/restaurants/:restaurantId/menu
+PUT /api/admin/menu/:id
+DELETE /api/admin/menu/:id
+```
+
+## QR Ordering
+
+```http
+GET /api/qr/menu/:restaurantId/:tableId
+POST /api/qr/order
+```
+
+QR order response includes `subtotalAmount`, `taxableAmount`, `gstRate`, `cgstAmount`, `sgstAmount`, `taxAmount`, and `finalAmount`.
+
+## Other Protected APIs
+
+```http
+GET /api/carts
+POST /api/carts
+PUT /api/carts/:menuItemId
+DELETE /api/carts/:menuItemId
+DELETE /api/carts
+GET /api/users/me/addresses
+POST /api/users/me/addresses
+PATCH /api/users/me/addresses/:id
+DELETE /api/users/me/addresses/:id
+PATCH /api/users/me/addresses/:id/default
+GET /api/orders/my-orders
+GET /api/orders/:id
+GET /api/admin/dashboard
+GET /api/admin/orders
+PATCH /api/admin/orders/:id/accept
+PATCH /api/admin/orders/:id/status
+GET /api/membership/user/:userId
+POST /api/deliveries/location
+GET /api/deliveries/order/:orderId/track
+GET /api/notifications/user/:userId
+GET /api/health
+```

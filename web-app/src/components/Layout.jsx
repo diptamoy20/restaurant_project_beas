@@ -231,6 +231,20 @@ export function Layout({ children }) {
                 </Link>
                 <Link
                   className={
+                    location.pathname === '/cart' ? 'nav-cta active' : 'nav-cta'
+                  }
+                  to={cartPath}
+                >
+                  <span className="cart-link-icon">
+                    <CartIcon />
+                  </span>
+                  Cart
+                  {cartCount > 0 ? (
+                    <span className="cart-badge">{cartCount}</span>
+                  ) : null}
+                </Link>
+                <Link
+                  className={
                     location.pathname === '/login'
                       ? 'nav-cta active'
                       : 'nav-cta'
@@ -336,6 +350,14 @@ export function Layout({ children }) {
                 to={menuPath}
               >
                 Menu
+              </Link>
+              <Link
+                className={
+                  location.pathname === '/cart' ? 'nav-cta active' : 'nav-cta'
+                }
+                to={cartPath}
+              >
+                Cart {cartCount > 0 ? `(${cartCount})` : ''}
               </Link>
               <Link
                 className={

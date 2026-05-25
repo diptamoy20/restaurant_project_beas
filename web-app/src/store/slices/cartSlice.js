@@ -180,10 +180,15 @@ const cartSlice = createSlice({
       })
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.syncing = false;
-        // Merge server cart with local cart
         const serverItems = Array.isArray(action.payload)
           ? action.payload.map(normalizeCartItem)
           : [];
+
+        if (serverItems.length === 0 && state.items.length > 0) {
+          saveCartToStorage(state.items);
+          return;
+        }
+
         state.items = serverItems;
         saveCartToStorage(state.items);
       })

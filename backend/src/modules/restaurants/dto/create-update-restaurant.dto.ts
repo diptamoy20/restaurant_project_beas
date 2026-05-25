@@ -9,6 +9,8 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
+  Max,
   Min,
 } from 'class-validator';
 
@@ -92,6 +94,25 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: '29ABCDE1234F1Z5', description: '15-character GSTIN' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Z]{15}$/)
+  gstin?: string;
+
+  @ApiPropertyOptional({ example: 5, default: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(28)
+  @Type(() => Number)
+  gstRate?: number;
+
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  gstEnabled?: boolean;
 }
 
 /**
@@ -171,4 +192,23 @@ export class UpdateRestaurantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: '29ABCDE1234F1Z5', description: '15-character GSTIN' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9A-Z]{15}$/)
+  gstin?: string;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(28)
+  @Type(() => Number)
+  gstRate?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  gstEnabled?: boolean;
 }

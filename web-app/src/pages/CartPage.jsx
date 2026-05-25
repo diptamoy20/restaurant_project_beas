@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   decreaseQuantity as decreaseQuantityAction,
   increaseQuantity as increaseQuantityAction,
@@ -12,23 +12,40 @@ import {
   createSessionAwarePath,
   persistRestaurantId,
   persistTableId,
+  resolveRestaurantId,
+  resolveTableId,
 } from '../lib/tableSession';
 
-const TAXES_AND_FEES = 0;
-const HARDCODED_RESTAURANT_ID = '1';
-const HARDCODED_TABLE_ID = '1';
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function CartPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const items = useSelector((state) => state.cart.items);
   const token = useSelector((state) => state.auth.token);
   const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
   const [errorMessage, setErrorMessage] = useState('');
-  // Temporarily hardcoded for local testing.
-  // Dynamic URL/session/cart-based restaurant-table resolution is intentionally disabled.
-  const tableId = HARDCODED_TABLE_ID;
-  const restaurantId = HARDCODED_RESTAURANT_ID;
+  const cartRestaurantId = useMemo(
+    () => items.find((item) => item.restaurantId)?.restaurantId ?? '',
+    [items],
+  );
+  const tableId = resolveTableId(location.search);
+  const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
+  const restaurantName =
+    items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant?.name ||
+    items.find((item) => item.restaurant?.name)?.restaurant?.name ||
+    '';
+  const restaurantLabel = restaurantName || (restaurantId ? `Restaurant #${restaurantId}` : '');
+  const contextText = tableId
+    ? `Ordering for Table ${tableId}${restaurantLabel ? ` at ${restaurantLabel}` : ''}`
+    : restaurantLabel
+      ? `Ordering from ${restaurantLabel}`
+      : 'Review your items before checkout. GST and coupons are calculated at checkout.';
 
   useEffect(() => {
     if (tableId) {
@@ -46,7 +63,6 @@ export function CartPage() {
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [items],
   );
-  const totalAmount = calculateTotal(subtotal, TAXES_AND_FEES);
 
   const increaseQuantity = (item) => {
     const itemId = item.menuItemId || item.id;
@@ -127,9 +143,7 @@ export function CartPage() {
           <p className="eyebrow">Cart</p>
           <h2>Your order summary</h2>
           <p className="cart-supporting-copy">
-            {tableId
-              ? `Ordering for table ${tableId} at restaurant ${restaurantId || 'N/A'}`
-              : 'Review your items before placing the order.'}
+            {contextText}
           </p>
         </div>
       </div>
@@ -148,7 +162,7 @@ export function CartPage() {
                     <div>
                       <span className="pill">{item.category?.name}</span>
                       <h3>{item.name}</h3>
-                      <p className="line-item-meta">${item.price.toFixed(2)} per item</p>
+                      <p className="line-item-meta">{formatCurrency.format(item.price)} per item</p>
                     </div>
                     <button
                       type="button"
@@ -182,7 +196,7 @@ export function CartPage() {
 
                     <div className="cart-item-total">
                       <span>Subtotal</span>
-                      <strong>${itemSubtotal.toFixed(2)}</strong>
+                      <strong>{formatCurrency.format(itemSubtotal)}</strong>
                     </div>
                   </div>
                 </article>
@@ -195,16 +209,13 @@ export function CartPage() {
           <div className="cart-summary-rows">
             <div className="total-row">
               <span>Subtotal</span>
-              <strong>${subtotal.toFixed(2)}</strong>
-            </div>
-            <div className="total-row">
-              <span>Taxes & fees</span>
-              <strong>${TAXES_AND_FEES.toFixed(2)}</strong>
+              <strong>{formatCurrency.format(subtotal)}</strong>
             </div>
             <div className="total-row total-row-highlighted">
-              <span>Final Total</span>
-              <strong>${totalAmount.toFixed(2)}</strong>
+              <span>Estimated Total</span>
+              <strong>{formatCurrency.format(subtotal)}</strong>
             </div>
+            <p className="cart-tax-note">GST, coupons, and payable total are calculated on checkout.</p>
           </div>
 
           {errorMessage || cartError ? (

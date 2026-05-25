@@ -200,6 +200,21 @@ export class RestaurantResponseDto {
   @IsOptional()
   @IsNumber()
   availableMenuItemsCount?: number;
+
+  @ApiPropertyOptional({ example: '29ABCDE1234F1Z5', nullable: true })
+  @IsOptional()
+  @IsString()
+  gstin?: string | null;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  gstRate?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  gstEnabled?: boolean;
 }
 
 export class PaginatedRestaurantResponseDto extends PaginationMetaDto {

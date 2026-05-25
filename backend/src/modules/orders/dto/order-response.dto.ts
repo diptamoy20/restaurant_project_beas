@@ -297,6 +297,46 @@ export class OrderResponseDto {
   @IsNumber()
   finalAmount!: number;
 
+  @ApiProperty({ example: 450 })
+  @IsNumber()
+  subtotalAmount!: number;
+
+  @ApiProperty({ example: 50 })
+  @IsNumber()
+  menuDiscountAmount!: number;
+
+  @ApiProperty({ example: 40 })
+  @IsNumber()
+  couponDiscountAmount!: number;
+
+  @ApiProperty({ example: 0 })
+  @IsNumber()
+  manualDiscountAmount!: number;
+
+  @ApiProperty({ example: 410 })
+  @IsNumber()
+  taxableAmount!: number;
+
+  @ApiProperty({ example: 5 })
+  @IsNumber()
+  gstRate!: number;
+
+  @ApiProperty({ example: 10.25 })
+  @IsNumber()
+  cgstAmount!: number;
+
+  @ApiProperty({ example: 10.25 })
+  @IsNumber()
+  sgstAmount!: number;
+
+  @ApiProperty({ example: 0 })
+  @IsNumber()
+  igstAmount!: number;
+
+  @ApiProperty({ example: 20.5 })
+  @IsNumber()
+  taxAmount!: number;
+
   @ApiProperty({ example: 'PENDING' })
   @IsString()
   paymentStatus!: string;

@@ -19,6 +19,7 @@ import {
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { BillingService } from '../billing/billing.service';
 
 type OrderWithRelations = Prisma.OrderGetPayload<{
   include: {
@@ -58,7 +59,10 @@ const ORDER_INCLUDE = {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billingService: BillingService,
+  ) {}
 
   async listMyOrders(
     userId: number,
@@ -221,61 +225,17 @@ export class OrdersService {
         }
       }
 
-      const menuItemIds = [...new Set(payload.items.map((item) => item.menuItemId))];
-      const menuItems = await transaction.menuItem.findMany({
-        where: {
-          id: {
-            in: menuItemIds,
-          },
+      const billing = await this.billingService.calculateQuote(
+        {
+          restaurantId: payload.restaurantId,
+          userId: payload.userId,
+          items: payload.items,
+          couponCode: payload.couponCode,
+          manualDiscountAmount: payload.manualDiscountAmount,
+          allowManualDiscount: payload.source === 'ADMIN',
         },
-        include: {
-          variants: true,
-          addonGroups: {
-            include: {
-              options: true,
-            },
-          },
-        },
-      });
-      const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
-      const orderItems = payload.items.map((item) => {
-        const menuItem = menuItemById.get(item.menuItemId);
-
-        if (!menuItem || !menuItem.isAvailable) {
-          throw new BadRequestException(`Menu item ${item.menuItemId} is not available`);
-        }
-
-        if (menuItem.restaurantId !== payload.restaurantId) {
-          throw new BadRequestException('Cart contains menu items from another restaurant');
-        }
-
-        const variant = item.variantId
-          ? menuItem.variants.find((candidate) => candidate.id === item.variantId)
-          : null;
-
-        if (item.variantId && !variant) {
-          throw new BadRequestException(`Variant ${item.variantId} is not valid for this item`);
-        }
-
-        const selectedAddons = this.resolveSelectedAddons(item, menuItem);
-        const addonTotal = selectedAddons.reduce((sum, addon) => sum + addon.addonOptionPrice, 0);
-        const price = (variant?.price ?? menuItem.price) + addonTotal;
-
-        return {
-          menuItemId: item.menuItemId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price,
-          totalPrice: price * item.quantity,
-          addons: selectedAddons,
-        };
-      });
-      const totalAmount = orderItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      const discountAmount = payload.discountAmount ?? 0;
-
-      if (discountAmount < 0 || discountAmount > totalAmount) {
-        throw new BadRequestException('Discount amount is not valid for this order');
-      }
+        transaction,
+      );
 
       const createdOrder = await transaction.order.create({
         data: {
@@ -287,17 +247,30 @@ export class OrdersService {
           status: ORDER_STATUS.PENDING,
           source: payload.source,
           orderType: payload.orderType,
-          totalAmount,
-          discountAmount,
-          finalAmount: totalAmount - discountAmount,
+          totalAmount: billing.mrpSubtotal,
+          discountAmount:
+            billing.menuDiscountAmount +
+            billing.couponDiscountAmount +
+            billing.manualDiscountAmount,
+          finalAmount: billing.finalAmount,
+          subtotalAmount: billing.subtotalAmount,
+          menuDiscountAmount: billing.menuDiscountAmount,
+          couponDiscountAmount: billing.couponDiscountAmount,
+          manualDiscountAmount: billing.manualDiscountAmount,
+          taxableAmount: billing.taxableAmount,
+          gstRate: billing.gstRate,
+          cgstAmount: billing.cgstAmount,
+          sgstAmount: billing.sgstAmount,
+          igstAmount: billing.igstAmount,
+          taxAmount: billing.taxAmount,
           paymentStatus: 'PENDING',
           paymentMethod: payload.paymentMethod,
           items: {
-            create: orderItems.map((item) => ({
+            create: billing.items.map((item) => ({
               menuItemId: item.menuItemId,
-              variantId: item.variantId,
+              variantId: item.variantId ?? undefined,
               quantity: item.quantity,
-              price: item.price,
+              price: item.unitPrice,
               totalPrice: item.totalPrice,
               addons: item.addons.length ? { create: item.addons } : undefined,
             })),
@@ -308,6 +281,17 @@ export class OrdersService {
         },
         include: ORDER_INCLUDE,
       });
+
+      if (billing.couponId && payload.userId) {
+        await transaction.couponUsage.create({
+          data: {
+            couponId: billing.couponId,
+            userId: payload.userId,
+            orderId: createdOrder.id,
+            discountAmount: billing.couponDiscountAmount,
+          },
+        });
+      }
 
       if (payload.userId) {
         await transaction.cartItem.deleteMany({
@@ -343,6 +327,16 @@ export class OrdersService {
       totalAmount: order.totalAmount,
       discountAmount: order.discountAmount,
       finalAmount: order.finalAmount,
+      subtotalAmount: order.subtotalAmount,
+      menuDiscountAmount: order.menuDiscountAmount,
+      couponDiscountAmount: order.couponDiscountAmount,
+      manualDiscountAmount: order.manualDiscountAmount,
+      taxableAmount: order.taxableAmount,
+      gstRate: order.gstRate,
+      cgstAmount: order.cgstAmount,
+      sgstAmount: order.sgstAmount,
+      igstAmount: order.igstAmount,
+      taxAmount: order.taxAmount,
       paymentStatus: order.paymentStatus,
       paymentMethod: order.paymentMethod,
       razorpayOrderId: order.razorpayOrderId,

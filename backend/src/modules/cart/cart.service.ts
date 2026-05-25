@@ -61,7 +61,7 @@ export class CartService {
       throw new BadRequestException('Selected variant is not available for this menu item');
     }
 
-    const authoritativePrice = selectedVariant?.price ?? menuItem.price;
+    const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const cartItem = await this.prisma.$transaction(async (transaction) => {
       const existingItem = await transaction.cartItem.findFirst({
@@ -142,7 +142,7 @@ export class CartService {
     const selectedVariant = cartItem.variantId
       ? menuItem.variants.find((variant) => variant.id === cartItem.variantId)
       : null;
-    const authoritativePrice = selectedVariant?.price ?? menuItem.price;
+    const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const updatedItem = await this.prisma.cartItem.update({
       where: { id: cartItem.id },
@@ -199,5 +199,13 @@ export class CartService {
       menuItem: item.menuItem,
       variant: item.variant,
     };
+  }
+
+  private getMenuItemPrice(menuItem: { price: number; discountPrice: number | null }): number {
+    return menuItem.discountPrice &&
+      menuItem.discountPrice > 0 &&
+      menuItem.discountPrice < menuItem.price
+      ? menuItem.discountPrice
+      : menuItem.price;
   }
 }

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CheckoutAddressPicker } from '../components/checkout/CheckoutAddressPicker.jsx';
 import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
+import { checkoutApi } from '../services/checkoutApi';
 import {
   createSessionAwarePath,
   resolveRestaurantId,
@@ -12,9 +13,11 @@ import { clearCart, setLastOrderId } from '../store/slices/cartSlice';
 import { createOrder } from '../store/slices/orderSlice';
 
 const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
-const TAXES_AND_FEES = 0;
-const HARDCODED_RESTAURANT_ID = '1';
-const HARDCODED_TABLE_ID = '1';
+const formatCurrency = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function CheckoutPage() {
   const dispatch = useDispatch();
@@ -29,15 +32,183 @@ export function CheckoutPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [couponListLoading, setCouponListLoading] = useState(false);
+  const [couponDialogOpen, setCouponDialogOpen] = useState(false);
 
-  const tableId = resolveTableId(location.search) || HARDCODED_TABLE_ID;
-  const restaurantId = resolveRestaurantId(location.search) || HARDCODED_RESTAURANT_ID;
+  const cartRestaurantId = useMemo(
+    () => items.find((item) => item.restaurantId)?.restaurantId ?? '',
+    [items],
+  );
+  const tableId = resolveTableId(location.search);
+  const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [items],
   );
-  const totalAmount = subtotal + TAXES_AND_FEES;
-  const isSubmitting = orderLoading || isPaying;
+  const totalAmount = quote?.finalAmount ?? subtotal;
+  const isSubmitting = orderLoading || isPaying || quoteLoading;
+
+  const buildQuotePayload = useCallback(
+    (couponCode = appliedCouponCode) => ({
+      restaurantId: Number(restaurantId),
+      addressId: selectedAddressId ? Number(selectedAddressId) : undefined,
+      orderType: 'DELIVERY',
+      couponCode: couponCode || undefined,
+      items: items.map((item) => ({
+        menuItemId: item.menuItemId || item.id,
+        variantId: item.variantId || undefined,
+        quantity: item.quantity,
+        addons: item.addons,
+      })),
+    }),
+    [appliedCouponCode, items, restaurantId, selectedAddressId],
+  );
+
+  const refreshQuote = useCallback(
+    async (couponCode = appliedCouponCode) => {
+      if (!user || !items.length || !restaurantId) {
+        setQuote(null);
+        return null;
+      }
+
+      setQuoteLoading(true);
+      try {
+        const nextQuote = await checkoutApi.getQuote(buildQuotePayload(couponCode));
+        setQuote(nextQuote);
+        setErrorMessage('');
+        return nextQuote;
+      } catch (error) {
+        setQuote(null);
+        setErrorMessage(error?.message || 'Unable to calculate checkout total.');
+        return null;
+      } finally {
+        setQuoteLoading(false);
+      }
+    },
+    [appliedCouponCode, buildQuotePayload, items.length, restaurantId, user],
+  );
+
+  useEffect(() => {
+    if (user && items.length) {
+      void refreshQuote(appliedCouponCode);
+    } else {
+      setQuote(null);
+    }
+  }, [appliedCouponCode, items, refreshQuote, selectedAddressId, user]);
+
+  const applyCoupon = async () => {
+    const nextCode = couponInput.trim().toUpperCase();
+    if (!nextCode) {
+      setErrorMessage('Enter a coupon code.');
+      return;
+    }
+
+    const nextQuote = await refreshQuote(nextCode);
+    if (nextQuote) {
+      setAppliedCouponCode(nextCode);
+      setCouponInput(nextCode);
+      setStatusMessage('Coupon applied.');
+    }
+  };
+
+  const applyAvailableCoupon = async (code, closeDialog = false) => {
+    setCouponInput(code);
+    const nextQuote = await refreshQuote(code);
+    if (nextQuote) {
+      setAppliedCouponCode(code);
+      setStatusMessage('Coupon applied.');
+      if (closeDialog) {
+        setCouponDialogOpen(false);
+      }
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCouponCode('');
+    setCouponInput('');
+    setStatusMessage('');
+  };
+
+  useEffect(() => {
+    if (!user || !items.length || !restaurantId) {
+      setAvailableCoupons([]);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    async function loadCoupons() {
+      setCouponListLoading(true);
+      try {
+        const coupons = await checkoutApi.getCoupons({
+          restaurantId,
+          subtotalAmount: quote?.subtotalAmount ?? subtotal,
+        });
+        if (!controller.signal.aborted) {
+          setAvailableCoupons(Array.isArray(coupons) ? coupons : []);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setAvailableCoupons([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setCouponListLoading(false);
+        }
+      }
+    }
+
+    void loadCoupons();
+
+    return () => controller.abort();
+  }, [items.length, quote?.subtotalAmount, restaurantId, subtotal, user]);
+
+  const sortedCoupons = useMemo(
+    () =>
+      [...availableCoupons].sort(
+        (a, b) =>
+          Number(b.eligible) - Number(a.eligible) ||
+          (b.estimatedDiscount ?? 0) - (a.estimatedDiscount ?? 0),
+      ),
+    [availableCoupons],
+  );
+  const previewCoupons = sortedCoupons.slice(0, 2);
+
+  const renderCouponCard = (coupon, index, closeDialog = false) => (
+    <div
+      className={coupon.eligible ? 'checkout-offer-card' : 'checkout-offer-card is-disabled'}
+      key={coupon.id}
+    >
+      <div>
+        <div className="checkout-offer-title">
+          <strong>{coupon.code}</strong>
+          {index === 0 && coupon.eligible ? <span>Best offer</span> : null}
+        </div>
+        <p>
+          {coupon.discountType === 'PERCENTAGE'
+            ? `${coupon.discountValue}% off${coupon.maxDiscountAmount ? ` up to ${formatCurrency.format(coupon.maxDiscountAmount)}` : ''}`
+            : `${formatCurrency.format(coupon.discountValue)} off`}
+        </p>
+        {coupon.minOrderAmount ? (
+          <small>Min order {formatCurrency.format(coupon.minOrderAmount)}</small>
+        ) : null}
+        {!coupon.eligible && coupon.reason ? <small>{coupon.reason}</small> : null}
+      </div>
+      <button
+        type="button"
+        className="text-link"
+        disabled={!coupon.eligible || appliedCouponCode === coupon.code || quoteLoading}
+        onClick={() => applyAvailableCoupon(coupon.code, closeDialog)}
+      >
+        {appliedCouponCode === coupon.code ? 'Applied' : 'Apply'}
+      </button>
+    </div>
+  );
 
   const submitCheckout = async () => {
     setErrorMessage('');
@@ -51,6 +222,11 @@ export function CheckoutPage() {
 
     if (items.length === 0) {
       setErrorMessage('Your cart is empty.');
+      return;
+    }
+
+    if (!restaurantId) {
+      setErrorMessage('Restaurant context is missing. Please open menu again.');
       return;
     }
 
@@ -70,7 +246,7 @@ export function CheckoutPage() {
       tableId: tableId ? Number(tableId) : undefined,
       addressId: Number(selectedAddressId),
       orderType: 'DELIVERY',
-      discountAmount: 0,
+      couponCode: appliedCouponCode || undefined,
       items: items.map((item) => ({
         menuItemId: item.menuItemId || item.id,
         variantId: item.variantId || undefined,
@@ -199,28 +375,90 @@ export function CheckoutPage() {
                 >
                   <div>
                     <strong>{item.name}</strong>
-                    <span>
-                      {item.quantity} x ${item.price.toFixed(2)}
-                    </span>
+                    <span>{item.quantity} x {formatCurrency.format(item.price)}</span>
                   </div>
-                  <strong>${(item.price * item.quantity).toFixed(2)}</strong>
+                  <strong>{formatCurrency.format(item.price * item.quantity)}</strong>
                 </div>
               ))
             )}
           </div>
 
-          <div className="cart-summary-rows">
-            <div className="total-row">
-              <span>Subtotal</span>
-              <strong>${subtotal.toFixed(2)}</strong>
+          <div className="checkout-coupon-row">
+            <div>
+              <strong>Coupon</strong>
+              <span>{appliedCouponCode ? `${appliedCouponCode} applied` : 'Apply discount code'}</span>
             </div>
-            <div className="total-row">
-              <span>Taxes & fees</span>
-              <strong>${TAXES_AND_FEES.toFixed(2)}</strong>
+            <div className="checkout-coupon-actions">
+              <input
+                className="coupon-input"
+                value={couponInput}
+                onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
+                placeholder="WELCOME50"
+              />
+              <button type="button" className="ghost-button" disabled={quoteLoading} onClick={applyCoupon}>
+                Apply
+              </button>
+              {appliedCouponCode ? (
+                <button type="button" className="ghost-button" onClick={removeCoupon}>
+                  Remove
+                </button>
+              ) : null}
             </div>
-            <div className="total-row total-row-highlighted">
+            {couponListLoading ? (
+              <p className="checkout-offer-hint">Checking available coupons...</p>
+            ) : null}
+            {availableCoupons.length ? (
+              <div className="checkout-offer-list">
+                {previewCoupons.map((coupon, index) => renderCouponCard(coupon, index))}
+                {sortedCoupons.length > previewCoupons.length ? (
+                  <button
+                    type="button"
+                    className="checkout-view-offers"
+                    onClick={() => setCouponDialogOpen(true)}
+                  >
+                    View all offers ({sortedCoupons.length})
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="bill-summary-rows">
+            <div className="bill-row">
+              <span>Item total</span>
+              <i aria-hidden="true" />
+              <strong>{formatCurrency.format(quote?.subtotalAmount ?? subtotal)}</strong>
+            </div>
+            {quote?.couponDiscountAmount ? (
+              <div className="bill-row bill-row-discount">
+                <span>Coupon</span>
+                <i aria-hidden="true" />
+                <strong>-{formatCurrency.format(quote.couponDiscountAmount)}</strong>
+              </div>
+            ) : null}
+            <div className="bill-row">
+              <span>Taxes</span>
+              <i aria-hidden="true" />
+              <strong>{formatCurrency.format(quote?.taxAmount ?? 0)}</strong>
+            </div>
+            {quote?.taxAmount ? (
+              <div className="bill-tax-breakup">
+                <div className="bill-row bill-row-muted">
+                  <span>CGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ''}</span>
+                  <i aria-hidden="true" />
+                  <strong>{formatCurrency.format(quote?.cgstAmount ?? 0)}</strong>
+                </div>
+                <div className="bill-row bill-row-muted">
+                  <span>SGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ''}</span>
+                  <i aria-hidden="true" />
+                  <strong>{formatCurrency.format(quote?.sgstAmount ?? 0)}</strong>
+                </div>
+              </div>
+            ) : null}
+            <div className="bill-row bill-row-payable">
               <span>Payable</span>
-              <strong>${totalAmount.toFixed(2)}</strong>
+              <i aria-hidden="true" />
+              <strong>{formatCurrency.format(totalAmount)}</strong>
             </div>
           </div>
 
@@ -259,6 +497,36 @@ export function CheckoutPage() {
           )}
         </aside>
       </div>
+
+      {couponDialogOpen ? (
+        <div className="checkout-offer-dialog-backdrop" role="presentation" onMouseDown={() => setCouponDialogOpen(false)}>
+          <div
+            className="checkout-offer-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="checkout-offer-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="checkout-offer-dialog-header">
+              <div>
+                <h3 id="checkout-offer-dialog-title">Available offers</h3>
+                <p>Choose the best coupon for this order.</p>
+              </div>
+              <button
+                type="button"
+                className="checkout-offer-dialog-close"
+                onClick={() => setCouponDialogOpen(false)}
+                aria-label="Close offers"
+              >
+                Close
+              </button>
+            </div>
+            <div className="checkout-offer-dialog-list">
+              {sortedCoupons.map((coupon, index) => renderCouponCard(coupon, index, true))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

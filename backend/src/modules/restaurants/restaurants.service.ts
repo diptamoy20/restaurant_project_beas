@@ -200,6 +200,9 @@ export class RestaurantsService {
           deliveryRadiusKm: data.deliveryRadiusKm ?? 8,
           isLocationEnabled: data.isLocationEnabled ?? true,
           isActive: data.isActive ?? true,
+          gstin: data.gstin?.trim().toUpperCase() || null,
+          gstRate: data.gstRate ?? 5,
+          gstEnabled: data.gstEnabled ?? true,
         },
         include: { categories: true },
       });
@@ -254,6 +257,9 @@ export class RestaurantsService {
         deliveryRadiusKm: data.deliveryRadiusKm,
         isLocationEnabled: data.isLocationEnabled,
         isActive: data.isActive,
+        gstin: data.gstin === undefined ? undefined : data.gstin?.trim().toUpperCase() || null,
+        gstRate: data.gstRate,
+        gstEnabled: data.gstEnabled,
       };
 
       // Remove undefined values
@@ -438,6 +444,9 @@ export class RestaurantsService {
     deliveryFee?: number;
     minimumOrderAmount?: number | null;
     availableMenuItemsCount?: number;
+    gstin?: string | null;
+    gstRate?: number;
+    gstEnabled?: boolean;
   }): RestaurantResponseDto {
     return {
       id: restaurant.id,
@@ -461,6 +470,9 @@ export class RestaurantsService {
       deliveryFee: restaurant.deliveryFee,
       minimumOrderAmount: restaurant.minimumOrderAmount,
       availableMenuItemsCount: restaurant.availableMenuItemsCount,
+      gstin: restaurant.gstin,
+      gstRate: restaurant.gstRate,
+      gstEnabled: restaurant.gstEnabled,
     };
   }
 }

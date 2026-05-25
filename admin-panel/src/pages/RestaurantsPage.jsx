@@ -27,6 +27,9 @@ const initialFormState = {
   description: '',
   imageUrl: '',
   deliveryRadiusKm: '8',
+  gstin: '',
+  gstRate: '5',
+  gstEnabled: true,
   isLocationEnabled: true,
   isActive: true,
 };
@@ -81,6 +84,15 @@ export function RestaurantsPage() {
       newErrors.deliveryRadiusKm = 'Delivery radius must be at least 0.1 km';
     }
 
+    const gstRate = parseFloat(form.gstRate);
+    if (form.gstEnabled && (form.gstRate === '' || isNaN(gstRate) || gstRate < 0 || gstRate > 28)) {
+      newErrors.gstRate = 'GST rate must be between 0 and 28';
+    }
+
+    if (form.gstin && !/^[0-9A-Z]{15}$/.test(form.gstin.trim().toUpperCase())) {
+      newErrors.gstin = 'GSTIN must be 15 uppercase letters/numbers';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -112,6 +124,9 @@ export function RestaurantsPage() {
       description: restaurant.description || '',
       imageUrl: restaurant.imageUrl || '',
       deliveryRadiusKm: (restaurant.deliveryRadiusKm || 8).toString(),
+      gstin: restaurant.gstin || '',
+      gstRate: (restaurant.gstRate ?? 5).toString(),
+      gstEnabled: restaurant.gstEnabled !== false,
       isLocationEnabled: restaurant.isLocationEnabled !== false,
       isActive: restaurant.isActive !== false,
     });
@@ -144,6 +159,9 @@ export function RestaurantsPage() {
       description: form.description || undefined,
       imageUrl: form.imageUrl || undefined,
       deliveryRadiusKm: parseFloat(form.deliveryRadiusKm),
+      gstin: form.gstin.trim() ? form.gstin.trim().toUpperCase() : undefined,
+      gstRate: parseFloat(form.gstRate || '0'),
+      gstEnabled: form.gstEnabled,
       isLocationEnabled: form.isLocationEnabled,
       isActive: form.isActive,
     };
@@ -247,6 +265,15 @@ export function RestaurantsPage() {
                   key: 'deliveryRadiusKm',
                   header: 'Delivery Radius',
                   render: (row) => <span className="text-sm text-slate-700">{row.deliveryRadiusKm} km</span>,
+                },
+                {
+                  key: 'gst',
+                  header: 'GST',
+                  render: (row) => (
+                    <span className="text-sm text-slate-700">
+                      {row.gstEnabled === false ? 'Off' : `${row.gstRate ?? 5}%`}
+                    </span>
+                  ),
                 },
                 {
                   key: 'isActive',
@@ -415,7 +442,43 @@ export function RestaurantsPage() {
             value={form.deliveryRadiusKm}
           />
 
+          <div className="grid grid-cols-2 gap-4">
+            <TextField
+              error={errors.gstin}
+              label="GSTIN"
+              name="gstin"
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, gstin: event.target.value.toUpperCase() }))
+              }
+              placeholder="29ABCDE1234F1Z5"
+              value={form.gstin}
+            />
+
+            <TextField
+              error={errors.gstRate}
+              label="GST Rate (%)"
+              min="0"
+              max="28"
+              name="gstRate"
+              onChange={handleInputChange}
+              step="0.01"
+              type="number"
+              value={form.gstRate}
+            />
+          </div>
+
           <div className="space-y-3">
+            <label className="flex items-center gap-3">
+              <input
+                checked={form.gstEnabled}
+                className="h-4 w-4 rounded border-slate-300"
+                name="gstEnabled"
+                onChange={handleInputChange}
+                type="checkbox"
+              />
+              <span className="text-sm font-medium text-slate-700">Enable GST billing</span>
+            </label>
+
             <label className="flex items-center gap-3">
               <input
                 checked={form.isLocationEnabled}

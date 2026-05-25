@@ -13,6 +13,7 @@ The QR module follows NestJS modular architecture and integrates seamlessly with
 - **Maintains existing API compatibility** - No breaking changes to existing endpoints
 - **Public QR endpoints only** - Guests can use QR menu and order creation without weakening auth on other modules
 - **Server-side pricing** - Client-submitted totals, prices, and discounts are not trusted
+- **GST billing** - QR orders return GST snapshot totals from restaurant billing config
 
 ## API Endpoints
 
@@ -103,7 +104,13 @@ Notes:
   "orderNumber": "ORD-1640995200000",
   "status": "PENDING",
   "estimatedTime": 20,
-  "finalAmount": 500
+  "subtotalAmount": 500,
+  "taxableAmount": 500,
+  "gstRate": 5,
+  "cgstAmount": 12.5,
+  "sgstAmount": 12.5,
+  "taxAmount": 25,
+  "finalAmount": 525
 }
 ```
 
@@ -129,7 +136,7 @@ Guest order tracking is intentionally not included in this module.
 - **Guest orders**: No user authentication required
 - **Table validation**: Ensures table belongs to restaurant
 - **Menu validation**: Only shows available items
-- **Centralized pricing**: Uses existing OrderService pricing logic
+- **Centralized pricing**: Uses existing OrderService billing logic
 - **Discount protection**: Guest-provided discounts are not accepted
 - **Estimated time calculation**: Based on menu item preparation times
 - **Transaction safety**: Uses Prisma transactions for data consistency

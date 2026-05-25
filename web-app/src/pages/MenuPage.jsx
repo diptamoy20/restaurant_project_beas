@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   addToCart,
   addToCartAsync,
@@ -8,13 +8,18 @@ import {
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
 import { getCachedUserLocation } from "../hooks/useUserLocation";
+import {
+  persistRestaurantId,
+  persistTableId,
+  resolveRestaurantId,
+  resolveTableId,
+} from "../lib/tableSession";
 
 const HARDCODED_RESTAURANT_ID = "1";
 
 export function MenuPage() {
   const dispatch = useDispatch();
   const location = useLocation();
-  const navigate = useNavigate();
   const {
     items,
     loading,
@@ -34,23 +39,17 @@ export function MenuPage() {
   );
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const restaurantIdFromUrl = params.get("restaurantId");
-    const tableIdFromUrl = params.get("table");
-    const nextRestaurantId = restaurantIdFromUrl || HARDCODED_RESTAURANT_ID;
+    const nextRestaurantId = resolveRestaurantId(location.search) || HARDCODED_RESTAURANT_ID;
+    const nextTableId = resolveTableId(location.search);
 
     setResolvedRestaurantId(nextRestaurantId);
-    if (tableIdFromUrl) {
-      params.delete("table");
-      navigate(
-        {
-          pathname: location.pathname,
-          search: params.toString() ? `?${params.toString()}` : "",
-        },
-        { replace: true },
-      );
+    if (nextRestaurantId) {
+      persistRestaurantId(nextRestaurantId);
     }
-  }, [location.pathname, location.search, navigate]);
+    if (nextTableId) {
+      persistTableId(nextTableId);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     if (resolvedRestaurantId) {
