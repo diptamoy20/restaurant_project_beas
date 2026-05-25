@@ -78,7 +78,27 @@ Response totals are calculated on the backend:
   "sgstAmount": 10.25,
   "igstAmount": 0,
   "taxAmount": 20.5,
-  "finalAmount": 430.5
+  "isDeliveryAvailable": true,
+  "distanceKm": 1.13,
+  "estimatedDeliveryMinutes": 24,
+  "deliveryFee": 27,
+  "deliveryCharge": 27,
+  "packagingCharge": 10,
+  "freeDeliveryMinAmount": 499,
+  "deliveryUnavailableReason": null,
+  "deliveryFeeBreakdown": {
+    "distanceKm": 1.13,
+    "baseFee": 20,
+    "baseDistanceKm": 1,
+    "extraDistanceKm": 0.13,
+    "extraUnits": 1,
+    "perKmFee": 7,
+    "deliveryCharge": 27,
+    "packagingCharge": 10,
+    "freeDeliveryApplied": false,
+    "freeDeliveryMinAmount": 499
+  },
+  "finalAmount": 467.5
 }
 ```
 
@@ -180,7 +200,7 @@ Create same coupon for multiple restaurants:
 
 ## Restaurants
 
-Restaurant create/update supports Indian GST billing fields:
+Restaurant create/update supports Indian GST billing and admin-controlled delivery pricing fields:
 
 ```json
 {
@@ -189,7 +209,15 @@ Restaurant create/update supports Indian GST billing fields:
   "city": "Bengaluru",
   "latitude": 12.9663,
   "longitude": 77.6012,
+  "deliveryEnabled": true,
   "deliveryRadiusKm": 8,
+  "deliveryBaseFee": 20,
+  "deliveryBaseDistanceKm": 1,
+  "deliveryPerKmFee": 7,
+  "deliveryFeeMin": 20,
+  "deliveryFeeCap": 99,
+  "freeDeliveryMinAmount": 499,
+  "packagingCharge": 10,
   "gstin": "29ABCDE1234F1Z5",
   "gstRate": 5,
   "gstEnabled": true,

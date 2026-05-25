@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import { AddressValidationResponseDto, DeliveryQuoteDto } from './dto/location-response.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
+import { calculateDeliveryFee } from '../../common/utils/delivery-fee.util';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const GEO_CACHE_TTL_SECONDS = 300;
@@ -16,6 +17,14 @@ type NearbyRestaurantRow = {
   longitude: number;
   isActive: boolean;
   deliveryRadiusKm: number;
+  deliveryEnabled: boolean;
+  deliveryBaseFee: number;
+  deliveryBaseDistanceKm: number;
+  deliveryPerKmFee: number;
+  deliveryFeeMin: number | null;
+  deliveryFeeCap: number | null;
+  freeDeliveryMinAmount: number | null;
+  packagingCharge: number;
   isLocationEnabled: boolean;
   distanceKm: number;
   deliveryAvailable: boolean;
@@ -30,9 +39,31 @@ type RestaurantDeliveryRow = {
   deliveryAvailable: boolean;
   distanceKm: number;
   deliveryFee: number;
+  deliveryEnabled: boolean;
+  deliveryRadiusKm: number;
+  deliveryBaseFee: number;
+  deliveryBaseDistanceKm: number;
+  deliveryPerKmFee: number;
+  deliveryFeeMin: number | null;
+  deliveryFeeCap: number | null;
+  freeDeliveryMinAmount: number | null;
+  packagingCharge: number;
+  deliveryUnavailableReason: string | null;
+  deliveryFeeBreakdown: Record<string, unknown>;
   minimumOrderAmount: number | null;
   estimatedDeliveryTimeMinutes: number;
 };
+
+type RestaurantDeliveryQuoteRow = Omit<
+  RestaurantDeliveryRow,
+  | 'deliveryEnabled'
+  | 'deliveryRadiusKm'
+  | 'deliveryBaseFee'
+  | 'deliveryBaseDistanceKm'
+  | 'deliveryPerKmFee'
+  | 'deliveryFeeMin'
+  | 'deliveryFeeCap'
+>;
 
 type RestaurantExistsRow = {
   id: number;
@@ -101,6 +132,14 @@ export class LocationService {
           r."longitude",
           r."is_active" AS "isActive",
           r."delivery_radius_km" AS "deliveryRadiusKm",
+          r."delivery_enabled" AS "deliveryEnabled",
+          r."delivery_base_fee" AS "deliveryBaseFee",
+          r."delivery_base_distance_km" AS "deliveryBaseDistanceKm",
+          r."delivery_per_km_fee" AS "deliveryPerKmFee",
+          r."delivery_fee_min" AS "deliveryFeeMin",
+          r."delivery_fee_cap" AS "deliveryFeeCap",
+          r."free_delivery_min_amount" AS "freeDeliveryMinAmount",
+          r."packaging_charge" AS "packagingCharge",
           r."is_location_enabled" AS "isLocationEnabled",
           ROUND((public.ST_Distance(r."location", customer.geog) / 1000)::numeric, 2)::float AS "distanceKm",
           EXISTS (
@@ -152,13 +191,22 @@ export class LocationService {
         "longitude",
         "isActive",
         "deliveryRadiusKm",
+        "deliveryEnabled",
+        "deliveryBaseFee",
+        "deliveryBaseDistanceKm",
+        "deliveryPerKmFee",
+        "deliveryFeeMin",
+        "deliveryFeeCap",
+        "freeDeliveryMinAmount",
+        "packagingCharge",
         "isLocationEnabled",
         "distanceKm",
         CASE
+          WHEN "deliveryEnabled" = false THEN false
           WHEN "hasDeliveryZones" THEN "zoneContains"
           ELSE "distanceKm" <= "deliveryRadiusKm"
         END AS "deliveryAvailable",
-        ROUND(COALESCE("zoneDeliveryFee", 20 + ("distanceKm" * 6))::numeric, 2)::float AS "deliveryFee",
+        COALESCE("zoneDeliveryFee", 0)::float AS "deliveryFee",
         "minimumOrderAmount",
         (20 + CEIL("distanceKm" * 3))::int AS "estimatedDeliveryTimeMinutes",
         "availableMenuItemsCount"
@@ -186,11 +234,18 @@ export class LocationService {
           ])
         : [[], []];
 
-    const result = rows.map((row) => ({
-      ...row,
-      categories: categories.filter((category) => category.restaurantId === row.id),
-      menuItems: menuItems.filter((menuItem) => menuItem.restaurantId === row.id),
-    }));
+    const result = rows.map((row) => {
+      const delivery = calculateDeliveryFee(row, row.distanceKm, 0);
+
+      return {
+        ...row,
+        deliveryAvailable: delivery.isDeliveryAvailable,
+        deliveryFee: delivery.deliveryCharge,
+        minimumOrderAmount: row.freeDeliveryMinAmount,
+        categories: categories.filter((category) => category.restaurantId === row.id),
+        menuItems: menuItems.filter((menuItem) => menuItem.restaurantId === row.id),
+      };
+    });
 
     await this.cache.set(cacheKey, result, GEO_CACHE_TTL_SECONDS);
 
@@ -236,6 +291,10 @@ export class LocationService {
       deliveryAvailable: row.deliveryAvailable,
       distanceKm: row.distanceKm,
       deliveryFee: row.deliveryFee,
+      packagingCharge: row.packagingCharge,
+      freeDeliveryMinAmount: row.freeDeliveryMinAmount,
+      deliveryUnavailableReason: row.deliveryUnavailableReason,
+      deliveryFeeBreakdown: row.deliveryFeeBreakdown,
       estimatedDeliveryTimeMinutes: row.estimatedDeliveryTimeMinutes,
       minimumOrderAmount: row.minimumOrderAmount ?? undefined,
       reason: row.deliveryAvailable
@@ -335,7 +394,7 @@ export class LocationService {
     restaurantId: number,
     lat: number,
     lng: number,
-  ): Promise<RestaurantDeliveryRow> {
+  ): Promise<RestaurantDeliveryQuoteRow> {
     const point = Prisma.sql`public.ST_SetSRID(public.ST_MakePoint(${lng}, ${lat}), 4326)`;
     const rows = await this.prisma.$queryRaw<RestaurantDeliveryRow[]>(Prisma.sql`
       WITH customer AS (
@@ -345,6 +404,14 @@ export class LocationService {
         SELECT
           r."id" AS "restaurantId",
           r."delivery_radius_km" AS "deliveryRadiusKm",
+          r."delivery_enabled" AS "deliveryEnabled",
+          r."delivery_base_fee" AS "deliveryBaseFee",
+          r."delivery_base_distance_km" AS "deliveryBaseDistanceKm",
+          r."delivery_per_km_fee" AS "deliveryPerKmFee",
+          r."delivery_fee_min" AS "deliveryFeeMin",
+          r."delivery_fee_cap" AS "deliveryFeeCap",
+          r."free_delivery_min_amount" AS "freeDeliveryMinAmount",
+          r."packaging_charge" AS "packagingCharge",
           ROUND((public.ST_Distance(r."location", customer.geog) / 1000)::numeric, 2)::float AS "distanceKm",
           EXISTS (
             SELECT 1
@@ -384,11 +451,21 @@ export class LocationService {
       SELECT
         "restaurantId",
         CASE
+          WHEN "deliveryEnabled" = false THEN false
           WHEN "hasDeliveryZones" THEN "zoneContains"
           ELSE "distanceKm" <= "deliveryRadiusKm"
         END AS "deliveryAvailable",
         "distanceKm",
-        ROUND(COALESCE("zoneDeliveryFee", 20 + ("distanceKm" * 6))::numeric, 2)::float AS "deliveryFee",
+        "deliveryEnabled",
+        "deliveryRadiusKm",
+        "deliveryBaseFee",
+        "deliveryBaseDistanceKm",
+        "deliveryPerKmFee",
+        "deliveryFeeMin",
+        "deliveryFeeCap",
+        "freeDeliveryMinAmount",
+        "packagingCharge",
+        COALESCE("zoneDeliveryFee", 0)::float AS "deliveryFee",
         "minimumOrderAmount",
         (20 + CEIL("distanceKm" * 3))::int AS "estimatedDeliveryTimeMinutes"
       FROM restaurant_scope
@@ -399,7 +476,21 @@ export class LocationService {
       throw new NotFoundException('Restaurant is not enabled for location delivery');
     }
 
-    return rows[0];
+    const row = rows[0];
+    const delivery = calculateDeliveryFee(row, row.distanceKm, 0);
+
+    return {
+      restaurantId: row.restaurantId,
+      deliveryAvailable: delivery.isDeliveryAvailable,
+      distanceKm: row.distanceKm,
+      deliveryFee: delivery.deliveryCharge,
+      packagingCharge: delivery.packagingCharge,
+      freeDeliveryMinAmount: row.freeDeliveryMinAmount,
+      deliveryUnavailableReason: delivery.deliveryUnavailableReason,
+      deliveryFeeBreakdown: delivery.deliveryFeeBreakdown,
+      minimumOrderAmount: row.minimumOrderAmount,
+      estimatedDeliveryTimeMinutes: row.estimatedDeliveryTimeMinutes,
+    };
   }
 
   private buildCacheKey(

@@ -52,6 +52,8 @@ export class CheckoutController {
     return this.billingService.calculateQuote({
       restaurantId: payload.restaurantId,
       userId: request.user.id,
+      addressId: payload.addressId,
+      orderType: payload.orderType,
       couponCode: payload.couponCode,
       items: payload.items,
     });

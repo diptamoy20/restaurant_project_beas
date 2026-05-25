@@ -1,0 +1,14 @@
+ALTER TABLE "restaurants"
+  ADD COLUMN "delivery_enabled" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN "delivery_base_fee" DOUBLE PRECISION NOT NULL DEFAULT 20,
+  ADD COLUMN "delivery_base_distance_km" DOUBLE PRECISION NOT NULL DEFAULT 1,
+  ADD COLUMN "delivery_per_km_fee" DOUBLE PRECISION NOT NULL DEFAULT 7,
+  ADD COLUMN "delivery_fee_min" DOUBLE PRECISION,
+  ADD COLUMN "delivery_fee_cap" DOUBLE PRECISION,
+  ADD COLUMN "free_delivery_min_amount" DOUBLE PRECISION,
+  ADD COLUMN "packaging_charge" DOUBLE PRECISION NOT NULL DEFAULT 0;
+
+ALTER TABLE "orders"
+  ADD COLUMN "delivery_charge" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  ADD COLUMN "packaging_charge" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  ADD COLUMN "delivery_distance_km" DOUBLE PRECISION;

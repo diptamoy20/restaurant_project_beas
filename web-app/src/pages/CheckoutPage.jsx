@@ -71,7 +71,7 @@ export function CheckoutPage() {
 
   const refreshQuote = useCallback(
     async (couponCode = appliedCouponCode) => {
-      if (!user || !items.length || !restaurantId) {
+      if (!user || !items.length || !restaurantId || !selectedAddressId) {
         setQuote(null);
         return null;
       }
@@ -90,7 +90,7 @@ export function CheckoutPage() {
         setQuoteLoading(false);
       }
     },
-    [appliedCouponCode, buildQuotePayload, items.length, restaurantId, user],
+    [appliedCouponCode, buildQuotePayload, items.length, restaurantId, selectedAddressId, user],
   );
 
   useEffect(() => {
@@ -441,6 +441,24 @@ export function CheckoutPage() {
               <i aria-hidden="true" />
               <strong>{formatCurrency.format(quote?.taxAmount ?? 0)}</strong>
             </div>
+            {quote?.deliveryCharge != null ? (
+              <div className="bill-row">
+                <span>Delivery</span>
+                <i aria-hidden="true" />
+                <strong>
+                  {Number(quote.deliveryCharge) === 0
+                    ? 'Free'
+                    : formatCurrency.format(quote.deliveryCharge)}
+                </strong>
+              </div>
+            ) : null}
+            {quote?.packagingCharge ? (
+              <div className="bill-row">
+                <span>Packaging</span>
+                <i aria-hidden="true" />
+                <strong>{formatCurrency.format(quote.packagingCharge)}</strong>
+              </div>
+            ) : null}
             {quote?.taxAmount ? (
               <div className="bill-tax-breakup">
                 <div className="bill-row bill-row-muted">

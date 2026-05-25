@@ -27,6 +27,14 @@ const initialFormState = {
   description: '',
   imageUrl: '',
   deliveryRadiusKm: '8',
+  deliveryEnabled: true,
+  deliveryBaseFee: '20',
+  deliveryBaseDistanceKm: '1',
+  deliveryPerKmFee: '7',
+  deliveryFeeMin: '',
+  deliveryFeeCap: '',
+  freeDeliveryMinAmount: '',
+  packagingCharge: '0',
   gstin: '',
   gstRate: '5',
   gstEnabled: true,
@@ -84,6 +92,36 @@ export function RestaurantsPage() {
       newErrors.deliveryRadiusKm = 'Delivery radius must be at least 0.1 km';
     }
 
+    const deliveryFields = [
+      ['deliveryBaseFee', 'Base fee'],
+      ['deliveryBaseDistanceKm', 'Base distance'],
+      ['deliveryPerKmFee', 'Per km fee'],
+      ['packagingCharge', 'Packaging charge'],
+    ];
+
+    deliveryFields.forEach(([key, label]) => {
+      const value = parseFloat(form[key]);
+      if (form[key] === '' || isNaN(value) || value < 0) {
+        newErrors[key] = `${label} must be 0 or more`;
+      }
+    });
+
+    ['deliveryFeeMin', 'deliveryFeeCap', 'freeDeliveryMinAmount'].forEach((key) => {
+      if (form[key] === '') {
+        return;
+      }
+      const value = parseFloat(form[key]);
+      if (isNaN(value) || value < 0) {
+        newErrors[key] = 'Value must be 0 or more';
+      }
+    });
+
+    const minFee = form.deliveryFeeMin === '' ? null : parseFloat(form.deliveryFeeMin);
+    const maxFee = form.deliveryFeeCap === '' ? null : parseFloat(form.deliveryFeeCap);
+    if (minFee !== null && maxFee !== null && maxFee < minFee) {
+      newErrors.deliveryFeeCap = 'Max fee cannot be less than min fee';
+    }
+
     const gstRate = parseFloat(form.gstRate);
     if (form.gstEnabled && (form.gstRate === '' || isNaN(gstRate) || gstRate < 0 || gstRate > 28)) {
       newErrors.gstRate = 'GST rate must be between 0 and 28';
@@ -124,6 +162,15 @@ export function RestaurantsPage() {
       description: restaurant.description || '',
       imageUrl: restaurant.imageUrl || '',
       deliveryRadiusKm: (restaurant.deliveryRadiusKm || 8).toString(),
+      deliveryEnabled: restaurant.deliveryEnabled !== false,
+      deliveryBaseFee: (restaurant.deliveryBaseFee ?? 20).toString(),
+      deliveryBaseDistanceKm: (restaurant.deliveryBaseDistanceKm ?? 1).toString(),
+      deliveryPerKmFee: (restaurant.deliveryPerKmFee ?? 7).toString(),
+      deliveryFeeMin: restaurant.deliveryFeeMin != null ? restaurant.deliveryFeeMin.toString() : '',
+      deliveryFeeCap: restaurant.deliveryFeeCap != null ? restaurant.deliveryFeeCap.toString() : '',
+      freeDeliveryMinAmount:
+        restaurant.freeDeliveryMinAmount != null ? restaurant.freeDeliveryMinAmount.toString() : '',
+      packagingCharge: (restaurant.packagingCharge ?? 0).toString(),
       gstin: restaurant.gstin || '',
       gstRate: (restaurant.gstRate ?? 5).toString(),
       gstEnabled: restaurant.gstEnabled !== false,
@@ -159,6 +206,15 @@ export function RestaurantsPage() {
       description: form.description || undefined,
       imageUrl: form.imageUrl || undefined,
       deliveryRadiusKm: parseFloat(form.deliveryRadiusKm),
+      deliveryEnabled: form.deliveryEnabled,
+      deliveryBaseFee: parseFloat(form.deliveryBaseFee),
+      deliveryBaseDistanceKm: parseFloat(form.deliveryBaseDistanceKm),
+      deliveryPerKmFee: parseFloat(form.deliveryPerKmFee),
+      deliveryFeeMin: form.deliveryFeeMin === '' ? null : parseFloat(form.deliveryFeeMin),
+      deliveryFeeCap: form.deliveryFeeCap === '' ? null : parseFloat(form.deliveryFeeCap),
+      freeDeliveryMinAmount:
+        form.freeDeliveryMinAmount === '' ? null : parseFloat(form.freeDeliveryMinAmount),
+      packagingCharge: parseFloat(form.packagingCharge),
       gstin: form.gstin.trim() ? form.gstin.trim().toUpperCase() : undefined,
       gstRate: parseFloat(form.gstRate || '0'),
       gstEnabled: form.gstEnabled,
@@ -265,6 +321,17 @@ export function RestaurantsPage() {
                   key: 'deliveryRadiusKm',
                   header: 'Delivery Radius',
                   render: (row) => <span className="text-sm text-slate-700">{row.deliveryRadiusKm} km</span>,
+                },
+                {
+                  key: 'deliveryPricing',
+                  header: 'Delivery Fee',
+                  render: (row) => (
+                    <span className="text-sm text-slate-700">
+                      {row.deliveryEnabled === false
+                        ? 'Disabled'
+                        : `₹${row.deliveryBaseFee ?? 20} + ₹${row.deliveryPerKmFee ?? 7}/km`}
+                    </span>
+                  ),
                 },
                 {
                   key: 'gst',
@@ -430,6 +497,7 @@ export function RestaurantsPage() {
             value={form.imageUrl}
           />
 
+          {/*
           <TextField
             error={errors.deliveryRadiusKm}
             label="Delivery Radius (km) *"
@@ -441,6 +509,112 @@ export function RestaurantsPage() {
             type="number"
             value={form.deliveryRadiusKm}
           />
+          */}
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-slate-900">Delivery pricing</h3>
+              <p className="text-xs text-slate-500">Distance-based charges used by checkout.</p>
+            </div>
+
+            <label className="mb-4 flex items-center gap-3">
+              <input
+                checked={form.deliveryEnabled}
+                className="h-4 w-4 rounded border-slate-300"
+                name="deliveryEnabled"
+                onChange={handleInputChange}
+                type="checkbox"
+              />
+              <span className="text-sm font-medium text-slate-700">Enable delivery</span>
+            </label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <TextField
+                error={errors.deliveryBaseFee}
+                label="Base fee (₹)"
+                min="0"
+                name="deliveryBaseFee"
+                onChange={handleInputChange}
+                placeholder="e.g., 20"
+                step="0.01"
+                type="number"
+                value={form.deliveryBaseFee}
+              />
+
+              <TextField
+                error={errors.deliveryBaseDistanceKm}
+                label="Base distance (km)"
+                min="0"
+                name="deliveryBaseDistanceKm"
+                onChange={handleInputChange}
+                step="0.1"
+                type="number"
+                value={form.deliveryBaseDistanceKm}
+              />
+
+              <TextField
+                error={errors.deliveryPerKmFee}
+                label="Extra fee per km (₹)"
+                min="0"
+                name="deliveryPerKmFee"
+                onChange={handleInputChange}
+                placeholder="e.g., 7"
+                step="0.01"
+                type="number"
+                value={form.deliveryPerKmFee}
+              />
+
+              <TextField
+                error={errors.packagingCharge}
+                label="Packaging charge (₹)"
+                min="0"
+                name="packagingCharge"
+                onChange={handleInputChange}
+                placeholder="e.g., 10"
+                step="0.01"
+                type="number"
+                value={form.packagingCharge}
+              />
+
+              <TextField
+                error={errors.deliveryFeeMin}
+                label="Min delivery fee (₹)"
+                min="0"
+                name="deliveryFeeMin"
+                onChange={handleInputChange}
+                placeholder="e.g., 20"
+                step="0.01"
+                type="number"
+                value={form.deliveryFeeMin}
+              />
+
+              <TextField
+                error={errors.deliveryFeeCap}
+                label="Max delivery fee (₹)"
+                min="0"
+                name="deliveryFeeCap"
+                onChange={handleInputChange}
+                placeholder="e.g., 99"
+                step="0.01"
+                type="number"
+                value={form.deliveryFeeCap}
+              />
+            </div>
+
+            <div className="mt-4">
+              <TextField
+                error={errors.freeDeliveryMinAmount}
+                label="Free delivery above (₹)"
+                min="0"
+                name="freeDeliveryMinAmount"
+                onChange={handleInputChange}
+                placeholder="e.g., 499"
+                step="0.01"
+                type="number"
+                value={form.freeDeliveryMinAmount}
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <TextField

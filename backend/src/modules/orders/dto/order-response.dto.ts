@@ -288,6 +288,19 @@ export class OrderResponseDto {
   @IsNumber()
   totalAmount!: number;
 
+  @ApiProperty({ example: 27 })
+  @IsNumber()
+  deliveryCharge!: number;
+
+  @ApiProperty({ example: 10 })
+  @IsNumber()
+  packagingCharge!: number;
+
+  @ApiPropertyOptional({ example: 1.13, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  deliveryDistanceKm!: number | null;
+
   @ApiPropertyOptional({ example: 20, nullable: true })
   @IsOptional()
   @IsNumber()

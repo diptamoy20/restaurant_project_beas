@@ -77,6 +77,60 @@ export class CreateRestaurantDto {
   @Type(() => Number)
   deliveryRadiusKm?: number;
 
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  deliveryEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 20, default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseFee?: number;
+
+  @ApiPropertyOptional({ example: 1, default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseDistanceKm?: number;
+
+  @ApiPropertyOptional({ example: 7, default: 7 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryPerKmFee?: number;
+
+  @ApiPropertyOptional({ example: 20, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeMin?: number;
+
+  @ApiPropertyOptional({ example: 99, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeCap?: number;
+
+  @ApiPropertyOptional({ example: 499, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  freeDeliveryMinAmount?: number;
+
+  @ApiPropertyOptional({ example: 10, default: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  packagingCharge?: number;
+
   @ApiPropertyOptional({
     example: true,
     description: 'Whether location-based delivery is enabled',
@@ -176,6 +230,60 @@ export class UpdateRestaurantDto {
   @Min(0.1)
   @Type(() => Number)
   deliveryRadiusKm?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  deliveryEnabled?: boolean;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseFee?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryBaseDistanceKm?: number;
+
+  @ApiPropertyOptional({ example: 7 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryPerKmFee?: number;
+
+  @ApiPropertyOptional({ example: 20, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeMin?: number;
+
+  @ApiPropertyOptional({ example: 99, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  deliveryFeeCap?: number;
+
+  @ApiPropertyOptional({ example: 499, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  freeDeliveryMinAmount?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  packagingCharge?: number;
 
   @ApiPropertyOptional({
     example: true,

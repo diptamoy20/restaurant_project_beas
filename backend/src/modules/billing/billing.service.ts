@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import {
+  calculateDeliveryFee,
+  calculateDistanceKm,
+  DeliveryFeeBreakdown,
+} from '../../common/utils/delivery-fee.util';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type PricingClient = PrismaService | Prisma.TransactionClient;
@@ -18,6 +23,8 @@ export type BillingQuoteItemInput = {
 export type BillingQuoteInput = {
   restaurantId: number;
   userId?: number | null;
+  addressId?: number | null;
+  orderType?: string;
   items: BillingQuoteItemInput[];
   couponCode?: string | null;
   manualDiscountAmount?: number;
@@ -62,6 +69,16 @@ export type BillingQuote = {
   sgstAmount: number;
   igstAmount: number;
   taxAmount: number;
+  deliveryCharge: number;
+  deliveryFee: number;
+  packagingCharge: number;
+  deliveryDistanceKm: number | null;
+  distanceKm: number | null;
+  estimatedDeliveryMinutes: number;
+  freeDeliveryMinAmount: number | null;
+  isDeliveryAvailable: boolean;
+  deliveryFeeBreakdown: DeliveryFeeBreakdown;
+  deliveryUnavailableReason: string | null;
   finalAmount: number;
 };
 
@@ -84,6 +101,17 @@ export class BillingService {
         isActive: true,
         gstEnabled: true,
         gstRate: true,
+        latitude: true,
+        longitude: true,
+        deliveryEnabled: true,
+        deliveryRadiusKm: true,
+        deliveryBaseFee: true,
+        deliveryBaseDistanceKm: true,
+        deliveryPerKmFee: true,
+        deliveryFeeMin: true,
+        deliveryFeeCap: true,
+        freeDeliveryMinAmount: true,
+        packagingCharge: true,
       },
     });
 
@@ -175,6 +203,13 @@ export class BillingService {
     const cgstAmount = this.roundMoney(taxAmount / 2);
     const sgstAmount = this.roundMoney(taxAmount - cgstAmount);
     const igstAmount = 0;
+    const deliveryFee = await this.calculateDelivery(input, restaurant, subtotalAmount, client);
+
+    if (input.orderType === 'DELIVERY' && !deliveryFee.isDeliveryAvailable) {
+      throw new BadRequestException(
+        deliveryFee.deliveryUnavailableReason ?? 'Delivery unavailable',
+      );
+    }
 
     return {
       restaurantId: input.restaurantId,
@@ -193,7 +228,21 @@ export class BillingService {
       sgstAmount,
       igstAmount,
       taxAmount,
-      finalAmount: this.roundMoney(taxableAmount + taxAmount),
+      deliveryCharge: deliveryFee.deliveryCharge,
+      deliveryFee: deliveryFee.deliveryCharge,
+      packagingCharge: deliveryFee.packagingCharge,
+      deliveryDistanceKm: deliveryFee.deliveryDistanceKm,
+      distanceKm: deliveryFee.deliveryDistanceKm,
+      estimatedDeliveryMinutes: this.calculateEstimatedDeliveryMinutes(
+        deliveryFee.deliveryDistanceKm,
+      ),
+      freeDeliveryMinAmount: deliveryFee.deliveryFeeBreakdown.freeDeliveryMinAmount,
+      isDeliveryAvailable: deliveryFee.isDeliveryAvailable,
+      deliveryFeeBreakdown: deliveryFee.deliveryFeeBreakdown,
+      deliveryUnavailableReason: deliveryFee.deliveryUnavailableReason,
+      finalAmount: this.roundMoney(
+        taxableAmount + taxAmount + deliveryFee.deliveryCharge + deliveryFee.packagingCharge,
+      ),
     };
   }
 
@@ -290,6 +339,63 @@ export class BillingService {
         : rawDiscount;
 
     return this.roundMoney(Math.min(cappedDiscount, subtotalAmount));
+  }
+
+  private async calculateDelivery(
+    input: BillingQuoteInput,
+    restaurant: {
+      latitude: number;
+      longitude: number;
+      deliveryEnabled: boolean;
+      deliveryRadiusKm: number;
+      deliveryBaseFee: number;
+      deliveryBaseDistanceKm: number;
+      deliveryPerKmFee: number;
+      deliveryFeeMin: number | null;
+      deliveryFeeCap: number | null;
+      freeDeliveryMinAmount: number | null;
+      packagingCharge: number;
+    },
+    subtotalAmount: number,
+    client: PricingClient,
+  ): Promise<ReturnType<typeof calculateDeliveryFee>> {
+    if (input.orderType !== 'DELIVERY') {
+      return calculateDeliveryFee(
+        {
+          ...restaurant,
+          deliveryEnabled: false,
+          packagingCharge: 0,
+        },
+        null,
+        subtotalAmount,
+      );
+    }
+
+    if (!input.addressId || !input.userId) {
+      throw new BadRequestException('Delivery address is required');
+    }
+
+    const address = await client.userAddress.findFirst({
+      where: { id: input.addressId, userId: input.userId },
+      select: { latitude: true, longitude: true },
+    });
+
+    if (!address) {
+      throw new BadRequestException('Selected address does not belong to this customer');
+    }
+
+    const distanceKm = calculateDistanceKm(
+      restaurant.latitude,
+      restaurant.longitude,
+      address.latitude,
+      address.longitude,
+    );
+
+    return calculateDeliveryFee(restaurant, distanceKm, subtotalAmount);
+  }
+
+  private calculateEstimatedDeliveryMinutes(distanceKm: number | null): number {
+    return distanceKm === null ? 0 : 20 + Math.ceil(distanceKm * 3);
   }
 
   private resolveSelectedAddons(

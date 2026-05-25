@@ -230,7 +230,57 @@ export class CheckoutQuoteResponseDto {
   @IsNumber()
   taxAmount!: number;
 
-  @ApiProperty({ example: 430.5 })
+  @ApiProperty({ example: true })
+  isDeliveryAvailable!: boolean;
+
+  @ApiPropertyOptional({ example: 1.13, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  distanceKm!: number | null;
+
+  @ApiProperty({ example: 24 })
+  @IsNumber()
+  estimatedDeliveryMinutes!: number;
+
+  @ApiProperty({ example: 27 })
+  @IsNumber()
+  deliveryFee!: number;
+
+  @ApiProperty({ example: 27 })
+  @IsNumber()
+  deliveryCharge!: number;
+
+  @ApiProperty({ example: 10 })
+  @IsNumber()
+  packagingCharge!: number;
+
+  @ApiPropertyOptional({ example: 499, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  freeDeliveryMinAmount!: number | null;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  @IsOptional()
+  @IsString()
+  deliveryUnavailableReason!: string | null;
+
+  @ApiProperty({
+    example: {
+      distanceKm: 1.13,
+      baseFee: 20,
+      baseDistanceKm: 1,
+      extraDistanceKm: 0.13,
+      extraUnits: 1,
+      perKmFee: 7,
+      deliveryCharge: 27,
+      packagingCharge: 10,
+      freeDeliveryApplied: false,
+      freeDeliveryMinAmount: 499,
+    },
+  })
+  deliveryFeeBreakdown!: Record<string, unknown>;
+
+  @ApiProperty({ example: 467.5 })
   @IsNumber()
   finalAmount!: number;
 }

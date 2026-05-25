@@ -229,6 +229,8 @@ export class OrdersService {
         {
           restaurantId: payload.restaurantId,
           userId: payload.userId,
+          addressId: payload.addressId,
+          orderType: payload.orderType,
           items: payload.items,
           couponCode: payload.couponCode,
           manualDiscountAmount: payload.manualDiscountAmount,
@@ -246,6 +248,9 @@ export class OrdersService {
         source: payload.source,
         orderType: payload.orderType,
         totalAmount: billing.mrpSubtotal,
+        deliveryCharge: billing.deliveryCharge,
+        packagingCharge: billing.packagingCharge,
+        deliveryDistanceKm: billing.deliveryDistanceKm,
         discountAmount:
           billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
         finalAmount: billing.finalAmount,
@@ -319,6 +324,9 @@ export class OrdersService {
       status: order.status,
       orderType: order.orderType,
       totalAmount: order.totalAmount,
+      deliveryCharge: order.deliveryCharge,
+      packagingCharge: order.packagingCharge,
+      deliveryDistanceKm: order.deliveryDistanceKm,
       discountAmount: order.discountAmount,
       finalAmount: order.finalAmount,
       subtotalAmount: order.subtotalAmount,

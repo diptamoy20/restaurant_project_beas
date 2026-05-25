@@ -462,8 +462,8 @@ export class DeliveriesService {
       })),
       billing: {
         itemTotal: order.subtotalAmount || order.totalAmount,
-        deliveryCharge: 0,
-        packagingCharge: 0,
+        deliveryCharge: order.deliveryCharge,
+        packagingCharge: order.packagingCharge,
         discountAmount: order.discountAmount ?? null,
         taxAmount: order.taxAmount,
         totalAmount: order.totalAmount,
@@ -479,14 +479,15 @@ export class DeliveriesService {
           estimatedDeliveryMinutes,
         ),
         distanceKm:
-          order.address && order.restaurant
+          order.deliveryDistanceKm ??
+          (order.address && order.restaurant
             ? this.getDistanceKm(
                 order.restaurant.latitude,
                 order.restaurant.longitude,
                 order.address.latitude,
                 order.address.longitude,
               )
-            : null,
+            : null),
         latestLocation,
       },
       actions: this.getActions(delivery.status),

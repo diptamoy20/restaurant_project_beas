@@ -1,5 +1,11 @@
 import { Link } from "react-router-dom";
 
+const formatRupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+
 export function NearbyRestaurantsSection({
   location,
   restaurants,
@@ -78,8 +84,12 @@ export function NearbyRestaurantsSection({
                   <dd>{restaurant.estimatedDeliveryTimeMinutes ?? "-"} min</dd>
                 </div>
                 <div>
-                  <dt>Fee</dt>
-                  <dd>${Number(restaurant.deliveryFee ?? 0).toFixed(2)}</dd>
+                  <dt>Delivery</dt>
+                  <dd>
+                    {Number(restaurant.deliveryFee ?? 0) === 0
+                      ? "Free"
+                      : formatRupees.format(restaurant.deliveryFee)}
+                  </dd>
                 </div>
               </dl>
               <div className="restaurant-card-footer">
