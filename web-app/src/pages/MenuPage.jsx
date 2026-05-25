@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import { api } from "../lib/api";
 import {
   addToCart,
   addToCartAsync,
@@ -16,23 +17,43 @@ export function MenuPage() {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+  
   const {
     items,
     loading,
     error,
     restaurantId: menuRestaurantId,
     restaurant,
+    categories,
     delivery,
   } = useSelector((state) => state.menu);
+
   const { loading: cartLoading, error: cartError } = useSelector(
     (state) => state.cart,
   );
+  
   const isAuthenticated = useSelector((state) => !!state.auth.token);
-  const [quantities, setQuantities] = useState({});
-  const [cartMessage, setCartMessage] = useState("");
+  
   const [resolvedRestaurantId, setResolvedRestaurantId] = useState(
     HARDCODED_RESTAURANT_ID,
   );
+
+  // States for Filtering and Searching
+  const [frequentItems, setFrequentItems] = useState([]);
+  const [activeCategoryId, setActiveCategoryId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("recommended");
+  const [foodTypeFilter, setFoodTypeFilter] = useState(null); // 'VEG', 'NON_VEG', or null
+
+  // Customizer popup modal states
+  const [customizingItem, setCustomizingItem] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [customizerQuantity, setCustomizerQuantity] = useState(1);
+  const [customizerError, setCustomizerError] = useState("");
+
+  const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -71,23 +92,84 @@ export function MenuPage() {
     [menuRestaurantId, resolvedRestaurantId],
   );
 
-  const getQuantity = (itemId) => quantities[itemId] ?? 1;
-
-  const updateQuantity = (itemId, nextQuantity) => {
-    setQuantities((current) => ({
-      ...current,
-      [itemId]: Math.max(1, nextQuantity),
-    }));
-  };
-
+  // Fetch user-specific and restaurant-specific frequently ordered items
   useEffect(() => {
-    if (cartError) {
-      setCartMessage("");
+    if (isAuthenticated && activeRestaurantId) {
+      api
+        .get(`/menu/restaurant/${activeRestaurantId}/frequent`)
+        .then((data) => {
+          setFrequentItems(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {
+          setFrequentItems([]);
+        });
+    } else {
+      setFrequentItems([]);
     }
-  }, [cartError]);
+  }, [isAuthenticated, activeRestaurantId]);
 
-  const handleAddToCart = async (item) => {
-    const quantity = getQuantity(item.id);
+  // Lock background scroll when customizing sheet is open
+  useEffect(() => {
+    if (customizingItem) {
+      document.body.classList.add("modal-open");
+    } else {
+      document.body.classList.remove("modal-open");
+    }
+    return () => {
+      document.body.classList.remove("modal-open");
+    };
+  }, [customizingItem]);
+
+  // Debounce search query to prevent excessive layout shifts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Compute final filtered and sorted menu items (client-side)
+  const filteredItems = useMemo(() => {
+    let result = [...items];
+
+    // 1. Category Filter
+    if (activeCategoryId) {
+      result = result.filter(
+        (item) => item.categoryId === Number(activeCategoryId),
+      );
+    }
+
+    // 2. Veg / Non Veg Toggle Filter
+    if (foodTypeFilter) {
+      result = result.filter((item) => item.foodType === foodTypeFilter);
+    }
+
+    // 3. Search Filter (Case insensitive)
+    const query = debouncedSearchQuery.trim().toLowerCase();
+    if (query) {
+      result = result.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query) ||
+          (item.description && item.description.toLowerCase().includes(query)) ||
+          (item.category?.name && item.category.name.toLowerCase().includes(query)),
+      );
+    }
+
+    // 4. Sorting logic
+    if (sortOption === "price-low-high") {
+      result.sort((a, b) => a.price - b.price);
+    } else if (sortOption === "price-high-low") {
+      result.sort((a, b) => b.price - a.price);
+    } else if (sortOption === "most-popular") {
+      result.sort((a, b) => (b.popularityScore ?? 0) - (a.popularityScore ?? 0));
+    } else if (sortOption === "recommended") {
+      result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    }
+
+    return result;
+  }, [items, activeCategoryId, foodTypeFilter, debouncedSearchQuery, sortOption]);
+
+  const handleAddToCart = async (item, variant = null, addOns = [], quantity = 1) => {
     setCartMessage("");
     dispatch(clearError());
 
@@ -95,7 +177,9 @@ export function MenuPage() {
       if (isAuthenticated) {
         await dispatch(
           addToCartAsync({
-            menuItemId: item.id,
+            item,
+            variant,
+            addOns,
             quantity,
           }),
         ).unwrap();
@@ -103,21 +187,94 @@ export function MenuPage() {
         dispatch(
           addToCart({
             item,
+            variant,
+            addOns,
             quantity,
           }),
         );
       }
+      setCartMessage(`${item.name} added to cart.`);
     } catch {
       return;
     }
-
-    setCartMessage(`${item.name} added to cart.`);
-
-    setQuantities((current) => ({
-      ...current,
-      [item.id]: 1,
-    }));
   };
+
+  // Customizer Helper Functions
+  const handleToggleAddon = (group, option) => {
+    setSelectedAddons((current) => {
+      const isSelected = current.some((addon) => addon.addonOptionId === option.id);
+      
+      if (isSelected) {
+        return current.filter((addon) => addon.addonOptionId !== option.id);
+      }
+
+      // If single choice group, filter out other options from same group
+      if (group.selectionType === "SINGLE") {
+        const filtered = current.filter((addon) => addon.addonGroupId !== group.id);
+        return [
+          ...filtered,
+          {
+            addonGroupId: group.id,
+            addonGroupName: group.name,
+            addonOptionId: option.id,
+            addonOptionName: option.name,
+            name: option.name,
+            price: option.price,
+          },
+        ];
+      }
+
+      // Check maxSelect limits
+      const groupSelections = current.filter((addon) => addon.addonGroupId === group.id);
+      if (group.maxSelect && groupSelections.length >= group.maxSelect) {
+        setCustomizerError(`You can select a maximum of ${group.maxSelect} options for ${group.name}`);
+        return current;
+      }
+
+      setCustomizerError("");
+      return [
+        ...current,
+        {
+          addonGroupId: group.id,
+          addonGroupName: group.name,
+          addonOptionId: option.id,
+          addonOptionName: option.name,
+          name: option.name,
+          price: option.price,
+        },
+      ];
+    });
+  };
+
+  const handleAddCustomizedToCart = () => {
+    setCustomizerError("");
+
+    // Validate required groups
+    const activeGroups = customizingItem.addonGroups?.filter((g) => g.options.length > 0) || [];
+    for (const group of activeGroups) {
+      const selections = selectedAddons.filter((addon) => addon.addonGroupId === group.id);
+      
+      const minSelect = group.isRequired
+        ? Math.max(group.minSelect ?? 1, 1)
+        : (group.minSelect ?? 0);
+
+      if (selections.length < minSelect) {
+        setCustomizerError(`Please select at least ${minSelect} option(s) for ${group.name}`);
+        return;
+      }
+    }
+
+    handleAddToCart(customizingItem, selectedVariant, selectedAddons, customizerQuantity);
+    setCustomizingItem(null);
+  };
+
+  // Dynamically calculate customized unit price
+  const customizedUnitPrice = useMemo(() => {
+    if (!customizingItem) return 0;
+    const base = selectedVariant?.price ?? customizingItem.price;
+    const addonsTotal = selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
+    return base + addonsTotal;
+  }, [customizingItem, selectedVariant, selectedAddons]);
 
   if (!activeRestaurantId) {
     return (
@@ -143,6 +300,11 @@ export function MenuPage() {
           <div>
             <p className="eyebrow">Menu</p>
             <h2>Loading menu...</h2>
+            <div className="skeleton-grid">
+              <div className="skeleton-card" />
+              <div className="skeleton-card" />
+              <div className="skeleton-card" />
+            </div>
           </div>
         </div>
       </section>
@@ -164,12 +326,13 @@ export function MenuPage() {
   }
 
   return (
-    <section>
+    <section style={{ paddingBottom: "6rem" }}>
+      {/* Header section with delivery quota */}
       <div className="section-header">
         <div>
           <p className="eyebrow">Menu</p>
-          <h2>Today's favorites</h2>
-          <p>{restaurant?.name ?? `Restaurant ${activeRestaurantId}`}</p>
+          <h2>{restaurant?.name ?? `Restaurant ${activeRestaurantId}`}</h2>
+          <p>{restaurant?.address ?? "Fresh dishes prepared for you"}</p>
         </div>
         {delivery ? (
           <div
@@ -186,7 +349,7 @@ export function MenuPage() {
             </strong>
             <span>
               {delivery.distanceKm} km - {delivery.estimatedDeliveryTimeMinutes}{" "}
-              min - ${Number(delivery.deliveryFee ?? 0).toFixed(2)} fee
+              min - Rs. {Number(delivery.deliveryFee ?? 0).toFixed(0)} fee
             </span>
           </div>
         ) : null}
@@ -198,11 +361,303 @@ export function MenuPage() {
         ) : null}
       </div>
 
-      <div className="menu-grid">
-        {items.map((item) => (
-          <MenuSlideCard item={item} onAdd={() => handleAddToCart(item)} />
-        ))}
+      {/* 2. FREQUENTLY ORDERED SECTION */}
+      {frequentItems.length > 0 && (
+        <div className="frequent-section">
+          <h3>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: "1.25rem" }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+            </svg>
+            Frequently Ordered
+          </h3>
+          <div className="frequent-scroll">
+            {frequentItems.map((item) => {
+              const price = item.discountPrice != null && item.discountPrice > 0 ? item.discountPrice : item.price;
+              const hasVariants = item.variants && item.variants.length > 0;
+              const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+
+              return (
+                <div key={`frequent-${item.id}`} className="frequent-card">
+                  <div className="frequent-card-media">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" loading="lazy" />
+                    ) : (
+                      <div className="menu-slide-placeholder" />
+                    )}
+                    <span className="food-type-icon">
+                      {item.foodType === "NON_VEG" ? (
+                        <div className="nonveg-tag-indicator" />
+                      ) : (
+                        <div className="veg-tag-indicator" />
+                      )}
+                    </span>
+                  </div>
+                  <div className="frequent-card-info">
+                    <h4>{item.name}</h4>
+                    <div className="frequent-card-footer">
+                      <span className="frequent-card-price">Rs. {Number(price).toFixed(0)}</span>
+                      <button
+                        type="button"
+                        className="frequent-add-btn"
+                        onClick={() => {
+                          if (hasVariants || hasAddons) {
+                            setCustomizingItem(item);
+                            setSelectedVariant(item.variants?.[0] || null);
+                            setSelectedAddons([]);
+                            setCustomizerQuantity(1);
+                            setCustomizerError("");
+                          } else {
+                            handleAddToCart(item);
+                          }
+                        }}
+                      >
+                        Add {hasVariants || hasAddons ? "+" : ""}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3. CATEGORIES + SEARCH + SORTING STICKY FILTER SECTION */}
+      <div className="sticky-filter-wrapper">
+        <div className="filter-container">
+          {/* Left half: scrollable category list */}
+          <div className="categories-scroll">
+            <button
+              className={`category-pill ${activeCategoryId === null ? "active" : ""}`}
+              onClick={() => setActiveCategoryId(null)}
+            >
+              All Items
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={`cat-pill-${cat.id}`}
+                className={`category-pill ${activeCategoryId === cat.id ? "active" : ""}`}
+                onClick={() => setActiveCategoryId(cat.id)}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Right half: Search, sorting and Veg/Non-Veg toggles */}
+          <div className="filter-controls">
+            <div className="search-input-wrap">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search dishes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <select
+              className="sort-dropdown"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+            >
+              <option value="recommended">Recommended</option>
+              <option value="most-popular">Most Popular</option>
+              <option value="price-low-high">Price: Low to High</option>
+              <option value="price-high-low">Price: High to Low</option>
+            </select>
+
+            <div className="food-toggle-buttons">
+              <button
+                className={`toggle-btn veg ${foodTypeFilter === "VEG" ? "active" : ""}`}
+                onClick={() => setFoodTypeFilter((prev) => (prev === "VEG" ? null : "VEG"))}
+              >
+                Veg
+              </button>
+              <button
+                className={`toggle-btn non-veg ${foodTypeFilter === "NON_VEG" ? "active" : ""}`}
+                onClick={() => setFoodTypeFilter((prev) => (prev === "NON_VEG" ? null : "NON_VEG"))}
+              >
+                Non-Veg
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Main Items Display List */}
+      {filteredItems.length === 0 ? (
+        <div className="empty-state" style={{ textAlign: "center", paddingBlock: "3rem" }}>
+          <h3>No items found</h3>
+          <p>We couldn't find any dishes matching your filters or search query. Try clearing them.</p>
+        </div>
+      ) : (
+        <div className="menu-grid">
+          {filteredItems.map((item) => {
+            const hasVariants = item.variants && item.variants.length > 0;
+            const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+
+            return (
+              <MenuSlideCard
+                key={`menu-item-${item.id}`}
+                item={item}
+                onAdd={() => {
+                  if (hasVariants || hasAddons) {
+                    setCustomizingItem(item);
+                    setSelectedVariant(item.variants?.[0] || null);
+                    setSelectedAddons([]);
+                    setCustomizerQuantity(1);
+                    setCustomizerError("");
+                  } else {
+                    handleAddToCart(item);
+                  }
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* 4. SWIGGY-STYLE CUSTOMIZATION SHEET POPUP MODAL */}
+      {customizingItem && (
+        <div className="customizer-overlay" onClick={() => setCustomizingItem(null)}>
+          <div className="customizer-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="customizer-header">
+              <div className="customizer-header-info">
+                {customizingItem.imageUrl ? (
+                  <img src={customizingItem.imageUrl} alt="" />
+                ) : (
+                  <div className="menu-slide-placeholder" style={{ width: "60px", height: "60px" }} />
+                )}
+                <div className="customizer-header-copy">
+                  <h2>{customizingItem.name}</h2>
+                  <p>{customizingItem.description || "Freshly cooked to your requirements."}</p>
+                  <strong>Rs. {Number(customizedUnitPrice).toFixed(0)}</strong>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="customizer-close"
+                onClick={() => setCustomizingItem(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Customization Content */}
+            <div className="customizer-body">
+              {/* Option 1: Variants Selector (Capsules) */}
+              {customizingItem.variants && customizingItem.variants.length > 0 && (
+                <div className="customizer-variant-section">
+                  <h3>Select Variant / Size</h3>
+                  <div className="customizer-variant-grid">
+                    {customizingItem.variants.map((v) => (
+                      <div
+                        key={`variant-${v.id}`}
+                        className={`customizer-variant-pill ${selectedVariant?.id === v.id ? "selected" : ""}`}
+                        onClick={() => setSelectedVariant(v)}
+                      >
+                        <span>{v.name}</span>
+                        <strong>Rs. {Number(v.price).toFixed(0)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Option 2: Addon Groups */}
+              {customizingItem.addonGroups &&
+                customizingItem.addonGroups.filter((g) => g.options.length > 0).map((group) => {
+                  const maxSelect = group.selectionType === "SINGLE" ? 1 : group.maxSelect;
+                  
+                  return (
+                    <div key={`addon-group-${group.id}`} className="customizer-option-group">
+                      <div className="customizer-group-title">
+                        <div>
+                          <h3>{group.name}</h3>
+                          {maxSelect && (
+                            <span className="customizer-group-limits">
+                              Choose up to {maxSelect} option(s)
+                            </span>
+                          )}
+                        </div>
+                        <span className={`customizer-group-badge ${group.isRequired ? "required" : ""}`}>
+                          {group.isRequired ? "Required" : "Optional"}
+                        </span>
+                      </div>
+                      
+                      <div className="customizer-option-list">
+                        {group.options.map((opt) => {
+                          const isChecked = selectedAddons.some(
+                            (addon) => addon.addonOptionId === opt.id,
+                          );
+                          const inputType = group.selectionType === "SINGLE" ? "radio" : "checkbox";
+
+                          return (
+                            <div
+                              key={`option-${opt.id}`}
+                              className={`customizer-option-row ${isChecked ? "checked" : ""}`}
+                              onClick={() => handleToggleAddon(group, opt)}
+                            >
+                              <label className="customizer-option-label" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type={inputType}
+                                  name={`group-${group.id}`}
+                                  checked={isChecked}
+                                  onChange={() => handleToggleAddon(group, opt)}
+                                />
+                                <span>{opt.name}</span>
+                              </label>
+                              <span className="customizer-option-price">+ Rs. {opt.price.toFixed(0)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Error alerts */}
+            {customizerError && <div className="customizer-addon-error" style={{ margin: "1rem" }}>{customizerError}</div>}
+
+            {/* Footer with Quantities Stepper and Checkout Action */}
+            <div className="customizer-footer">
+              <div className="customizer-stepper">
+                <button
+                  type="button"
+                  className="customizer-stepper-button"
+                  onClick={() => setCustomizerQuantity((q) => Math.max(1, q - 1))}
+                  disabled={customizerQuantity <= 1}
+                >
+                  -
+                </button>
+                <strong>{customizerQuantity}</strong>
+                <button
+                  type="button"
+                  className="customizer-stepper-button"
+                  onClick={() => setCustomizerQuantity((q) => q + 1)}
+                >
+                  +
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="primary-btn customizer-add-btn"
+                onClick={handleAddCustomizedToCart}
+              >
+                Add Item - Rs. {Number(customizedUnitPrice * customizerQuantity).toFixed(0)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

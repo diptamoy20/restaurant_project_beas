@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query, Req } from '@nestjs/common';
 import {
   ApiOkResponse,
   ApiOperation,
@@ -45,6 +45,19 @@ export class MenuController {
       categoryId: query.categoryId,
       restaurantId: query.restaurantId,
     });
+  }
+
+  @Get('restaurant/:restaurantId/frequent')
+  @AllowWeb()
+  @ApiOperation({ summary: 'Get frequently ordered menu items for a user at a restaurant' })
+  @ApiParam({ name: 'restaurantId', type: Number, example: 1 })
+  @ApiOkResponse({ type: MenuItemDto, isArray: true })
+  getFrequent(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Req() request: any,
+  ): Promise<MenuItemDto[]> {
+    const userId = request.user?.id;
+    return this.menuService.getFrequentItems(restaurantId, userId);
   }
 
   @Get('restaurant/:restaurantId')
