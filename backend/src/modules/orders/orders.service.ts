@@ -155,8 +155,8 @@ export class OrdersService {
       userId: { not: null },
       user: {
         isActive: true,
-        roles: {
-          some: {
+        role: {
+          is: {
             role: {
               name: Role.DELIVERY_BOY,
             },
@@ -203,8 +203,8 @@ export class OrdersService {
         userId: { not: null },
         user: {
           isActive: true,
-          roles: {
-            some: {
+          role: {
+            is: {
               role: {
                 name: Role.DELIVERY_BOY,
               },
@@ -299,7 +299,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    if (requester.roles.includes(Role.CUSTOMER) && order.userId !== requester.id) {
+    if (requester.role === Role.CUSTOMER && order.userId !== requester.id) {
       throw new ForbiddenException('You do not have permission to access this order');
     }
 

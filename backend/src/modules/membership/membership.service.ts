@@ -13,7 +13,7 @@ export class MembershipService {
     userId: number,
     requester: AuthenticatedUser,
   ): Promise<MembershipResponseDto> {
-    if (requester.roles.includes(Role.CUSTOMER) && requester.id !== userId) {
+    if (requester.role === Role.CUSTOMER && requester.id !== userId) {
       throw new ForbiddenException('You do not have permission to access this membership');
     }
 

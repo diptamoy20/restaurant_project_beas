@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
 import { Role } from '../../../common/enums/role.enum';
 
@@ -29,10 +29,9 @@ export class AuthUserDto {
   @IsString()
   profileImageUrl!: string | null;
 
-  @ApiProperty({ enum: Role, isArray: true, example: ['admin'] })
-  @IsArray()
-  @IsEnum(Role, { each: true })
-  roles!: Role[];
+  @ApiProperty({ enum: Role, example: Role.ADMIN })
+  @IsEnum(Role)
+  role!: Role;
 
   @ApiPropertyOptional({ example: { dashboard: ['view'], orders: ['view'] } })
   @IsOptional()

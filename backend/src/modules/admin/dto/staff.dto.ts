@@ -140,8 +140,8 @@ export class StaffUserDto {
   @IsBoolean()
   isActive!: boolean;
 
-  @ApiProperty({ enum: Role, isArray: true, example: [Role.DELIVERY_BOY] })
-  roles!: Role[];
+  @ApiProperty({ enum: Role, example: Role.DELIVERY_BOY })
+  role!: Role;
 
   @ApiProperty({ example: { orders: ['view'] } })
   permissions!: Record<string, string[]>;

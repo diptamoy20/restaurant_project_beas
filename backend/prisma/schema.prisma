@@ -30,7 +30,7 @@ model User {
   lockUntil              DateTime?            @map("lock_until")
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
-  roles                  UserRoleMapping[]
+  role                   UserRole?
   addresses              UserAddress[]
   orders                 Order[]
   cartItems              CartItem[]
@@ -63,19 +63,19 @@ model SocialAccount {
 model RoleMaster {
   id    Int               @id @default(autoincrement())
   name  String            @unique
-  users UserRoleMapping[]
+  users UserRole[]
 
   @@map("role_master")
 }
 
-model UserRoleMapping {
+model UserRole {
   id     Int        @id @default(autoincrement())
-  userId Int        @map("user_id")
+  userId Int        @unique @map("user_id")
   roleId Int        @map("role_id")
   user   User       @relation(fields: [userId], references: [id])
   role   RoleMaster @relation(fields: [roleId], references: [id])
 
-  @@map("user_role_mapping")
+  @@map("user_role")
 }
 
 model UserAddress {
