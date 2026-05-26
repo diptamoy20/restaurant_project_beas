@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEnum, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 
 import { Role } from '../../../common/enums/role.enum';
 
@@ -33,6 +33,11 @@ export class AuthUserDto {
   @IsArray()
   @IsEnum(Role, { each: true })
   roles!: Role[];
+
+  @ApiPropertyOptional({ example: { dashboard: ['view'], orders: ['view'] } })
+  @IsOptional()
+  @IsObject()
+  permissions?: Record<string, string[]>;
 }
 
 export class AuthResponseDto {

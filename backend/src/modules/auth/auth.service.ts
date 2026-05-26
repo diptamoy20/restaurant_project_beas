@@ -22,6 +22,10 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto, SocialLoginProvider } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { FirebaseAuthService } from './firebase-auth.service';
+import {
+  getDefaultPermissionsForRoles,
+  PermissionMap,
+} from '../../common/constants/default-permissions';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -38,6 +42,7 @@ type PrismaUserWithRoles = {
   lastLoginAt: Date | null;
   failedLoginAttempts: number;
   lockUntil: Date | null;
+  permissions: Prisma.JsonValue | null;
   roles: { role: { name: string } }[];
 };
 
@@ -392,14 +397,13 @@ export class AuthService {
   }
 
   async me(user: AuthenticatedUser): Promise<AuthSuccessResponse<AuthUserDto>> {
-    return this.buildStandardResponse('Profile loaded', {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      profileImageUrl: user.profileImageUrl,
-      roles: user.roles,
-    });
+    const currentUser = await this.loadAuthUser(user.id);
+
+    if (!currentUser || !currentUser.isActive) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return this.buildStandardResponse('Profile loaded', this.toAuthUser(currentUser));
   }
 
   async updateMe(
@@ -566,6 +570,7 @@ export class AuthService {
     type: typeof ACCESS_TOKEN_TYPE | typeof REFRESH_TOKEN_TYPE,
   ): JwtPayload {
     const roles = this.mapRoles(user);
+    const permissions = this.resolvePermissions(user.permissions, roles);
 
     return {
       sub: user.id,
@@ -576,6 +581,7 @@ export class AuthService {
       profileImageUrl: user.profileImageUrl,
       roles,
       role: roles[0] ?? null,
+      permissions,
       type,
     };
   }
@@ -1103,13 +1109,15 @@ export class AuthService {
 
   private toAuthUser(user: PrismaUserWithRoles): AuthenticatedUser {
     const roles = this.mapRoles(user);
+    const effectiveRoles = roles.length ? roles : [Role.CUSTOMER];
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       phone: user.phone,
       profileImageUrl: user.profileImageUrl,
-      roles: roles.length ? roles : [Role.CUSTOMER],
+      roles: effectiveRoles,
+      permissions: this.resolvePermissions(user.permissions, effectiveRoles),
     };
   }
 
@@ -1176,5 +1184,24 @@ export class AuthService {
 
   private mapRoles(user: PrismaUserWithRoles): Role[] {
     return user.roles.map((entry) => entry.role.name as Role);
+  }
+
+  private resolvePermissions(
+    value: Prisma.JsonValue | null | undefined,
+    roles: Role[],
+  ): PermissionMap {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return getDefaultPermissionsForRoles(roles);
+    }
+
+    const permissions: PermissionMap = {};
+
+    for (const [module, actions] of Object.entries(value)) {
+      if (Array.isArray(actions)) {
+        permissions[module] = actions.map(String).filter(Boolean);
+      }
+    }
+
+    return Object.keys(permissions).length ? permissions : getDefaultPermissionsForRoles(roles);
   }
 }

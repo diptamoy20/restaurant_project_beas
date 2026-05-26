@@ -21,7 +21,7 @@ export const defaultPermissionsByRole = {
     coupons: ['view', 'create', 'edit', 'delete'],
     customers: ['view'],
     payments: ['view', 'filter'],
-    staff: ['view', 'create', 'edit', 'assign'],
+    staff: ['view', 'create', 'edit', 'delete', 'assign'],
   },
   manager: {
     dashboard: ['view'],

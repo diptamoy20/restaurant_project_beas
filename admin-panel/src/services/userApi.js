@@ -27,7 +27,46 @@ export const userApi = createApi({
       }),
       invalidatesTags: ['Staff'],
     }),
+    updateUser: builder.mutation({
+      query: ({ id, ...payload }) => ({
+        url: `/admin/staff/${id}`,
+        method: 'PATCH',
+        body: payload,
+      }),
+      invalidatesTags: ['Staff'],
+    }),
+    updatePassword: builder.mutation({
+      query: ({ id, password }) => ({
+        url: `/admin/staff/${id}/password`,
+        method: 'PATCH',
+        body: { password },
+      }),
+      invalidatesTags: ['Staff'],
+    }),
+    updateStatus: builder.mutation({
+      query: ({ id, isActive }) => ({
+        url: `/admin/staff/${id}/status`,
+        method: 'PATCH',
+        body: { isActive },
+      }),
+      invalidatesTags: ['Staff'],
+    }),
+    deleteUser: builder.mutation({
+      query: (id) => ({
+        url: `/admin/staff/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Staff'],
+    }),
   }),
 });
 
-export const { useGetUsersQuery, useCreateUserMutation, useUpdatePermissionsMutation } = userApi;
+export const {
+  useDeleteUserMutation,
+  useGetUsersQuery,
+  useCreateUserMutation,
+  useUpdatePasswordMutation,
+  useUpdatePermissionsMutation,
+  useUpdateStatusMutation,
+  useUpdateUserMutation,
+} = userApi;

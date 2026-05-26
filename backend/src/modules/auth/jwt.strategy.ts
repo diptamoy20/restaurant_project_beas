@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { JwtPayload, AuthenticatedUser } from './auth.types';
+import { getDefaultPermissionsForRoles } from '../../common/constants/default-permissions';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -45,6 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       phone: payload.phone,
       profileImageUrl: payload.profileImageUrl ?? null,
       roles: payload.roles,
+      permissions: payload.permissions ?? getDefaultPermissionsForRoles(payload.roles),
     };
   }
 }
