@@ -979,10 +979,7 @@ export class AdminService {
     return normalized;
   }
 
-  private readPermissions(
-    value: Prisma.JsonValue | null | undefined,
-    role: Role,
-  ): PermissionMap {
+  private readPermissions(value: Prisma.JsonValue | null | undefined, role: Role): PermissionMap {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       return getDefaultPermissionsForRoles([role]);
     }
