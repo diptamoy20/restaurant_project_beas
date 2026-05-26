@@ -20,70 +20,121 @@ export function DashboardPage() {
   }
 
   if (error) {
-    return <ErrorState message={error?.data?.message || error?.error || 'Dashboard analytics failed to load.'} />;
+    return (
+      <ErrorState
+        message={error?.data?.message || error?.error || 'Dashboard analytics failed to load.'}
+      />
+    );
   }
 
   if (!data) {
-    return <EmptyState description="Analytics data has not been returned by the API yet." title="No dashboard data" />;
+    return (
+      <EmptyState
+        description="Analytics data has not been returned by the API yet."
+        title="No dashboard data"
+      />
+    );
   }
 
   const cards = [
-    { label: 'Total Orders', value: data.totalOrders },
-    { label: 'Revenue', value: formatCurrency(data.totalRevenue) },
-    { label: 'Customers', value: data.totalUsers },
-    { label: 'Restaurants', value: data.totalRestaurants },
+    {
+      label: 'Orders',
+      value: data.totalOrders,
+      helper: 'All orders recorded',
+      tone: 'border-l-blue-500',
+    },
+    {
+      label: 'Revenue',
+      value: formatCurrency(data.totalRevenue),
+      helper: 'Collected payment value',
+      tone: 'border-l-emerald-500',
+    },
+    {
+      label: 'Customers',
+      value: data.totalUsers,
+      helper: 'Registered accounts',
+      tone: 'border-l-amber-500',
+    },
+    {
+      label: 'Restaurants',
+      value: data.totalRestaurants,
+      helper: 'Managed locations',
+      tone: 'border-l-slate-500',
+    },
   ];
-
-  const derivedPopularItems = [
-    { name: 'Chef Specials', share: `${Math.max(12, Math.round(data.totalOrders / 8))}% of recent orders` },
-    { name: 'Combo Meals', share: `${Math.max(8, Math.round(data.totalOrders / 10))}% of recent orders` },
-    { name: 'Beverages', share: `${Math.max(6, Math.round(data.totalOrders / 12))}% upsell conversion` },
-  ];
+  const averageOrderValue = data.totalOrders > 0 ? data.totalRevenue / data.totalOrders : 0;
 
   return (
     <div className="space-y-6">
+      <section className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">
+            Admin Overview
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-950">Dashboard</h1>
+        </div>
+        <p className="max-w-xl text-sm text-slate-500">
+          Live summary from orders, users, restaurants, and payments.
+        </p>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
-          <Card className="bg-slate-950 text-white" key={card.label}>
-            <p className="text-sm text-slate-300">{card.label}</p>
-            <p className="mt-3 text-3xl font-semibold">{card.value}</p>
+          <Card className={`border-l-4 ${card.tone}`} key={card.label}>
+            <p className="text-sm font-medium text-slate-500">{card.label}</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-950">{card.value}</p>
+            <p className="mt-2 text-sm text-slate-500">{card.helper}</p>
           </Card>
         ))}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <Card eyebrow="Trends" title="Operational pulse">
+        <Card eyebrow="Operations" title="Business pulse">
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-3xl bg-amber-50 p-4">
-              <p className="text-sm text-slate-500">Order health</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">{Math.round(data.totalOrders * 0.78)} active</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Average order value</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {formatCurrency(averageOrderValue)}
+              </p>
             </div>
-            <div className="rounded-3xl bg-emerald-50 p-4">
-              <p className="text-sm text-slate-500">Revenue pace</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">{formatCurrency(data.totalRevenue / 30)}</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Orders per restaurant</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {data.totalRestaurants > 0
+                  ? Math.round(data.totalOrders / data.totalRestaurants)
+                  : 0}
+              </p>
             </div>
-            <div className="rounded-3xl bg-sky-50 p-4">
-              <p className="text-sm text-slate-500">Daily average</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-950">{Math.max(1, Math.round(data.totalOrders / 7))}</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Customer order ratio</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {data.totalUsers > 0
+                  ? Math.round((data.totalOrders / data.totalUsers) * 10) / 10
+                  : 0}
+              </p>
             </div>
           </div>
         </Card>
 
-        <Card eyebrow="Popular Items" title="What is moving">
-          <div className="space-y-4">
-            {derivedPopularItems.map((item) => (
-              <div className="flex items-center justify-between gap-3 rounded-3xl bg-slate-50 px-4 py-4" key={item.name}>
-                <div>
-                  <p className="font-medium text-slate-900">{item.name}</p>
-                  <p className="text-sm text-slate-500">{item.share}</p>
-                </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">Trending</span>
-              </div>
-            ))}
+        <Card eyebrow="Health" title="Setup status">
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <span className="text-slate-600">Restaurants configured</span>
+              <span className="font-semibold text-slate-950">{data.totalRestaurants}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <span className="text-slate-600">Customer base</span>
+              <span className="font-semibold text-slate-950">{data.totalUsers}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <span className="text-slate-600">Payment records</span>
+              <span className="font-semibold text-slate-950">
+                {data.totalRevenue > 0 ? 'Active' : 'No revenue yet'}
+              </span>
+            </div>
           </div>
         </Card>
       </section>
     </div>
   );
 }
-

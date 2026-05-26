@@ -1,10 +1,13 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 import { AdminLayout } from './layouts/AdminLayout';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { CouponsPage } from './pages/CouponsPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DeliveryDashboardPage } from './pages/DeliveryDashboardPage';
+import { DeliveryOrdersPage } from './pages/DeliveryOrdersPage';
 import { LoginPage } from './pages/LoginPage';
 import { RestaurantsPage } from './pages/RestaurantsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -12,6 +15,19 @@ import { OrdersPage } from './pages/OrdersPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { StaffPage } from './pages/StaffPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { hasBackendRole } from './utils/auth';
+
+function DashboardRoute() {
+  const user = useSelector((state) => state.auth.user);
+
+  return hasBackendRole(user, 'delivery_boy') ? <DeliveryDashboardPage /> : <DashboardPage />;
+}
+
+function OrdersRoute() {
+  const user = useSelector((state) => state.auth.user);
+
+  return hasBackendRole(user, 'delivery_boy') ? <DeliveryOrdersPage /> : <OrdersPage />;
+}
 
 export default function App() {
   return (
@@ -21,10 +37,10 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
           <Route element={<Navigate replace to="/dashboard" />} path="/" />
-          <Route element={<DashboardPage />} path="/dashboard" />
+          <Route element={<DashboardRoute />} path="/dashboard" />
 
           <Route element={<ProtectedRoute module="orders" />}>
-            <Route element={<OrdersPage />} path="/orders" />
+            <Route element={<OrdersRoute />} path="/orders" />
           </Route>
 
           <Route element={<ProtectedRoute module="restaurants" />}>
@@ -57,4 +73,3 @@ export default function App() {
     </Routes>
   );
 }
-

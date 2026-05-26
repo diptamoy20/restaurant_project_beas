@@ -9,6 +9,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { AssignDeliveryAgentDto } from './dto/assign-delivery-agent.dto';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto, PaginatedOrderResponseDto } from './dto/order-response.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -45,6 +46,29 @@ export class AdminOrdersController {
     return this.ordersService.listOrdersForAdmin(query);
   }
 
+  @Get('delivery-agents')
+  @ApiOperation({ summary: 'List delivery agents available for order assignment' })
+  @ApiQuery({ name: 'availableOnly', required: false, type: Boolean })
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number', example: 1 },
+          name: { type: 'string', example: 'Ravi Kumar' },
+          phone: { type: 'string', example: '+919900000005' },
+          isAvailable: { type: 'boolean', example: true },
+        },
+      },
+    },
+  })
+  listDeliveryAgents(
+    @Query('availableOnly') availableOnly?: boolean,
+  ): Promise<Array<{ id: number; name: string; phone: string; isAvailable: boolean }>> {
+    return this.ordersService.listDeliveryAgents({ availableOnly: availableOnly === true });
+  }
+
   @Patch(':id/accept')
   @ApiOperation({ summary: 'Accept order (sets ACCEPTED + acceptedAt)' })
   @ApiParam({ name: 'id', type: Number })
@@ -52,6 +76,19 @@ export class AdminOrdersController {
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
   acceptOrder(@Param('id', ParseIntPipe) id: number): Promise<OrderResponseDto> {
     return this.ordersService.acceptOrderByAdmin(id);
+  }
+
+  @Patch(':id/delivery')
+  @ApiOperation({ summary: 'Assign a delivery order to a delivery boy' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiBody({ type: AssignDeliveryAgentDto })
+  @ApiOkResponse({ type: OrderResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  assignDeliveryAgent(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: AssignDeliveryAgentDto,
+  ): Promise<OrderResponseDto> {
+    return this.ordersService.assignDeliveryAgentByAdmin(id, body.agentId);
   }
 
   @Patch(':id/status')

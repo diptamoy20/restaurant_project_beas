@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { CreateOrderType } from './types/create-order.type';
+import { DELIVERY_STATUS } from '../../common/constants/delivery-status';
 import { ORDER_STATUS } from '../../common/constants/order-status';
 import {
   buildPaginationMeta,
@@ -36,7 +37,11 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
     user: true;
     address: true;
     table: true;
-    delivery: true;
+    delivery: {
+      include: {
+        agent: true;
+      };
+    };
   };
 }>;
 
@@ -54,7 +59,11 @@ const ORDER_INCLUDE = {
   user: true,
   address: true,
   table: true,
-  delivery: true,
+  delivery: {
+    include: {
+      agent: true,
+    },
+  },
 } satisfies Prisma.OrderInclude;
 
 @Injectable()
@@ -134,6 +143,105 @@ export class OrdersService {
       },
       include: ORDER_INCLUDE,
     });
+
+    return this.mapOrder(order);
+  }
+
+  async listDeliveryAgents(options?: {
+    availableOnly?: boolean;
+  }): Promise<Array<{ id: number; name: string; phone: string; isAvailable: boolean }>> {
+    const where: Prisma.DeliveryAgentWhereInput = {
+      ...(options?.availableOnly ? { isAvailable: true } : {}),
+      userId: { not: null },
+      user: {
+        isActive: true,
+        roles: {
+          some: {
+            role: {
+              name: Role.DELIVERY_BOY,
+            },
+          },
+        },
+      },
+    };
+
+    const agents = await this.prisma.deliveryAgent.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        isAvailable: true,
+      },
+    });
+
+    return agents;
+  }
+
+  async assignDeliveryAgentByAdmin(orderId: number, agentId: number): Promise<OrderResponseDto> {
+    const existing = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: ORDER_INCLUDE,
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (existing.orderType !== 'DELIVERY') {
+      throw new BadRequestException('Only delivery orders can be assigned to a delivery boy');
+    }
+
+    if (existing.delivery?.status === DELIVERY_STATUS.DELIVERED) {
+      throw new BadRequestException('Delivered orders cannot be reassigned');
+    }
+
+    const agent = await this.prisma.deliveryAgent.findFirst({
+      where: {
+        id: agentId,
+        userId: { not: null },
+        user: {
+          isActive: true,
+          roles: {
+            some: {
+              role: {
+                name: Role.DELIVERY_BOY,
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Delivery agent not found');
+    }
+
+    const order = await this.prisma.$transaction(async (transaction) => {
+      await transaction.delivery.upsert({
+        where: { orderId },
+        update: {
+          agentId,
+          status: DELIVERY_STATUS.ASSIGNED,
+        },
+        create: {
+          orderId,
+          agentId,
+          status: DELIVERY_STATUS.ASSIGNED,
+        },
+      });
+
+      return transaction.order.findUnique({
+        where: { id: orderId },
+        include: ORDER_INCLUDE,
+      });
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
 
     return this.mapOrder(order);
   }
@@ -430,6 +538,9 @@ export class OrdersService {
       delivery: order.delivery
         ? {
             id: order.delivery.id,
+            agentId: order.delivery.agentId,
+            agentName: order.delivery.agent?.name ?? null,
+            agentPhone: order.delivery.agent?.phone ?? null,
             status: order.delivery.status,
           }
         : null,

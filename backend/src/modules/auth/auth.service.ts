@@ -1109,7 +1109,7 @@ export class AuthService {
       email: user.email,
       phone: user.phone,
       profileImageUrl: user.profileImageUrl,
-      roles: roles[0] ?? Role.CUSTOMER,
+      roles: roles.length ? roles : [Role.CUSTOMER],
     };
   }
 

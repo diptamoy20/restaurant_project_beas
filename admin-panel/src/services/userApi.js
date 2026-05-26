@@ -1,22 +1,33 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 
-import { baseQueryWithAuth, createUnavailableHandler } from '../app/baseQuery';
+import { baseQueryWithAuth } from '../app/baseQuery';
 
 export const userApi = createApi({
   reducerPath: 'userApi',
   baseQuery: baseQueryWithAuth,
+  tagTypes: ['Staff'],
   endpoints: (builder) => ({
     getUsers: builder.query({
-      queryFn: createUnavailableHandler('User listing'),
+      query: () => '/admin/staff',
+      providesTags: ['Staff'],
     }),
     createUser: builder.mutation({
-      queryFn: createUnavailableHandler('User creation'),
+      query: (payload) => ({
+        url: '/admin/staff',
+        method: 'POST',
+        body: payload,
+      }),
+      invalidatesTags: ['Staff'],
     }),
     updatePermissions: builder.mutation({
-      queryFn: createUnavailableHandler('Permission assignment'),
+      query: ({ id, email, permissions }) => ({
+        url: `/admin/staff/${id}/permissions`,
+        method: 'PATCH',
+        body: { email, permissions },
+      }),
+      invalidatesTags: ['Staff'],
     }),
   }),
 });
 
 export const { useGetUsersQuery, useCreateUserMutation, useUpdatePermissionsMutation } = userApi;
-

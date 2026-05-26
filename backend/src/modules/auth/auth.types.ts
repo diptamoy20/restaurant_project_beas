@@ -6,7 +6,7 @@ export type AuthenticatedUser = {
   email: string | null;
   phone: string | null;
   profileImageUrl: string | null;
-  roles: Role;
+  roles: Role[];
 };
 
 export type JwtTokenType = 'access' | 'refresh';

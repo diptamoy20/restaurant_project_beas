@@ -3,13 +3,13 @@ const AUTH_STORAGE_KEY = 'restaurant-admin-auth';
 export const roleLabelMap = {
   admin: 'Admin',
   manager: 'Manager',
-  staff: 'Staff',
+  delivery_boy: 'Delivery Boy',
 };
 
 export const roleApiMap = {
   admin: 'admin',
   manager: 'manager',
-  staff: 'delivery_boy',
+  delivery_boy: 'delivery_boy',
 };
 
 export const defaultPermissionsByRole = {
@@ -33,28 +33,40 @@ export const defaultPermissionsByRole = {
     payments: ['view', 'filter'],
     staff: [],
   },
-  staff: {
+  delivery_boy: {
     dashboard: ['view'],
     orders: ['view'],
-    restaurants: ['view'],
+    restaurants: [],
     categories: [],
     coupons: [],
     customers: [],
-    payments: ['view'],
+    payments: [],
     staff: [],
   },
 };
 
-export function inferUiRole(rawRole = 'staff') {
-  if (rawRole === 'admin') {
+export function inferUiRole(rawRole = 'delivery_boy') {
+  const roles = Array.isArray(rawRole) ? rawRole : [rawRole];
+
+  if (roles.includes('admin')) {
     return 'admin';
   }
 
-  if (rawRole === 'manager') {
+  if (roles.includes('manager')) {
     return 'manager';
   }
 
-  return 'staff';
+  return 'delivery_boy';
+}
+
+export function hasBackendRole(user, role) {
+  const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles].filter(Boolean);
+
+  return roles.includes(role);
+}
+
+export function normalizePersistedRole(role) {
+  return role === 'delivery' ? 'delivery_boy' : role;
 }
 
 export function normalizePermissions(rawPermissions, role) {
@@ -65,26 +77,32 @@ export function normalizePermissions(rawPermissions, role) {
   }
 
   if (Array.isArray(rawPermissions)) {
-    return rawPermissions.reduce((accumulator, value) => {
-      const [module, action = 'view'] = String(value).split('.');
-      if (!module) {
-        return accumulator;
-      }
+    return rawPermissions.reduce(
+      (accumulator, value) => {
+        const [module, action = 'view'] = String(value).split('.');
+        if (!module) {
+          return accumulator;
+        }
 
-      const existing = accumulator[module] ?? [];
-      accumulator[module] = existing.includes(action) ? existing : [...existing, action];
-      return accumulator;
-    }, { ...fallback });
+        const existing = accumulator[module] ?? [];
+        accumulator[module] = existing.includes(action) ? existing : [...existing, action];
+        return accumulator;
+      },
+      { ...fallback },
+    );
   }
 
   if (typeof rawPermissions === 'object') {
-    return Object.entries(rawPermissions).reduce((accumulator, [module, actions]) => {
-      if (Array.isArray(actions)) {
-        accumulator[module] = actions;
-      }
+    return Object.entries(rawPermissions).reduce(
+      (accumulator, [module, actions]) => {
+        if (Array.isArray(actions)) {
+          accumulator[module] = actions;
+        }
 
-      return accumulator;
-    }, { ...fallback });
+        return accumulator;
+      },
+      { ...fallback },
+    );
   }
 
   return fallback;
@@ -123,4 +141,3 @@ export function getInitials(name = '', email = '') {
   const tokens = source.trim().split(/\s+/).slice(0, 2);
   return tokens.map((token) => token[0]?.toUpperCase() ?? '').join('') || 'AU';
 }
-
