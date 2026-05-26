@@ -91,8 +91,83 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function DeliveryAssignmentControl({
+  order,
+  deliveryAgents,
+  isLoadingAgents,
+  compact = false,
+}) {
+  const [selectedAgentId, setSelectedAgentId] = useState(
+    order?.delivery?.agentId ? String(order.delivery.agentId) : "",
+  );
+  const [assignDeliveryAgent, assignState] = useAssignDeliveryAgentMutation();
+
+  useEffect(() => {
+    setSelectedAgentId(
+      order?.delivery?.agentId ? String(order.delivery.agentId) : "",
+    );
+  }, [order?.delivery?.agentId]);
+
+  if (order?.orderType !== "DELIVERY") {
+    return compact ? <span className="text-xs text-slate-400">-</span> : null;
+  }
+
+  const assignedLabel = order?.delivery?.agentName
+    ? `Assigned: ${order.delivery.agentName}`
+    : "Not assigned";
+
+  return (
+    <div className={compact ? "min-w-64 space-y-2" : "space-y-2"}>
+      <div className="flex flex-wrap items-end gap-2">
+        <label
+          className={
+            compact
+              ? "min-w-44 flex-1"
+              : "min-w-56 text-sm font-medium text-slate-700"
+          }
+        >
+          <span className="sr-only">Delivery Boy</span>
+          <select
+            className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+            disabled={isLoadingAgents || assignState.isLoading}
+            onChange={(event) => setSelectedAgentId(event.target.value)}
+            value={selectedAgentId}
+          >
+            <option value="">Select delivery boy</option>
+            {deliveryAgents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name} ({agent.phone})
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          className={compact ? "px-3 py-2.5" : undefined}
+          disabled={!selectedAgentId || assignState.isLoading}
+          onClick={() =>
+            assignDeliveryAgent({
+              orderId: order.id,
+              agentId: Number(selectedAgentId),
+            })
+          }
+          type="button"
+        >
+          {assignState.isLoading ? "Assigning" : "Assign"}
+        </Button>
+      </div>
+      <p className="text-xs text-slate-500">{assignedLabel}</p>
+      {assignState.error ? (
+        <p className="text-xs font-semibold text-rose-600">
+          {assignState.error?.data?.message ||
+            assignState.error?.error ||
+            "Delivery assignment failed."}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function OrderDetailsModal({ orderId, onClose }) {
-  const [selectedAgentId, setSelectedAgentId] = useState("");
   const { data, isFetching, error } = useGetOrderByIdQuery(orderId, {
     skip: !orderId,
     pollingInterval: 15000,
@@ -101,13 +176,6 @@ function OrderDetailsModal({ orderId, onClose }) {
     useListDeliveryAgentsQuery(undefined, {
       skip: !orderId,
     });
-  const [assignDeliveryAgent, assignState] = useAssignDeliveryAgentMutation();
-
-  useEffect(() => {
-    setSelectedAgentId(
-      data?.delivery?.agentId ? String(data.delivery.agentId) : "",
-    );
-  }, [data?.delivery?.agentId]);
 
   if (!orderId) {
     return null;
@@ -339,53 +407,16 @@ function OrderDetailsModal({ orderId, onClose }) {
                   {data.orderType === "DELIVERY" ? (
                     <div className="grid grid-cols-[150px_1fr] gap-4">
                       <span className="text-slate-500">Delivery Boy</span>
-                      <div className="flex flex-wrap items-end gap-3">
-                        <label className="min-w-56 text-sm font-medium text-slate-700">
-                          <span className="sr-only">Delivery Boy</span>
-                          <select
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
-                            disabled={isLoadingAgents || assignState.isLoading}
-                            onChange={(event) =>
-                              setSelectedAgentId(event.target.value)
-                            }
-                            value={selectedAgentId}
-                          >
-                            <option value="">Select delivery boy</option>
-                            {deliveryAgents.map((agent) => (
-                              <option key={agent.id} value={agent.id}>
-                                {agent.name} ({agent.phone})
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <Button
-                          disabled={!selectedAgentId || assignState.isLoading}
-                          onClick={() =>
-                            assignDeliveryAgent({
-                              orderId: data.id,
-                              agentId: Number(selectedAgentId),
-                            })
-                          }
-                          type="button"
-                        >
-                          Assign
-                        </Button>
-                      </div>
+                      <DeliveryAssignmentControl
+                        order={data}
+                        deliveryAgents={deliveryAgents}
+                        isLoadingAgents={isLoadingAgents}
+                      />
                     </div>
                   ) : null}
                 </div>
               </section>
             </div>
-
-            {assignState.error ? (
-              <ErrorState
-                message={
-                  assignState.error?.data?.message ||
-                  assignState.error?.error ||
-                  "Delivery assignment failed."
-                }
-              />
-            ) : null}
 
             <Timeline order={data} />
 
@@ -510,6 +541,8 @@ export function OrdersPage() {
   const { data, isFetching, error } = useListOrdersQuery(queryParams, {
     pollingInterval: 15000,
   });
+  const { data: deliveryAgents = [], isFetching: isLoadingAgents } =
+    useListDeliveryAgentsQuery();
 
   const orders = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -676,6 +709,18 @@ export function OrdersPage() {
                     <circle cx="12" cy="12" r="3" />
                   </svg>
                 </Button>
+              ),
+            },
+            {
+              key: "deliveryAssignment",
+              header: "Delivery Boy",
+              render: (row) => (
+                <DeliveryAssignmentControl
+                  compact
+                  order={row}
+                  deliveryAgents={deliveryAgents}
+                  isLoadingAgents={isLoadingAgents}
+                />
               ),
             },
             {
