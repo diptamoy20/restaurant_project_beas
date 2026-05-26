@@ -604,6 +604,6 @@ export class DeliveriesService {
   }
 
   private hasRole(requester: AuthenticatedUser, role: Role): boolean {
-    return requester.roles.includes(role);
+    return requester.role === role;
   }
 }

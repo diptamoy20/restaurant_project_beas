@@ -65,7 +65,7 @@ function createFormState(role = 'manager') {
 }
 
 function getPrimaryRole(user) {
-  return user?.roles?.[0] ?? 'manager';
+  return user?.role ?? 'manager';
 }
 
 function getCapabilitySummary(permissions = {}) {
@@ -121,7 +121,7 @@ export function StaffPage() {
     () => ({
       total: users.length,
       active: users.filter((user) => user.isActive !== false).length,
-      delivery: users.filter((user) => user.roles?.includes('delivery_boy')).length,
+      delivery: users.filter((user) => user.role === 'delivery_boy').length,
     }),
     [users],
   );

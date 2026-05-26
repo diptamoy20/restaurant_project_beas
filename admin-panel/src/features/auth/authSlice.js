@@ -22,14 +22,14 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      const role = action.payload.role ?? inferUiRole(action.payload.user?.roles);
+      const role = action.payload.role ?? inferUiRole(action.payload.user?.role);
       state.user = action.payload.user;
       state.token = action.payload.token ?? action.payload.accessToken;
       state.role = role;
       state.permissions = normalizePermissions(action.payload.permissions, role);
     },
     hydrateProfile: (state, action) => {
-      const role = inferUiRole(action.payload.roles);
+      const role = inferUiRole(action.payload.role);
       state.user = { ...state.user, ...action.payload };
       state.role = role;
       state.permissions = normalizePermissions(action.payload.permissions, role);

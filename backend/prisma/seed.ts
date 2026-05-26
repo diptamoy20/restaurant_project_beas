@@ -40,21 +40,13 @@ async function ensureUser(params: {
     },
   });
 
-  const roleMapping = await prisma.userRoleMapping.findFirst({
-    where: {
+  await prisma.userRole.deleteMany({ where: { userId: user.id } });
+  await prisma.userRole.create({
+    data: {
       userId: user.id,
       roleId: params.roleId,
     },
   });
-
-  if (!roleMapping) {
-    await prisma.userRoleMapping.create({
-      data: {
-        userId: user.id,
-        roleId: params.roleId,
-      },
-    });
-  }
 
   return { id: user.id };
 }

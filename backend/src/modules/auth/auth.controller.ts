@@ -5,7 +5,6 @@ import {
   Body,
   Controller,
   BadRequestException,
-  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -154,13 +153,7 @@ export class AuthController {
   @ApiForbiddenResponse({ description: 'User does not have requested role' })
   @ApiStandardErrorResponses({ badRequest: true, unauthorized: true })
   async loginByRole(@Body() payload: RoleLoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
-    const response = await this.authService.login(payload);
-
-    if (!response.data.user.roles.includes(payload.role)) {
-      throw new ForbiddenException(`User does not have the ${payload.role} role`);
-    }
-
-    return response;
+    return this.authService.login(payload, payload.role);
   }
 
   @Public()

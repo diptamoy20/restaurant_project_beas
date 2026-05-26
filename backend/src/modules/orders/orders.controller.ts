@@ -63,7 +63,7 @@ export class OrdersController {
     @Body() payload: CreateOrderDto,
     @Req() request: { user: AuthenticatedUser },
   ): Promise<OrderResponseDto> {
-    const normalizedPayload = request.user.roles.includes(Role.CUSTOMER)
+    const normalizedPayload = request.user.role === Role.CUSTOMER
       ? {
           ...payload,
           userId: request.user.id,

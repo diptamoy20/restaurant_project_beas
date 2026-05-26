@@ -60,9 +60,7 @@ export function inferUiRole(rawRole = 'delivery_boy') {
 }
 
 export function hasBackendRole(user, role) {
-  const roles = Array.isArray(user?.roles) ? user.roles : [user?.roles].filter(Boolean);
-
-  return roles.includes(role);
+  return user?.role === role;
 }
 
 export function normalizePersistedRole(role) {

@@ -26,7 +26,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 
 const STAFF_USER_INCLUDE = {
-  roles: {
+  role: {
     include: {
       role: true,
     },
@@ -128,8 +128,8 @@ export class AdminService {
           userId: { not: null },
           user: {
             isActive: true,
-            roles: {
-              some: {
+            role: {
+              is: {
                 role: {
                   name: Role.DELIVERY_BOY,
                 },
@@ -204,8 +204,8 @@ export class AdminService {
   async listStaff(): Promise<StaffUserDto[]> {
     const staff = await this.prisma.user.findMany({
       where: {
-        roles: {
-          some: {
+        role: {
+          is: {
             role: {
               name: {
                 in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY],
@@ -543,7 +543,7 @@ export class AdminService {
     }
 
     const password = await hash(this.normalizeStaffPassword(payload.password), 10);
-    const permissions = this.normalizePermissions(payload.permissions, [payload.role]);
+    const permissions = this.normalizePermissions(payload.permissions, payload.role);
 
     const user = await this.prisma.$transaction(async (transaction) => {
       const role = await transaction.roleMaster.findUnique({
@@ -573,8 +573,8 @@ export class AdminService {
           phone,
           password,
           permissions,
-          roles: {
-            create: [{ roleId: role.id }],
+          role: {
+            create: { roleId: role.id },
           },
         },
         include: STAFF_USER_INCLUDE,
@@ -611,8 +611,8 @@ export class AdminService {
     requester: AuthenticatedUser,
   ): Promise<StaffUserDto> {
     const user = await this.findStaffUserOrThrow(id);
-    const roles = user.roles.map((entry) => entry.role.name as Role);
-    const nextRole = payload.role ?? roles[0];
+    const currentRole = this.getUserRole(user);
+    const nextRole = payload.role ?? currentRole;
 
     this.assertManageableStaffRole(nextRole);
     this.assertCanMutateStaffUser(user, requester);
@@ -656,8 +656,8 @@ export class AdminService {
         throw new BadRequestException(`${nextRole} role is not configured`);
       }
 
-      await transaction.userRoleMapping.deleteMany({ where: { userId: id } });
-      await transaction.userRoleMapping.create({
+      await transaction.userRole.deleteMany({ where: { userId: id } });
+      await transaction.userRole.create({
         data: {
           userId: id,
           roleId: role.id,
@@ -670,7 +670,7 @@ export class AdminService {
           name,
           email,
           phone,
-          permissions: this.normalizePermissions(payload.permissions, [nextRole]),
+          permissions: this.normalizePermissions(payload.permissions, nextRole),
         },
         include: STAFF_USER_INCLUDE,
       });
@@ -726,11 +726,11 @@ export class AdminService {
       throw new NotFoundException('Staff user not found');
     }
 
-    const roles = user.roles.map((entry) => entry.role.name as Role);
+    const role = this.getUserRole(user);
     const updated = await this.prisma.user.update({
       where: { id },
       data: {
-        permissions: this.normalizePermissions(payload.permissions, roles),
+        permissions: this.normalizePermissions(payload.permissions, role),
       },
       include: STAFF_USER_INCLUDE,
     });
@@ -743,8 +743,8 @@ export class AdminService {
     const user = await this.prisma.user.findFirst({
       where: {
         id,
-        roles: {
-          some: {
+        role: {
+          is: {
             role: {
               name: {
                 in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY],
@@ -812,7 +812,7 @@ export class AdminService {
 
     await this.prisma.$transaction(async (transaction) => {
       await transaction.deliveryAgent.deleteMany({ where: { userId: id } });
-      await transaction.userRoleMapping.deleteMany({ where: { userId: id } });
+      await transaction.userRole.deleteMany({ where: { userId: id } });
       await transaction.notification.deleteMany({ where: { userId: id } });
       await transaction.socialAccount.deleteMany({ where: { userId: id } });
       await transaction.user.delete({ where: { id } });
@@ -825,7 +825,7 @@ export class AdminService {
     user: StaffUserRecord,
     permissions?: Record<string, string[]>,
   ): StaffUserDto {
-    const roles = user.roles.map((entry) => entry.role.name as Role);
+    const role = this.getUserRole(user);
 
     return {
       id: user.id,
@@ -833,8 +833,8 @@ export class AdminService {
       email: user.email,
       phone: user.phone,
       isActive: user.isActive,
-      roles,
-      permissions: permissions ?? this.readPermissions(user.permissions, roles),
+      role,
+      permissions: permissions ?? this.readPermissions(user.permissions, role),
       deliveryAgent: user.deliveryAgent
         ? {
             id: user.deliveryAgent.id,
@@ -866,8 +866,8 @@ export class AdminService {
     const user = await this.prisma.user.findFirst({
       where: {
         id,
-        roles: {
-          some: {
+        role: {
+          is: {
             role: {
               name: {
                 in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY],
@@ -893,9 +893,7 @@ export class AdminService {
   }
 
   private async assertCanDeactivateStaffUser(user: StaffUserRecord): Promise<void> {
-    const roles = user.roles.map((entry) => entry.role.name as Role);
-
-    if (!roles.includes(Role.ADMIN)) {
+    if (this.getUserRole(user) !== Role.ADMIN) {
       return;
     }
 
@@ -903,8 +901,8 @@ export class AdminService {
       where: {
         id: { not: user.id },
         isActive: true,
-        roles: {
-          some: {
+        role: {
+          is: {
             role: {
               name: Role.ADMIN,
             },
@@ -965,9 +963,9 @@ export class AdminService {
 
   private normalizePermissions(
     permissions: Record<string, string[]> | undefined,
-    roles: Role[],
+    role: Role,
   ): Prisma.InputJsonValue {
-    const source = permissions ?? getDefaultPermissionsForRoles(roles);
+    const source = permissions ?? getDefaultPermissionsForRoles([role]);
     const normalized: PermissionMap = {};
 
     for (const [module, actions] of Object.entries(source)) {
@@ -983,10 +981,10 @@ export class AdminService {
 
   private readPermissions(
     value: Prisma.JsonValue | null | undefined,
-    roles: Role[],
+    role: Role,
   ): PermissionMap {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      return getDefaultPermissionsForRoles(roles);
+      return getDefaultPermissionsForRoles([role]);
     }
 
     const permissions: PermissionMap = {};
@@ -997,6 +995,10 @@ export class AdminService {
       }
     }
 
-    return Object.keys(permissions).length ? permissions : getDefaultPermissionsForRoles(roles);
+    return Object.keys(permissions).length ? permissions : getDefaultPermissionsForRoles([role]);
+  }
+
+  private getUserRole(user: StaffUserRecord): Role {
+    return (user.role?.role.name as Role | undefined) ?? Role.CUSTOMER;
   }
 }
