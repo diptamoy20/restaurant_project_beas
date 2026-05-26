@@ -11,7 +11,9 @@ import { TextField } from "../components/ui/TextField";
 import { PermissionGate } from "../components/PermissionGate";
 import {
   useAcceptOrderMutation,
+  useAssignDeliveryAgentMutation,
   useGetOrderByIdQuery,
+  useListDeliveryAgentsQuery,
   useListOrdersQuery,
   useUpdateOrderStatusMutation,
 } from "../services/orderApi";
@@ -90,10 +92,22 @@ function formatDateTime(value) {
 }
 
 function OrderDetailsModal({ orderId, onClose }) {
+  const [selectedAgentId, setSelectedAgentId] = useState("");
   const { data, isFetching, error } = useGetOrderByIdQuery(orderId, {
     skip: !orderId,
     pollingInterval: 15000,
   });
+  const { data: deliveryAgents = [], isFetching: isLoadingAgents } =
+    useListDeliveryAgentsQuery(undefined, {
+      skip: !orderId,
+    });
+  const [assignDeliveryAgent, assignState] = useAssignDeliveryAgentMutation();
+
+  useEffect(() => {
+    setSelectedAgentId(
+      data?.delivery?.agentId ? String(data.delivery.agentId) : "",
+    );
+  }, [data?.delivery?.agentId]);
 
   if (!orderId) {
     return null;
@@ -322,9 +336,56 @@ function OrderDetailsModal({ orderId, onClose }) {
                       </span>
                     }
                   />
+                  {data.orderType === "DELIVERY" ? (
+                    <div className="grid grid-cols-[150px_1fr] gap-4">
+                      <span className="text-slate-500">Delivery Boy</span>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <label className="min-w-56 text-sm font-medium text-slate-700">
+                          <span className="sr-only">Delivery Boy</span>
+                          <select
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                            disabled={isLoadingAgents || assignState.isLoading}
+                            onChange={(event) =>
+                              setSelectedAgentId(event.target.value)
+                            }
+                            value={selectedAgentId}
+                          >
+                            <option value="">Select delivery boy</option>
+                            {deliveryAgents.map((agent) => (
+                              <option key={agent.id} value={agent.id}>
+                                {agent.name} ({agent.phone})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Button
+                          disabled={!selectedAgentId || assignState.isLoading}
+                          onClick={() =>
+                            assignDeliveryAgent({
+                              orderId: data.id,
+                              agentId: Number(selectedAgentId),
+                            })
+                          }
+                          type="button"
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </section>
             </div>
+
+            {assignState.error ? (
+              <ErrorState
+                message={
+                  assignState.error?.data?.message ||
+                  assignState.error?.error ||
+                  "Delivery assignment failed."
+                }
+              />
+            ) : null}
 
             <Timeline order={data} />
 

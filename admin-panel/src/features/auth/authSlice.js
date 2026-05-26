@@ -4,6 +4,7 @@ import {
   clearPersistedAuth,
   inferUiRole,
   loadPersistedAuth,
+  normalizePersistedRole,
   normalizePermissions,
 } from '../../utils/auth';
 
@@ -12,7 +13,7 @@ const persistedAuth = loadPersistedAuth();
 const initialState = {
   user: persistedAuth?.user ?? null,
   token: persistedAuth?.token ?? persistedAuth?.accessToken ?? null,
-  role: persistedAuth?.role ?? null,
+  role: persistedAuth?.role ? normalizePersistedRole(persistedAuth.role) : null,
   permissions: persistedAuth?.permissions ?? {},
 };
 
@@ -45,4 +46,3 @@ const authSlice = createSlice({
 
 export const { setCredentials, hydrateProfile, logout } = authSlice.actions;
 export default authSlice.reducer;
-

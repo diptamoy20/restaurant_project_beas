@@ -11,13 +11,17 @@ import { Sidebar } from './Sidebar';
 export function AdminLayout() {
   const dispatch = useDispatch();
   const token = useSelector((state) => state.auth.token);
-  const { data, isFetching } = useGetMeQuery(undefined, { skip: !token });
+  const currentUserId = useSelector((state) => state.auth.user?.id);
+  const { data, isFetching } = useGetMeQuery(undefined, {
+    skip: !token,
+    refetchOnMountOrArgChange: true,
+  });
 
   useEffect(() => {
-    if (data) {
+    if (data && (!currentUserId || data.id === currentUserId)) {
       dispatch(hydrateProfile(data));
     }
-  }, [data, dispatch]);
+  }, [currentUserId, data, dispatch]);
 
   return (
     <div className="min-h-screen bg-[#f7f4ed] text-slate-900">
@@ -34,4 +38,3 @@ export function AdminLayout() {
     </div>
   );
 }
-

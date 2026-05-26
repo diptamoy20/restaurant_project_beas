@@ -25,7 +25,10 @@ export function LoginPage() {
 
   const handleChange = (event) => {
     setFormError('');
-    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    setForm((current) => ({
+      ...current,
+      [event.target.name]: event.target.value,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -40,15 +43,16 @@ export function LoginPage() {
 
       const authResponse = response?.data ?? response;
       const userRole = authResponse.user?.roles;
+      const userRoles = Array.isArray(userRole) ? userRole : [userRole].filter(Boolean);
 
-      const hasAdminAccess = ALLOWED_ADMIN_ROLES.has(userRole);
+      const hasAdminAccess = userRoles.some((role) => ALLOWED_ADMIN_ROLES.has(role));
 
       if (!hasAdminAccess) {
         setFormError('Account is not authorized for admin portal.');
         return;
       }
 
-      const role = inferUiRole(userRole);
+      const role = inferUiRole(userRoles);
 
       dispatch(
         setCredentials({
@@ -59,9 +63,12 @@ export function LoginPage() {
         }),
       );
 
-      navigate(location.state?.from?.pathname ?? '/dashboard', { replace: true });
+      navigate(location.state?.from?.pathname ?? '/dashboard', {
+        replace: true,
+      });
     } catch (apiError) {
-      const message = apiError?.data?.message || apiError?.error || 'Unable to sign in with those credentials.';
+      const message =
+        apiError?.data?.message || apiError?.error || 'Unable to sign in with those credentials.';
       setFormError(message);
     }
   };
@@ -72,15 +79,17 @@ export function LoginPage() {
         <div className="hidden bg-slate-950 p-10 text-white lg:flex flex-col items-center justify-center">
           {/* <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Restaurant OS</p> */}
           <span className="brand-mark" aria-hidden="true">
-              <img src={projectLogo} alt="" />
-            </span>
+            <img src={projectLogo} alt="" />
+          </span>
           {/* <h1 className="mt-4 max-w-sm text-4xl font-semibold leading-tight">
             Keep service, menu, and staff decisions in one calm workspace.
           </h1> */}
         </div>
 
         <div className="p-6 sm:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Admin Login</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+            Admin Login
+          </p>
           <h2 className="mt-3 text-3xl font-semibold text-slate-950">Welcome back</h2>
           <p className="mt-2 text-sm text-slate-500">
             Use your credentials. Role is detected automatically from your account.
@@ -106,7 +115,12 @@ export function LoginPage() {
 
             {formError || error ? (
               <ErrorState
-                message={formError || error?.data?.message || error?.error || 'Unable to sign in with those credentials.'}
+                message={
+                  formError ||
+                  error?.data?.message ||
+                  error?.error ||
+                  'Unable to sign in with those credentials.'
+                }
               />
             ) : null}
 
@@ -119,4 +133,3 @@ export function LoginPage() {
     </div>
   );
 }
-

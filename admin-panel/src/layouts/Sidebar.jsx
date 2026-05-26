@@ -3,14 +3,15 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { closeSidebar } from '../features/ui/uiSlice';
 import { getVisibleRoutes } from '../routes/accessControl';
-import { roleLabelMap } from '../utils/auth';
+import { hasBackendRole, roleLabelMap } from '../utils/auth';
 import projectLogo from '../assets/project-logo.svg';
 
 export function Sidebar() {
   const dispatch = useDispatch();
-  const { role, permissions } = useSelector((state) => state.auth);
+  const { role, permissions, user } = useSelector((state) => state.auth);
   const sidebarOpen = useSelector((state) => state.ui.sidebarOpen);
   const routes = getVisibleRoutes(role, permissions);
+  const isDeliveryBoy = hasBackendRole(user, 'delivery_boy');
 
   return (
     <aside
@@ -21,10 +22,10 @@ export function Sidebar() {
           <img src={projectLogo} alt="Restaurant logo" className="h-full w-full object-contain" />
         </div>
         {/* <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300">Restaurant OS</p> */}
-        <h1 className="mt-2 text-2xl font-semibold">Admin Panel</h1>
-        <p className="mt-2 text-sm text-slate-300">
-          Signed in as {roleLabelMap[role] ?? 'User'}
-        </p>
+        <h1 className="mt-2 text-2xl font-semibold">
+          {isDeliveryBoy ? 'Delivery Panel' : 'Admin Panel'}
+        </h1>
+        <p className="mt-2 text-sm text-slate-300">Signed in as {roleLabelMap[role] ?? 'User'}</p>
       </div>
 
       <nav className="mt-8 space-y-2">
@@ -32,7 +33,9 @@ export function Sidebar() {
           <NavLink
             className={({ isActive }) =>
               `block rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                isActive ? 'bg-white/40 text-slate-950' : 'text-slate-300 hover:bg-white/20 hover:text-white'
+                isActive
+                  ? 'bg-white/40 text-slate-950'
+                  : 'text-slate-300 hover:bg-white/20 hover:text-white'
               }`
             }
             key={route.path}
@@ -46,4 +49,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

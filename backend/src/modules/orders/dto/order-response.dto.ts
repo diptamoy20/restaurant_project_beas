@@ -243,6 +243,21 @@ export class OrderDeliverySummaryDto {
   @IsNumber()
   id!: number;
 
+  @ApiPropertyOptional({ example: 1, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  agentId!: number | null;
+
+  @ApiPropertyOptional({ example: 'Ravi Kumar', nullable: true })
+  @IsOptional()
+  @IsString()
+  agentName!: string | null;
+
+  @ApiPropertyOptional({ example: '+919900000005', nullable: true })
+  @IsOptional()
+  @IsString()
+  agentPhone!: string | null;
+
   @ApiProperty({ example: 'ON_THE_WAY' })
   @IsString()
   status!: string;
