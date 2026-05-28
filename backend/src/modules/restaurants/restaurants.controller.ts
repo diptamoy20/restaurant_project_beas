@@ -9,10 +9,15 @@ import {
   Query,
   Body,
   UseGuards,
+  UploadedFile,
   HttpCode,
   HttpStatus,
+  BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
+  ApiBody,
+  ApiConsumes,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -30,6 +35,7 @@ import {
 } from './dto/restaurant-response.dto';
 import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
+import { ImageFileInterceptor } from '../../common/cloudinary/image-file.interceptor';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { AllowWeb } from '../../common/decorators/client.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -164,6 +170,38 @@ export class RestaurantsController {
     @Body() data: UpdateRestaurantDto,
   ): Promise<RestaurantResponseDto> {
     return this.restaurantsService.updateRestaurant(id, data);
+  }
+
+  @Post(':id/image')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @UseInterceptors(ImageFileInterceptor('image'))
+  @ApiOperation({ summary: 'Upload restaurant image to Cloudinary' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image'],
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ type: RestaurantResponseDto })
+  @ApiStandardErrorResponses({ unauthorized: true, badRequest: true, notFound: true })
+  async uploadRestaurantImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<RestaurantResponseDto> {
+    if (!file) {
+      throw new BadRequestException('Restaurant image is required');
+    }
+
+    return this.restaurantsService.uploadRestaurantImage(id, file);
   }
 
   /**

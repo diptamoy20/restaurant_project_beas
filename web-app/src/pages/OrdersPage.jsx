@@ -4,22 +4,13 @@ import { orderApi } from "../services/orderApi";
 import { formatDateTime } from "../utils/date";
 
 const STATUS_THEME = {
-  PENDING: { label: "Pending", className: "order-chip order-chip--pending" },
-  PLACED: { label: "Pending", className: "order-chip order-chip--pending" },
-  ACCEPTED: { label: "Accepted", className: "order-chip order-chip--accepted" },
-  PREPARING: {
-    label: "Preparing",
-    className: "order-chip order-chip--preparing",
-  },
-  OUT_FOR_DELIVERY: {
-    label: "Out for delivery",
-    className: "order-chip order-chip--delivery",
-  },
-  DELIVERED: { label: "Delivered", className: "order-chip order-chip--done" },
-  CANCELLED: {
-    label: "Cancelled",
-    className: "order-chip order-chip--cancelled",
-  },
+  PENDING: { label: 'Pending', className: 'order-chip order-chip--pending' },
+  PLACED: { label: 'Pending', className: 'order-chip order-chip--pending' },
+  ACCEPTED: { label: 'Accepted', className: 'order-chip order-chip--accepted' },
+  PREPARING: { label: 'Preparing', className: 'order-chip order-chip--preparing' },
+  ON_THE_WAY: { label: 'On the way', className: 'order-chip order-chip--delivery' },
+  DELIVERED: { label: 'Delivered', className: 'order-chip order-chip--done' },
+  CANCELLED: { label: 'Cancelled', className: 'order-chip order-chip--cancelled' },
 };
 
 const POLL_MS = 22_000;

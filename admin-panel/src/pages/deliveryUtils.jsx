@@ -1,14 +1,12 @@
 export const deliveryStatusOptions = [
   { value: '', label: 'All delivery orders' },
   { value: 'ASSIGNED', label: 'Assigned' },
-  { value: 'OUT_FOR_DELIVERY', label: 'Out for delivery' },
   { value: 'ON_THE_WAY', label: 'On the way' },
   { value: 'DELIVERED', label: 'Delivered' },
 ];
 
 export const deliveryStatusClasses = {
   ASSIGNED: 'bg-amber-100 text-amber-800',
-  OUT_FOR_DELIVERY: 'bg-indigo-100 text-indigo-900',
   ON_THE_WAY: 'bg-blue-100 text-blue-700',
   DELIVERED: 'bg-emerald-100 text-emerald-900',
   CANCELLED: 'bg-rose-100 text-rose-700',
@@ -54,10 +52,6 @@ export function DeliveryStatusBadge({ status }) {
 export function getNextDeliveryAction(deliveryStatus) {
   if (deliveryStatus === 'ASSIGNED') {
     return { label: 'Accept', action: 'accept' };
-  }
-
-  if (deliveryStatus === 'OUT_FOR_DELIVERY') {
-    return { label: 'Mark On The Way', action: 'status', status: 'ON_THE_WAY' };
   }
 
   if (deliveryStatus === 'ON_THE_WAY') {

@@ -22,6 +22,8 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto, SocialLoginProvider } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { FirebaseAuthService } from './firebase-auth.service';
+import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
+import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
   getDefaultPermissionsForRoles,
   PermissionMap,
@@ -35,6 +37,7 @@ type PrismaUserWithRole = {
   email: string | null;
   phone: string | null;
   profileImageUrl: string | null;
+  profileImagePublicId: string | null;
   password: string;
   isActive: boolean;
   refreshToken: string | null;
@@ -86,6 +89,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly firebaseAuthService: FirebaseAuthService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {
     this.loginLockThreshold =
       this.configService.get<number>('LOGIN_LOCK_THRESHOLD') ?? DEFAULT_LOGIN_LOCK_THRESHOLD;
@@ -461,7 +465,16 @@ export class AuthService {
     if (name !== undefined) data.name = name;
     if (email !== undefined) data.email = email;
     if (phone !== undefined) data.phone = phone;
-    if (profileImageUrl !== undefined) data.profileImageUrl = profileImageUrl;
+    const shouldReplaceProfileImageUrl =
+      profileImageUrl !== undefined && profileImageUrl !== currentUser.profileImageUrl;
+
+    if (profileImageUrl !== undefined) {
+      data.profileImageUrl = profileImageUrl;
+    }
+
+    if (shouldReplaceProfileImageUrl) {
+      data.profileImagePublicId = null;
+    }
 
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
@@ -475,12 +488,16 @@ export class AuthService {
       },
     });
 
+    if (shouldReplaceProfileImageUrl) {
+      await this.cloudinaryService.deleteImage(currentUser.profileImagePublicId);
+    }
+
     return this.buildStandardResponse('Profile updated', this.toAuthUserDto(updatedUser));
   }
 
   async updateProfileImage(
     user: AuthenticatedUser,
-    profileImageUrl: string,
+    file: Express.Multer.File,
   ): Promise<AuthSuccessResponse<AuthUserDto>> {
     const currentUser = await this.loadAuthUser(user.id);
 
@@ -488,19 +505,36 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const updatedUser = await this.prisma.user.update({
-      where: { id: user.id },
-      data: { profileImageUrl },
-      include: {
-        role: {
-          include: {
-            role: true,
+    let uploadedImage: CloudinaryImageUploadResult | null = null;
+
+    try {
+      uploadedImage = await this.cloudinaryService.uploadImage(file, 'users/profile-images');
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          profileImageUrl: uploadedImage.secureUrl,
+          profileImagePublicId: uploadedImage.publicId,
+        },
+        include: {
+          role: {
+            include: {
+              role: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return this.buildStandardResponse('Profile image updated', this.toAuthUserDto(updatedUser));
+      await this.cloudinaryService.deleteImage(currentUser.profileImagePublicId);
+
+      return this.buildStandardResponse('Profile image updated', this.toAuthUserDto(updatedUser));
+    } catch (error) {
+      if (uploadedImage) {
+        await this.cloudinaryService.deleteImage(uploadedImage.publicId);
+      }
+
+      throw error;
+    }
   }
 
   async validateUserById(id: number): Promise<AuthenticatedUser | null> {

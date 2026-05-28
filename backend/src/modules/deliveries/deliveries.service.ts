@@ -88,7 +88,7 @@ export class DeliveriesService {
       this.prisma.delivery.count({
         where: {
           agentId: agent.id,
-          status: { in: [DELIVERY_STATUS.OUT_FOR_DELIVERY, DELIVERY_STATUS.ON_THE_WAY] },
+          status: { in: [DELIVERY_STATUS.ON_THE_WAY] },
         },
       }),
       this.prisma.delivery.count({
@@ -178,14 +178,14 @@ export class DeliveriesService {
       await transaction.order.update({
         where: { id: orderId },
         data: {
-          status: ORDER_STATUS.OUT_FOR_DELIVERY,
-          statusLogs: { create: [{ status: ORDER_STATUS.OUT_FOR_DELIVERY }] },
+          status: ORDER_STATUS.ON_THE_WAY,
+          statusLogs: { create: [{ status: ORDER_STATUS.ON_THE_WAY }] },
         },
       });
 
       return transaction.delivery.update({
         where: { id: existing.id },
-        data: { status: DELIVERY_STATUS.OUT_FOR_DELIVERY },
+        data: { status: DELIVERY_STATUS.ON_THE_WAY },
         include: DELIVERY_DETAIL_INCLUDE,
       });
     });
@@ -523,8 +523,7 @@ export class DeliveriesService {
     nextStatus: DeliveryStatusValue,
   ): void {
     const allowedTransitions: Partial<Record<DeliveryStatusValue, DeliveryStatusValue[]>> = {
-      [DELIVERY_STATUS.ASSIGNED]: [DELIVERY_STATUS.OUT_FOR_DELIVERY],
-      [DELIVERY_STATUS.OUT_FOR_DELIVERY]: [DELIVERY_STATUS.ON_THE_WAY],
+      [DELIVERY_STATUS.ASSIGNED]: [DELIVERY_STATUS.ON_THE_WAY],
       [DELIVERY_STATUS.ON_THE_WAY]: [DELIVERY_STATUS.DELIVERED],
     };
 
@@ -538,8 +537,7 @@ export class DeliveriesService {
   private getActions(status: string): DeliveryBoyOrderDetailsDto['actions'] {
     return {
       canAccept: status === DELIVERY_STATUS.ASSIGNED,
-      canMarkOutForDelivery: status === DELIVERY_STATUS.ASSIGNED,
-      canMarkOnTheWay: status === DELIVERY_STATUS.OUT_FOR_DELIVERY,
+      canMarkOnTheWay: status === DELIVERY_STATUS.ASSIGNED,
       canMarkDelivered: status === DELIVERY_STATUS.ON_THE_WAY,
     };
   }

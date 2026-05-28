@@ -724,7 +724,7 @@ async function main(): Promise<void> {
         tableId: qrTableT2.id,
         addressId: address.id,
         orderNumber: 'ORD-DEMO-1001',
-        status: 'OUT_FOR_DELIVERY',
+        status: 'ON_THE_WAY',
         source: OrderSource.WEBSITE,
         orderType: 'DELIVERY',
         totalAmount: 288,
@@ -743,7 +743,7 @@ async function main(): Promise<void> {
           ],
         },
         statusLogs: {
-          create: [{ status: 'PLACED' }, { status: 'CONFIRMED' }, { status: 'OUT_FOR_DELIVERY' }],
+          create: [{ status: 'PLACED' }, { status: 'CONFIRMED' }, { status: 'ON_THE_WAY' }],
         },
         payments: {
           create: [
@@ -817,7 +817,7 @@ async function main(): Promise<void> {
       data: {
         userId: customer.id,
         title: 'Order on the way',
-        message: 'Your order is out for delivery and will arrive soon.',
+        message: 'Your order is on the way and will arrive soon.',
         isRead: false,
       },
     });

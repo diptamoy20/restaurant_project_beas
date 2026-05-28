@@ -1,27 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { AccountSidebar } from '../components/account/AccountSidebar.jsx';
-import { AddressManager } from '../components/account/AddressManager.jsx';
-import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
-import { updateProfile, uploadProfileImage } from '../store/slices/authSlice';
-import { getUserDisplayName } from '../utils/profile';
+import { useEffect, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { AccountSidebar } from "../components/account/AccountSidebar.jsx";
+import { AddressManager } from "../components/account/AddressManager.jsx";
+import { ProfileAvatar } from "../components/ProfileAvatar.jsx";
+import { updateProfile, uploadProfileImage } from "../store/slices/authSlice";
+import { IMAGE_UPLOAD_ACCEPT, validateImageFile } from "../utils/imageUpload";
+import { getUserDisplayName } from "../utils/profile";
 
 export function ProfilePage() {
   const dispatch = useDispatch();
   const { user, loading, error, message } = useSelector((state) => state.auth);
   const imageInputRef = useRef(null);
-  const [activeSection, setActiveSection] = useState('profile');
+  const [activeSection, setActiveSection] = useState("profile");
+  const [imageError, setImageError] = useState("");
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: "",
+    email: "",
+    phone: "",
   });
 
   useEffect(() => {
     setForm({
-      name: user?.name ?? '',
-      email: user?.email ?? '',
-      phone: user?.phone ?? '',
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+      phone: user?.phone ?? "",
     });
   }, [user]);
 
@@ -33,10 +35,26 @@ export function ProfilePage() {
     const file = event.target.files?.[0];
 
     if (file) {
-      dispatch(uploadProfileImage(file));
+      const validationError = validateImageFile(file);
+
+      if (validationError) {
+        setImageError(validationError);
+        window.alert(validationError);
+        event.target.value = "";
+        return;
+      }
+
+      setImageError("");
+      dispatch(uploadProfileImage(file))
+        .unwrap()
+        .catch((uploadError) => {
+          const message = uploadError || "Unable to upload profile image";
+          setImageError(message);
+          window.alert(message);
+        });
     }
 
-    event.target.value = '';
+    event.target.value = "";
   };
 
   const handleSubmit = (event) => {
@@ -71,7 +89,7 @@ export function ProfilePage() {
               ref={imageInputRef}
               className="profile-image-input"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept={IMAGE_UPLOAD_ACCEPT}
               onChange={handleImageChange}
             />
           </div>
@@ -80,7 +98,8 @@ export function ProfilePage() {
           <p className="eyebrow">Profile</p>
           <h2>{getUserDisplayName(user)}</h2>
           <p className="copy">
-            Keep your account details and delivery addresses ready for faster checkout.
+            Keep your account details and delivery addresses ready for faster
+            checkout.
           </p>
         </div>
       </div>
@@ -92,8 +111,11 @@ export function ProfilePage() {
         />
 
         <div className="account-content">
-          {activeSection === 'profile' ? (
-            <form className="info-card profile-edit-panel" onSubmit={handleSubmit}>
+          {activeSection === "profile" ? (
+            <form
+              className="info-card profile-edit-panel"
+              onSubmit={handleSubmit}
+            >
               <div className="profile-form-header">
                 <div>
                   <h3>Personal details</h3>
@@ -110,7 +132,10 @@ export function ProfilePage() {
                   <input
                     value={form.name}
                     onChange={(event) =>
-                      setForm((current) => ({ ...current, name: event.target.value }))
+                      setForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
                     }
                     placeholder="Your name"
                   />
@@ -144,21 +169,25 @@ export function ProfilePage() {
                 </label>
               </div>
 
+              {imageError ? <p className="form-error">{imageError}</p> : null}
               {error ? <p className="form-error">{error}</p> : null}
               {message ? <p className="form-success">{message}</p> : null}
 
               <div className="profile-form-actions">
                 <button type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save profile'}
+                  {loading ? "Saving..." : "Save profile"}
                 </button>
               </div>
             </form>
-          ) : activeSection === 'support' ? (
+          ) : activeSection === "support" ? (
             <div className="info-card account-support-panel">
               <div className="profile-form-header">
                 <div>
                   <h3>Help & Support</h3>
-                  <p>Find quick answers or contact the team about your account and orders.</p>
+                  <p>
+                    Find quick answers or contact the team about your account
+                    and orders.
+                  </p>
                 </div>
               </div>
 
@@ -166,21 +195,35 @@ export function ProfilePage() {
                 <article className="support-card">
                   <span>Orders</span>
                   <h4>Order support</h4>
-                  <p>Need help with an active order, cancellation, payment, or invoice?</p>
-                  <a href="/orders" className="text-link">View orders</a>
+                  <p>
+                    Need help with an active order, cancellation, payment, or
+                    invoice?
+                  </p>
+                  <a href="/orders" className="text-link">
+                    View orders
+                  </a>
                 </article>
                 <article className="support-card">
                   <span>Contact</span>
                   <h4>Contact support</h4>
-                  <p>Email our support desk and include your order number for faster help.</p>
-                  <a href="mailto:support@restaurant-app.local" className="text-link">
+                  <p>
+                    Email our support desk and include your order number for
+                    faster help.
+                  </p>
+                  <a
+                    href="mailto:support@restaurant-app.local"
+                    className="text-link"
+                  >
                     support@restaurant-app.local
                   </a>
                 </article>
                 <article className="support-card">
                   <span>FAQs</span>
                   <h4>Common questions</h4>
-                  <p>Invoices, payment status, delivery updates, and account changes are handled here.</p>
+                  <p>
+                    Invoices, payment status, delivery updates, and account
+                    changes are handled here.
+                  </p>
                 </article>
               </div>
             </div>

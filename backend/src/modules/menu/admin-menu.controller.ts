@@ -1,6 +1,20 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiBody,
   ApiBearerAuth,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -12,6 +26,7 @@ import { CreateAdminMenuItemDto, UpdateAdminMenuItemDto } from './dto/admin-menu
 import { MenuItemDto } from './dto/menu-item.dto';
 import { MenuResponseDto } from './dto/menu.response.dto';
 import { MenuService } from './menu.service';
+import { ImageFileInterceptor } from '../../common/cloudinary/image-file.interceptor';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -57,6 +72,36 @@ export class AdminMenuController {
     @Body() body: UpdateAdminMenuItemDto,
   ): Promise<MenuItemDto> {
     return this.menuService.updateAdminMenuItem(id, body);
+  }
+
+  @Post('menu/:id/image')
+  @UseInterceptors(ImageFileInterceptor('image'))
+  @ApiOperation({ summary: 'Upload menu item image to Cloudinary' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image'],
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ type: MenuItemDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  uploadMenuItemImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<MenuItemDto> {
+    if (!file) {
+      throw new BadRequestException('Menu item image is required');
+    }
+
+    return this.menuService.uploadMenuItemImage(id, file);
   }
 
   @Delete('menu/:id')

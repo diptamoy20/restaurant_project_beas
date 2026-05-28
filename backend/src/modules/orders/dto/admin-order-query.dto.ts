@@ -22,11 +22,11 @@ export class AdminOrderQueryDto {
   payment?: string;
 
   @ApiPropertyOptional({
-    enum: ['PREPARING', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'SERVED'],
+    enum: ['PREPARING', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'SERVED'],
   })
   @IsOptional()
   @IsString()
-  @IsIn(['PREPARING', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'SERVED'])
+  @IsIn(['PREPARING', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'SERVED'])
   status?: string;
 
   @ApiPropertyOptional({ enum: ['ACCEPT', 'REJECT'] })
