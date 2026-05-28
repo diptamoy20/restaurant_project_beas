@@ -591,13 +591,13 @@ export function RestaurantsPage() {
         {mutationError ? <ErrorState message={mutationError} /> : null}
       </Card>
 
-      <ManageMenuSection
+      {/* <ManageMenuSection
         restaurants={data ?? []}
         isRestaurantsLoading={isLoading}
         restaurantsError={error}
         onAddMenu={(restaurant) => openMenu(restaurant, 'create')}
         onViewMenu={(restaurant) => openMenu(restaurant, 'list')}
-      />
+      /> */}
 
       <RestaurantMenuModal
         open={Boolean(menuRestaurant)}
