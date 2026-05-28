@@ -5,7 +5,6 @@ import {
   Body,
   Controller,
   BadRequestException,
-  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -45,7 +44,6 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
-import { AllowWeb } from '../../common/decorators/client.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -154,13 +152,7 @@ export class AuthController {
   @ApiForbiddenResponse({ description: 'User does not have requested role' })
   @ApiStandardErrorResponses({ badRequest: true, unauthorized: true })
   async loginByRole(@Body() payload: RoleLoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
-    const response = await this.authService.login(payload);
-
-    if (!response.data.user.roles.includes(payload.role)) {
-      throw new ForbiddenException(`User does not have the ${payload.role} role`);
-    }
-
-    return response;
+    return this.authService.login(payload, payload.role);
   }
 
   @Public()
@@ -272,8 +264,8 @@ export class AuthController {
     );
   }
 
+  @Public()
   @Get('profile-image/:filename')
-  @AllowWeb()
   getProfileImage(@Param('filename') filename: string, @Res() response: Response): void {
     const safeFilename = sanitizeProfileImageFilename(filename);
 

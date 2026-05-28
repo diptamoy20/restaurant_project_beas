@@ -16,8 +16,19 @@ export const paymentApi = createApi({
     getPaymentHistory: builder.query({
       queryFn: createUnavailableHandler('Payment history'),
     }),
+    confirmCodPaymentByAdmin: builder.mutation({
+      query: (orderId) => ({
+        url: '/payments/cod/admin-confirm',
+        method: 'POST',
+        body: { orderId },
+      }),
+    }),
   }),
 });
 
-export const { useInitiatePaymentMutation, useGetPaymentHistoryQuery } = paymentApi;
+export const {
+  useInitiatePaymentMutation,
+  useGetPaymentHistoryQuery,
+  useConfirmCodPaymentByAdminMutation,
+} = paymentApi;
 

@@ -17,7 +17,11 @@ import {
 import { DeliveryBoyOrdersQueryDto } from './dto/delivery-boy-query.dto';
 import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
 import { UpdateMyDeliveryLocationDto } from './dto/update-my-delivery-location.dto';
-import { DELIVERY_STATUS, DeliveryStatusValue } from '../../common/constants/delivery-status';
+import {
+  ACTIVE_DELIVERY_STATUSES,
+  DELIVERY_STATUS,
+  DeliveryStatusValue,
+} from '../../common/constants/delivery-status';
 import { ORDER_STATUS } from '../../common/constants/order-status';
 import {
   buildPaginationMeta,
@@ -77,7 +81,7 @@ export class DeliveriesService {
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
     const agent = await this.getCurrentAgentOrThrow(requester.id);
 
-    const [assigned, onTheWay, delivered, assignedOrders] = await Promise.all([
+    const [assigned, onTheWay, delivered, activeOrders] = await Promise.all([
       this.prisma.delivery.count({
         where: { agentId: agent.id, status: DELIVERY_STATUS.ASSIGNED },
       }),
@@ -91,7 +95,7 @@ export class DeliveriesService {
         where: { agentId: agent.id, status: DELIVERY_STATUS.DELIVERED },
       }),
       this.prisma.delivery.findMany({
-        where: { agentId: agent.id, status: DELIVERY_STATUS.ASSIGNED },
+        where: { agentId: agent.id, status: { in: ACTIVE_DELIVERY_STATUSES } },
         orderBy: { order: { createdAt: 'desc' } },
         take: 10,
         include: DELIVERY_CARD_INCLUDE,
@@ -105,7 +109,7 @@ export class DeliveriesService {
         onTheWay,
         delivered,
       },
-      assignedOrders: assignedOrders.map((delivery) => this.mapOrderCard(delivery)),
+      assignedOrders: activeOrders.map((delivery) => this.mapOrderCard(delivery)),
     };
   }
 
@@ -600,8 +604,6 @@ export class DeliveriesService {
   }
 
   private hasRole(requester: AuthenticatedUser, role: Role): boolean {
-    const roles = requester.roles as unknown as Role[] | Role;
-
-    return Array.isArray(roles) ? roles.includes(role) : roles === role;
+    return requester.role === role;
   }
 }

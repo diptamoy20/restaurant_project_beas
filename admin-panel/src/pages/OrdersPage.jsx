@@ -10,11 +10,17 @@ import { Table } from "../components/ui/Table";
 import { TextField } from "../components/ui/TextField";
 import { PermissionGate } from "../components/PermissionGate";
 import {
+  downloadOrderInvoice,
   useAcceptOrderMutation,
+  useAssignDeliveryAgentMutation,
   useGetOrderByIdQuery,
+  useGetOrderInvoiceQuery,
+  useListDeliveryAgentsQuery,
   useListOrdersQuery,
   useUpdateOrderStatusMutation,
 } from "../services/orderApi";
+import { useConfirmCodPaymentByAdminMutation } from "../services/paymentApi";
+import { formatDateTime, formatTime } from "../utils/date";
 
 const statusClasses = {
   PLACED: "bg-amber-100 text-amber-800",
@@ -75,25 +81,101 @@ function formatLabel(value) {
     .join(" ");
 }
 
-function formatDateTime(value) {
-  if (!value) {
-    return "-";
+function DeliveryAssignmentControl({
+  order,
+  deliveryAgents,
+  isLoadingAgents,
+  compact = false,
+}) {
+  const [selectedAgentId, setSelectedAgentId] = useState(
+    order?.delivery?.agentId ? String(order.delivery.agentId) : "",
+  );
+  const [assignDeliveryAgent, assignState] = useAssignDeliveryAgentMutation();
+
+  useEffect(() => {
+    setSelectedAgentId(
+      order?.delivery?.agentId ? String(order.delivery.agentId) : "",
+    );
+  }, [order?.delivery?.agentId]);
+
+  if (order?.orderType !== "DELIVERY") {
+    return compact ? <span className="text-xs text-slate-400">-</span> : null;
   }
 
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  const assignedLabel = order?.delivery?.agentName
+    ? `Assigned: ${order.delivery.agentName}`
+    : "Not assigned";
+
+  return (
+    <div className={compact ? "min-w-64 space-y-2" : "space-y-2"}>
+      <div className="flex flex-wrap items-end gap-2">
+        <label
+          className={
+            compact
+              ? "min-w-44 flex-1"
+              : "min-w-56 text-sm font-medium text-slate-700"
+          }
+        >
+          <span className="sr-only">Delivery Boy</span>
+          <select
+            className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+            disabled={isLoadingAgents || assignState.isLoading}
+            onChange={(event) => setSelectedAgentId(event.target.value)}
+            value={selectedAgentId}
+          >
+            <option value="">Select delivery boy</option>
+            {deliveryAgents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name} ({agent.phone})
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          className={compact ? "px-3 py-2.5" : undefined}
+          disabled={!selectedAgentId || assignState.isLoading}
+          onClick={() =>
+            assignDeliveryAgent({
+              orderId: order.id,
+              agentId: Number(selectedAgentId),
+            })
+          }
+          type="button"
+        >
+          {assignState.isLoading ? "Assigning" : "Assign"}
+        </Button>
+      </div>
+      <p className="text-xs text-slate-500">{assignedLabel}</p>
+      {assignState.error ? (
+        <p className="text-xs font-semibold text-rose-600">
+          {assignState.error?.data?.message ||
+            assignState.error?.error ||
+            "Delivery assignment failed."}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function OrderDetailsModal({ orderId, onClose }) {
-  const { data, isFetching, error } = useGetOrderByIdQuery(orderId, {
+  const { data, isFetching, error, refetch } = useGetOrderByIdQuery(orderId, {
     skip: !orderId,
     pollingInterval: 15000,
   });
+  const {
+    data: invoice,
+    isFetching: isInvoiceFetching,
+    error: invoiceError,
+    refetch: refetchInvoice,
+  } = useGetOrderInvoiceQuery(orderId, {
+    skip: !orderId,
+  });
+  const { data: deliveryAgents = [], isFetching: isLoadingAgents } =
+    useListDeliveryAgentsQuery(undefined, {
+      skip: !orderId,
+    });
+  const [confirmCodPayment, confirmCodState] = useConfirmCodPaymentByAdminMutation();
+  const [invoiceDownloadError, setInvoiceDownloadError] = useState("");
 
   if (!orderId) {
     return null;
@@ -102,10 +184,7 @@ function OrderDetailsModal({ orderId, onClose }) {
   const subtotal = data?.totalAmount ?? 0;
   const discount = data?.discountAmount ?? 0;
   const total = data?.finalAmount ?? subtotal;
-  const deliveryCharge =
-    data?.orderType === "DELIVERY"
-      ? Math.max(0, total - subtotal + discount)
-      : 0;
+  const deliveryCharge = data?.deliveryCharge ?? 0;
   const platformFee = 0;
   const etaStart = data?.createdAt
     ? new Date(
@@ -190,7 +269,7 @@ function OrderDetailsModal({ orderId, onClose }) {
                   Expected by{" "}
                   <span className="font-semibold text-blue-600">
                     {etaStart && etaEnd
-                      ? `${etaStart.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} - ${etaEnd.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
+                      ? `${formatTime(etaStart)} - ${formatTime(etaEnd)}`
                       : "-"}
                   </span>
                 </p>
@@ -257,6 +336,12 @@ function OrderDetailsModal({ orderId, onClose }) {
                         <span>-{formatCurrency(discount)}</span>
                       </div>
                     ) : null}
+                    {data.tipAmount ? (
+                      <div className="flex justify-between text-slate-600">
+                        <span>Tip</span>
+                        <span>{formatCurrency(data.tipAmount)}</span>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between border-t border-dashed border-slate-200 pt-3 text-base font-bold text-slate-950">
                       <span>Total Amount</span>
                       <span>{formatCurrency(total)}</span>
@@ -313,6 +398,10 @@ function OrderDetailsModal({ orderId, onClose }) {
                     value={formatLabel(data.paymentMethod)}
                   />
                   <DetailRow
+                    label="Payment Status"
+                    value={formatLabel(data.paymentStatus)}
+                  />
+                  <DetailRow
                     label="Status"
                     value={
                       <span
@@ -322,9 +411,90 @@ function OrderDetailsModal({ orderId, onClose }) {
                       </span>
                     }
                   />
+                  {data.cancellationReason ? (
+                    <DetailRow label="Cancel Notes" value={data.cancellationReason} />
+                  ) : null}
+                  {data.cancelledAt ? (
+                    <DetailRow label="Cancelled At" value={formatDateTime(data.cancelledAt)} />
+                  ) : null}
+                  {data.orderType === "DELIVERY" ? (
+                    <div className="grid grid-cols-[150px_1fr] gap-4">
+                      <span className="text-slate-500">Delivery Boy</span>
+                      <DeliveryAssignmentControl
+                        order={data}
+                        deliveryAgents={deliveryAgents}
+                        isLoadingAgents={isLoadingAgents}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </section>
             </div>
+
+            <section className="rounded-2xl border border-slate-200 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-semibold text-slate-950">Invoice</h4>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {isInvoiceFetching
+                      ? "Checking invoice availability..."
+                      : invoice?.invoiceNumber
+                        ? `${invoice.invoiceNumber} · ${formatLabel(invoice.status)}`
+                        : "Invoice details are not available yet."}
+                  </p>
+                  {invoice?.unavailableReason ? (
+                    <p className="mt-1 text-xs font-medium text-amber-700">
+                      {invoice.unavailableReason}
+                    </p>
+                  ) : null}
+                  {invoiceError ? (
+                    <p className="mt-1 text-xs font-semibold text-rose-600">
+                      {invoiceError?.data?.message || invoiceError?.error || "Invoice could not be loaded."}
+                    </p>
+                  ) : null}
+                  {invoiceDownloadError ? (
+                    <p className="mt-1 text-xs font-semibold text-rose-600">
+                      {invoiceDownloadError}
+                    </p>
+                  ) : null}
+                  {confirmCodState.error ? (
+                    <p className="mt-1 text-xs font-semibold text-rose-600">
+                      {confirmCodState.error?.data?.message ||
+                        confirmCodState.error?.error ||
+                        "COD confirmation failed."}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {data.paymentMethod === "COD" && data.paymentStatus !== "PAID" ? (
+                    <Button
+                      disabled={confirmCodState.isLoading}
+                      onClick={async () => {
+                        await confirmCodPayment(data.id).unwrap();
+                        refetch();
+                        refetchInvoice();
+                      }}
+                    >
+                      {confirmCodState.isLoading ? "Confirming..." : "Confirm COD Payment"}
+                    </Button>
+                  ) : null}
+                  <Button
+                    disabled={!invoice?.canDownload}
+                    onClick={async () => {
+                      setInvoiceDownloadError("");
+                      try {
+                        await downloadOrderInvoice(data.id);
+                      } catch (downloadError) {
+                        setInvoiceDownloadError(downloadError.message || "Invoice download failed.");
+                      }
+                    }}
+                    variant="secondary"
+                  >
+                    Download Invoice
+                  </Button>
+                </div>
+              </div>
+            </section>
 
             <Timeline order={data} />
 
@@ -392,12 +562,7 @@ function Timeline({ order }) {
                 {step.label}
               </p>
               <p className="text-xs text-slate-500">
-                {step.at
-                  ? new Date(step.at).toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "-"}
+                {step.at ? formatTime(step.at) : "-"}
               </p>
             </div>
           );
@@ -420,6 +585,9 @@ export function OrdersPage() {
   });
   const [searchText, setSearchText] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [cancelOrder, setCancelOrder] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState("");
   const [acceptOrder, acceptState] = useAcceptOrderMutation();
   const [updateOrderStatus, { error: actionError, isLoading: isUpdating }] =
     useUpdateOrderStatusMutation();
@@ -449,6 +617,8 @@ export function OrdersPage() {
   const { data, isFetching, error } = useListOrdersQuery(queryParams, {
     pollingInterval: 15000,
   });
+  const { data: deliveryAgents = [], isFetching: isLoadingAgents } =
+    useListDeliveryAgentsQuery();
 
   const orders = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -466,10 +636,27 @@ export function OrdersPage() {
   };
 
   const handleReject = async (order) => {
+    setCancelOrder(order);
+    setCancelReason("");
+    setCancelError("");
+  };
+
+  const submitCancelOrder = async () => {
+    const reason = cancelReason.trim();
+
+    if (reason.length < 3) {
+      setCancelError("Cancel notes are required.");
+      return;
+    }
+
     await updateOrderStatus({
-      orderId: order.id,
+      orderId: cancelOrder.id,
       status: "CANCELLED",
+      cancellationReason: reason,
     }).unwrap();
+    setCancelOrder(null);
+    setCancelReason("");
+    setCancelError("");
   };
 
   return (
@@ -618,6 +805,18 @@ export function OrdersPage() {
               ),
             },
             {
+              key: "deliveryAssignment",
+              header: "Delivery Boy",
+              render: (row) => (
+                <DeliveryAssignmentControl
+                  compact
+                  order={row}
+                  deliveryAgents={deliveryAgents}
+                  isLoadingAgents={isLoadingAgents}
+                />
+              ),
+            },
+            {
               key: "actions",
               header: (
                 <select
@@ -732,6 +931,58 @@ export function OrdersPage() {
         orderId={selectedOrderId}
         onClose={() => setSelectedOrderId(null)}
       />
+
+      {cancelOrder ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/65 p-4">
+          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Cancel Order
+              </p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-950">
+                Add cancel notes for #{cancelOrder.id}
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">
+                The customer will see this reason in their order details.
+              </p>
+            </div>
+            <label className="block text-sm font-medium text-slate-700">
+              <span className="mb-2 block">Cancel Notes / Reason *</span>
+              <textarea
+                className="min-h-32 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                maxLength={500}
+                onChange={(event) => setCancelReason(event.target.value)}
+                placeholder="Example: Item unavailable, restaurant closed, customer requested cancellation"
+                value={cancelReason}
+              />
+            </label>
+            {cancelError || actionError ? (
+              <p className="mt-2 text-sm font-semibold text-rose-600">
+                {cancelError ||
+                  actionError?.data?.message ||
+                  actionError?.error ||
+                  "Order cancellation failed."}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap justify-end gap-3">
+              <Button
+                disabled={isUpdating}
+                onClick={() => {
+                  setCancelOrder(null);
+                  setCancelReason("");
+                  setCancelError("");
+                }}
+                variant="secondary"
+              >
+                Close
+              </Button>
+              <Button disabled={isUpdating} onClick={submitCancelOrder} variant="danger">
+                {isUpdating ? "Cancelling..." : "Cancel Order"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

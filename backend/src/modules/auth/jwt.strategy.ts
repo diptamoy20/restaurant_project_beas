@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { JwtPayload, AuthenticatedUser } from './auth.types';
+import { getDefaultPermissionsForRoles } from '../../common/constants/default-permissions';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -34,7 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
-    if (!Array.isArray(payload.roles) || payload.roles.length === 0) {
+    if (!payload.role) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
@@ -44,7 +45,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       phone: payload.phone,
       profileImageUrl: payload.profileImageUrl ?? null,
-      roles: payload.roles[0],
+      role: payload.role,
+      permissions: payload.permissions ?? getDefaultPermissionsForRoles([payload.role]),
     };
   }
 }

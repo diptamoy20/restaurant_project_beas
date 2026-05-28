@@ -79,6 +79,13 @@ export class CheckoutQuoteRequestDto {
   @Matches(/^[A-Za-z0-9_-]+$/)
   couponCode?: string;
 
+  @ApiPropertyOptional({ example: 30 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  tipAmount?: number;
+
   @ApiProperty({ type: () => CheckoutQuoteItemDto, isArray: true })
   @IsArray()
   @ArrayMinSize(1)
@@ -263,6 +270,10 @@ export class CheckoutQuoteResponseDto {
   @IsOptional()
   @IsString()
   deliveryUnavailableReason!: string | null;
+
+  @ApiProperty({ example: 30 })
+  @IsNumber()
+  tipAmount!: number;
 
   @ApiProperty({
     example: {

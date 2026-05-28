@@ -22,10 +22,14 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto, SocialLoginProvider } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { FirebaseAuthService } from './firebase-auth.service';
+import {
+  getDefaultPermissionsForRoles,
+  PermissionMap,
+} from '../../common/constants/default-permissions';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 
-type PrismaUserWithRoles = {
+type PrismaUserWithRole = {
   id: number;
   name: string | null;
   email: string | null;
@@ -38,12 +42,14 @@ type PrismaUserWithRoles = {
   lastLoginAt: Date | null;
   failedLoginAttempts: number;
   lockUntil: Date | null;
-  roles: { role: { name: string } }[];
+  permissions: Prisma.JsonValue | null;
+  role: { role: { name: string } } | null;
 };
 
 type SessionOptions = {
   message: string;
   updateLoginMetadata: boolean;
+  preferredRole?: Role;
 };
 
 type FirebaseSocialProfile = {
@@ -123,12 +129,12 @@ export class AuthService {
         email: payload.email,
         phone: payload.phone,
         password,
-        roles: {
-          create: [{ roleId: customerRole.id }],
+        role: {
+          create: { roleId: customerRole.id },
         },
       },
       include: {
-        roles: {
+        role: {
           include: {
             role: true,
           },
@@ -144,7 +150,10 @@ export class AuthService {
     });
   }
 
-  async login(payload: LoginDto): Promise<AuthSuccessResponse<AuthResponseDto>> {
+  async login(
+    payload: LoginDto,
+    preferredRole?: Role,
+  ): Promise<AuthSuccessResponse<AuthResponseDto>> {
     if (!payload.email && !payload.phone) {
       throw new BadRequestException('Email or phone is required');
     }
@@ -156,7 +165,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: { OR: conditions },
       include: {
-        roles: {
+        role: {
           include: {
             role: true,
           },
@@ -184,6 +193,7 @@ export class AuthService {
     return this.issueSession(user, {
       message: 'Login successful',
       updateLoginMetadata: true,
+      preferredRole,
     });
   }
 
@@ -392,14 +402,13 @@ export class AuthService {
   }
 
   async me(user: AuthenticatedUser): Promise<AuthSuccessResponse<AuthUserDto>> {
-    return this.buildStandardResponse('Profile loaded', {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      profileImageUrl: user.profileImageUrl,
-      roles: user.roles,
-    });
+    const currentUser = await this.loadAuthUser(user.id);
+
+    if (!currentUser || !currentUser.isActive) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return this.buildStandardResponse('Profile loaded', this.toAuthUserDto(currentUser));
   }
 
   async updateMe(
@@ -458,7 +467,7 @@ export class AuthService {
       where: { id: user.id },
       data,
       include: {
-        roles: {
+        role: {
           include: {
             role: true,
           },
@@ -466,7 +475,7 @@ export class AuthService {
       },
     });
 
-    return this.buildStandardResponse('Profile updated', this.toAuthUser(updatedUser));
+    return this.buildStandardResponse('Profile updated', this.toAuthUserDto(updatedUser));
   }
 
   async updateProfileImage(
@@ -483,7 +492,7 @@ export class AuthService {
       where: { id: user.id },
       data: { profileImageUrl },
       include: {
-        roles: {
+        role: {
           include: {
             role: true,
           },
@@ -491,7 +500,7 @@ export class AuthService {
       },
     });
 
-    return this.buildStandardResponse('Profile image updated', this.toAuthUser(updatedUser));
+    return this.buildStandardResponse('Profile image updated', this.toAuthUserDto(updatedUser));
   }
 
   async validateUserById(id: number): Promise<AuthenticatedUser | null> {
@@ -501,13 +510,18 @@ export class AuthService {
       return null;
     }
 
-    return this.toAuthUser(user);
+    return this.toAuthenticatedUser(user);
   }
 
   private async issueSession(
-    user: PrismaUserWithRoles,
+    user: PrismaUserWithRole,
     options: SessionOptions,
   ): Promise<AuthSuccessResponse<AuthResponseDto>> {
+    if (options.preferredRole) {
+      const role = this.mapEffectiveRole(user);
+      this.resolvePrimaryRole(role, options.preferredRole);
+    }
+
     const accessToken = this.signAccessToken(user);
     const refreshToken = this.signRefreshToken(user);
     const refreshTokenExpiresAt = this.getRefreshTokenExpiryDate();
@@ -535,7 +549,7 @@ export class AuthService {
       refreshToken,
       tokenType: 'Bearer',
       refreshTokenExpiresAt: refreshTokenExpiresAt.toISOString(),
-      user: this.toAuthUser(user),
+      user: this.toAuthUserDto(user, options.preferredRole),
     });
   }
 
@@ -547,14 +561,14 @@ export class AuthService {
     };
   }
 
-  private signAccessToken(user: PrismaUserWithRoles): string {
+  private signAccessToken(user: PrismaUserWithRole): string {
     return this.jwtService.sign(this.buildJwtPayload(user, ACCESS_TOKEN_TYPE), {
       secret: this.getAccessTokenSecret(),
       expiresIn: this.getAccessTokenExpiresIn(),
     });
   }
 
-  private signRefreshToken(user: PrismaUserWithRoles): string {
+  private signRefreshToken(user: PrismaUserWithRole): string {
     return this.jwtService.sign(this.buildJwtPayload(user, REFRESH_TOKEN_TYPE), {
       secret: this.getRefreshTokenSecret(),
       expiresIn: this.getRefreshTokenExpiresIn(),
@@ -562,10 +576,11 @@ export class AuthService {
   }
 
   private buildJwtPayload(
-    user: PrismaUserWithRoles,
+    user: PrismaUserWithRole,
     type: typeof ACCESS_TOKEN_TYPE | typeof REFRESH_TOKEN_TYPE,
   ): JwtPayload {
-    const roles = this.mapRoles(user);
+    const role = this.mapEffectiveRole(user);
+    const permissions = this.resolvePermissions(user.permissions, role);
 
     return {
       sub: user.id,
@@ -574,8 +589,8 @@ export class AuthService {
       phone: user.phone,
       name: user.name,
       profileImageUrl: user.profileImageUrl,
-      roles,
-      role: roles[0] ?? null,
+      role: this.resolvePrimaryRole(role),
+      permissions,
       type,
     };
   }
@@ -633,11 +648,11 @@ export class AuthService {
     }
   }
 
-  private async loadAuthUser(id: number): Promise<PrismaUserWithRoles | null> {
+  private async loadAuthUser(id: number): Promise<PrismaUserWithRole | null> {
     return this.prisma.user.findUnique({
       where: { id },
       include: {
-        roles: {
+        role: {
           include: {
             role: true,
           },
@@ -646,11 +661,11 @@ export class AuthService {
     });
   }
 
-  private async loadAuthUserByEmail(email: string): Promise<PrismaUserWithRoles | null> {
+  private async loadAuthUserByEmail(email: string): Promise<PrismaUserWithRole | null> {
     return this.prisma.user.findUnique({
       where: { email },
       include: {
-        roles: {
+        role: {
           include: {
             role: true,
           },
@@ -662,7 +677,7 @@ export class AuthService {
   private async loadAuthUserBySocialAccount(
     provider: SocialLoginProvider,
     providerUserId: string,
-  ): Promise<PrismaUserWithRoles | null> {
+  ): Promise<PrismaUserWithRole | null> {
     const socialAccount = await this.prisma.socialAccount.findUnique({
       where: {
         provider_providerUserId: {
@@ -673,7 +688,7 @@ export class AuthService {
       include: {
         user: {
           include: {
-            roles: {
+            role: {
               include: {
                 role: true,
               },
@@ -688,7 +703,7 @@ export class AuthService {
 
   private async findOrCreateSocialUser(
     profile: FirebaseSocialProfile,
-  ): Promise<PrismaUserWithRoles> {
+  ): Promise<PrismaUserWithRole> {
     const existingLinkedUser = await this.loadAuthUserBySocialAccount(
       profile.provider,
       profile.providerUserId,
@@ -710,7 +725,7 @@ export class AuthService {
           include: {
             user: {
               include: {
-                roles: {
+                role: {
                   include: {
                     role: true,
                   },
@@ -736,7 +751,7 @@ export class AuthService {
           ? await tx.user.findUnique({
               where: { email: profile.email },
               include: {
-                roles: {
+                role: {
                   include: {
                     role: true,
                   },
@@ -765,7 +780,7 @@ export class AuthService {
             include: {
               user: {
                 include: {
-                  roles: {
+                  role: {
                     include: {
                       role: true,
                     },
@@ -792,8 +807,8 @@ export class AuthService {
                 profileImageUrl: profile.picture,
                 password,
                 isActive: true,
-                roles: {
-                  create: [{ roleId: customerRole.id }],
+                role: {
+                  create: { roleId: customerRole.id },
                 },
               },
             },
@@ -801,7 +816,7 @@ export class AuthService {
           include: {
             user: {
               include: {
-                roles: {
+                role: {
                   include: {
                     role: true,
                   },
@@ -846,7 +861,7 @@ export class AuthService {
   private async linkSocialAccount(
     userId: number,
     profile: FirebaseSocialProfile,
-  ): Promise<PrismaUserWithRoles> {
+  ): Promise<PrismaUserWithRole> {
     const socialAccount = await this.prisma.socialAccount.upsert({
       where: {
         provider_providerUserId: {
@@ -866,7 +881,7 @@ export class AuthService {
       include: {
         user: {
           include: {
-            roles: {
+            role: {
               include: {
                 role: true,
               },
@@ -880,9 +895,9 @@ export class AuthService {
   }
 
   private async syncLinkedSocialUser(
-    user: PrismaUserWithRoles,
+    user: PrismaUserWithRole,
     profile: FirebaseSocialProfile,
-  ): Promise<PrismaUserWithRoles> {
+  ): Promise<PrismaUserWithRole> {
     const userData: Prisma.UserUpdateInput = {};
 
     if (!user.email && profile.email) {
@@ -920,7 +935,7 @@ export class AuthService {
             where: { id: user.id },
             data: userData,
             include: {
-              roles: {
+              role: {
                 include: {
                   role: true,
                 },
@@ -932,7 +947,7 @@ export class AuthService {
         const currentUser = await tx.user.findUnique({
           where: { id: user.id },
           include: {
-            roles: {
+            role: {
               include: {
                 role: true,
               },
@@ -1051,7 +1066,7 @@ export class AuthService {
     return `${value.slice(0, 4)}...${value.slice(-4)}`;
   }
 
-  private async ensureLoginAllowed(user: PrismaUserWithRoles): Promise<void> {
+  private async ensureLoginAllowed(user: PrismaUserWithRole): Promise<void> {
     if (!user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -1073,7 +1088,7 @@ export class AuthService {
     }
   }
 
-  private async handleFailedLogin(user: PrismaUserWithRoles): Promise<void> {
+  private async handleFailedLogin(user: PrismaUserWithRole): Promise<void> {
     const failedLoginAttempts = user.failedLoginAttempts + 1;
     const isLocked = failedLoginAttempts >= this.loginLockThreshold;
     const lockUntil = isLocked ? new Date(Date.now() + this.loginLockDurationMs) : user.lockUntil;
@@ -1101,15 +1116,33 @@ export class AuthService {
     });
   }
 
-  private toAuthUser(user: PrismaUserWithRoles): AuthenticatedUser {
-    const roles = this.mapRoles(user);
+  private toAuthenticatedUser(user: PrismaUserWithRole): AuthenticatedUser {
+    const effectiveRole = this.mapEffectiveRole(user);
+    const role = this.resolvePrimaryRole(effectiveRole);
+
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       phone: user.phone,
       profileImageUrl: user.profileImageUrl,
-      roles: roles[0] ?? Role.CUSTOMER,
+      role,
+      permissions: this.resolvePermissions(user.permissions, effectiveRole),
+    };
+  }
+
+  private toAuthUserDto(user: PrismaUserWithRole, preferredRole?: Role): AuthUserDto {
+    const effectiveRole = this.mapEffectiveRole(user);
+    const role = this.resolvePrimaryRole(effectiveRole, preferredRole);
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      profileImageUrl: user.profileImageUrl,
+      role,
+      permissions: this.resolvePermissions(user.permissions, effectiveRole),
     };
   }
 
@@ -1174,7 +1207,38 @@ export class AuthService {
     }
   }
 
-  private mapRoles(user: PrismaUserWithRoles): Role[] {
-    return user.roles.map((entry) => entry.role.name as Role);
+  private mapRole(user: PrismaUserWithRole): Role | null {
+    return (user.role?.role.name as Role | undefined) ?? null;
+  }
+
+  private mapEffectiveRole(user: PrismaUserWithRole): Role {
+    return this.mapRole(user) ?? Role.CUSTOMER;
+  }
+
+  private resolvePrimaryRole(role: Role, preferredRole?: Role): Role {
+    if (preferredRole && role !== preferredRole) {
+      throw new ForbiddenException(`User does not have the ${preferredRole} role`);
+    }
+
+    return preferredRole ?? role;
+  }
+
+  private resolvePermissions(
+    value: Prisma.JsonValue | null | undefined,
+    role: Role,
+  ): PermissionMap {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return getDefaultPermissionsForRoles([role]);
+    }
+
+    const permissions: PermissionMap = {};
+
+    for (const [module, actions] of Object.entries(value)) {
+      if (Array.isArray(actions)) {
+        permissions[module] = actions.map(String).filter(Boolean);
+      }
+    }
+
+    return Object.keys(permissions).length ? permissions : getDefaultPermissionsForRoles([role]);
   }
 }

@@ -6,7 +6,8 @@ export type AuthenticatedUser = {
   email: string | null;
   phone: string | null;
   profileImageUrl: string | null;
-  roles: Role;
+  role: Role;
+  permissions?: Record<string, string[]>;
 };
 
 export type JwtTokenType = 'access' | 'refresh';
@@ -18,8 +19,8 @@ export type JwtPayload = {
   phone: string | null;
   name: string | null;
   profileImageUrl?: string | null;
-  roles: Role[];
-  role: Role | null;
+  role: Role;
+  permissions?: Record<string, string[]>;
   type: JwtTokenType;
 };
 

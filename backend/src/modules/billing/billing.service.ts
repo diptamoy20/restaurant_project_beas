@@ -27,6 +27,7 @@ export type BillingQuoteInput = {
   orderType?: string;
   items: BillingQuoteItemInput[];
   couponCode?: string | null;
+  tipAmount?: number;
   manualDiscountAmount?: number;
   allowManualDiscount?: boolean;
 };
@@ -79,6 +80,7 @@ export type BillingQuote = {
   isDeliveryAvailable: boolean;
   deliveryFeeBreakdown: DeliveryFeeBreakdown;
   deliveryUnavailableReason: string | null;
+  tipAmount: number;
   finalAmount: number;
 };
 
@@ -204,6 +206,11 @@ export class BillingService {
     const sgstAmount = this.roundMoney(taxAmount - cgstAmount);
     const igstAmount = 0;
     const deliveryFee = await this.calculateDelivery(input, restaurant, subtotalAmount, client);
+    const tipAmount = this.roundMoney(input.tipAmount ?? 0);
+
+    if (tipAmount < 0 || tipAmount > 10000) {
+      throw new BadRequestException('Tip amount is not valid for this order');
+    }
 
     if (input.orderType === 'DELIVERY' && !deliveryFee.isDeliveryAvailable) {
       throw new BadRequestException(
@@ -240,8 +247,13 @@ export class BillingService {
       isDeliveryAvailable: deliveryFee.isDeliveryAvailable,
       deliveryFeeBreakdown: deliveryFee.deliveryFeeBreakdown,
       deliveryUnavailableReason: deliveryFee.deliveryUnavailableReason,
+      tipAmount,
       finalAmount: this.roundMoney(
-        taxableAmount + taxAmount + deliveryFee.deliveryCharge + deliveryFee.packagingCharge,
+        taxableAmount +
+          taxAmount +
+          deliveryFee.deliveryCharge +
+          deliveryFee.packagingCharge +
+          tipAmount,
       ),
     };
   }

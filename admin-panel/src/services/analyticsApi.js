@@ -9,8 +9,13 @@ export const analyticsApi = createApi({
     getDashboardAnalytics: builder.query({
       query: () => '/admin/dashboard',
     }),
+    getDashboardOverview: builder.query({
+      query: (params = {}) => ({
+        url: '/admin/dashboard/overview',
+        params,
+      }),
+    }),
   }),
 });
 
-export const { useGetDashboardAnalyticsQuery } = analyticsApi;
-
+export const { useGetDashboardAnalyticsQuery, useGetDashboardOverviewQuery } = analyticsApi;

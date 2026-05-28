@@ -34,5 +34,7 @@ export type CreateOrderType = {
 
   couponCode?: string;
 
+  tipAmount?: number;
+
   items: CreateOrderItemType[];
 };

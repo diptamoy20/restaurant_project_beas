@@ -2849,6 +2849,43 @@ h4 {
   min-width: 0;
 }
 
+.support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.support-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.support-card span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(26, 71, 42, 0.08);
+  color: var(--color-primary);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.support-card h4 {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+}
+
+.support-card p {
+  margin: 0;
+  color: var(--color-copy-muted);
+}
+
 .account-address-panel,
 .address-manager,
 .address-form {
@@ -3346,11 +3383,15 @@ h4 {
 
   .account-sidebar {
     position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .account-tab {
     justify-content: center;
+  }
+
+  .support-grid {
+    grid-template-columns: 1fr;
   }
 
   .address-manager-header,

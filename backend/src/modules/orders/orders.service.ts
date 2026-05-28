@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { CreateOrderType } from './types/create-order.type';
+import { DELIVERY_STATUS } from '../../common/constants/delivery-status';
 import { ORDER_STATUS } from '../../common/constants/order-status';
 import {
   buildPaginationMeta,
@@ -36,7 +37,12 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
     user: true;
     address: true;
     table: true;
-    delivery: true;
+    delivery: {
+      include: {
+        agent: true;
+      };
+    };
+    invoice: true;
   };
 }>;
 
@@ -54,7 +60,12 @@ const ORDER_INCLUDE = {
   user: true,
   address: true,
   table: true,
-  delivery: true,
+  delivery: {
+    include: {
+      agent: true,
+    },
+  },
+  invoice: true,
 } satisfies Prisma.OrderInclude;
 
 @Injectable()
@@ -138,7 +149,110 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  async updateOrderStatusByAdmin(orderId: number, status: string): Promise<OrderResponseDto> {
+  async listDeliveryAgents(options?: {
+    availableOnly?: boolean;
+  }): Promise<Array<{ id: number; name: string; phone: string; isAvailable: boolean }>> {
+    const where: Prisma.DeliveryAgentWhereInput = {
+      ...(options?.availableOnly ? { isAvailable: true } : {}),
+      userId: { not: null },
+      user: {
+        isActive: true,
+        role: {
+          is: {
+            role: {
+              name: Role.DELIVERY_BOY,
+            },
+          },
+        },
+      },
+    };
+
+    const agents = await this.prisma.deliveryAgent.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        isAvailable: true,
+      },
+    });
+
+    return agents;
+  }
+
+  async assignDeliveryAgentByAdmin(orderId: number, agentId: number): Promise<OrderResponseDto> {
+    const existing = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: ORDER_INCLUDE,
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (existing.orderType !== 'DELIVERY') {
+      throw new BadRequestException('Only delivery orders can be assigned to a delivery boy');
+    }
+
+    if (existing.delivery?.status === DELIVERY_STATUS.DELIVERED) {
+      throw new BadRequestException('Delivered orders cannot be reassigned');
+    }
+
+    const agent = await this.prisma.deliveryAgent.findFirst({
+      where: {
+        id: agentId,
+        userId: { not: null },
+        user: {
+          isActive: true,
+          role: {
+            is: {
+              role: {
+                name: Role.DELIVERY_BOY,
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Delivery agent not found');
+    }
+
+    const order = await this.prisma.$transaction(async (transaction) => {
+      await transaction.delivery.upsert({
+        where: { orderId },
+        update: {
+          agentId,
+          status: DELIVERY_STATUS.ASSIGNED,
+        },
+        create: {
+          orderId,
+          agentId,
+          status: DELIVERY_STATUS.ASSIGNED,
+        },
+      });
+
+      return transaction.order.findUnique({
+        where: { id: orderId },
+        include: ORDER_INCLUDE,
+      });
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return this.mapOrder(order);
+  }
+
+  async updateOrderStatusByAdmin(
+    orderId: number,
+    status: string,
+    options: { cancellationReason?: string; changedByUserId?: number } = {},
+  ): Promise<OrderResponseDto> {
     const existing = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: ORDER_INCLUDE,
@@ -149,10 +263,22 @@ export class OrdersService {
     }
 
     const now = new Date();
+    const cancellationReason = options.cancellationReason?.trim();
+
+    if (status === ORDER_STATUS.CANCELLED && !cancellationReason) {
+      throw new BadRequestException('Cancellation reason is required');
+    }
+
     const data: Prisma.OrderUpdateInput = {
       status,
       statusLogs: {
-        create: [{ status }],
+        create: [
+          {
+            status,
+            note: status === ORDER_STATUS.CANCELLED ? cancellationReason : undefined,
+            changedByUserId: options.changedByUserId,
+          },
+        ],
       },
     };
 
@@ -170,6 +296,12 @@ export class OrdersService {
 
     if (status === ORDER_STATUS.SERVED) {
       data.deliveredAt = now;
+    }
+
+    if (status === ORDER_STATUS.CANCELLED) {
+      data.cancelledAt = now;
+      data.cancellationReason = cancellationReason;
+      data.cancelledByUserId = options.changedByUserId;
     }
 
     const order = await this.prisma.order.update({
@@ -191,7 +323,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    if (requester.roles.includes(Role.CUSTOMER) && order.userId !== requester.id) {
+    if (requester.role === Role.CUSTOMER && order.userId !== requester.id) {
       throw new ForbiddenException('You do not have permission to access this order');
     }
 
@@ -235,6 +367,7 @@ export class OrdersService {
           couponCode: payload.couponCode,
           manualDiscountAmount: payload.manualDiscountAmount,
           allowManualDiscount: payload.source === 'ADMIN',
+          tipAmount: payload.tipAmount,
         },
         transaction,
       );
@@ -250,6 +383,7 @@ export class OrdersService {
         totalAmount: billing.mrpSubtotal,
         deliveryCharge: billing.deliveryCharge,
         packagingCharge: billing.packagingCharge,
+        tipAmount: billing.tipAmount,
         deliveryDistanceKm: billing.deliveryDistanceKm,
         discountAmount:
           billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
@@ -326,6 +460,7 @@ export class OrdersService {
       totalAmount: order.totalAmount,
       deliveryCharge: order.deliveryCharge,
       packagingCharge: order.packagingCharge,
+      tipAmount: order.tipAmount,
       deliveryDistanceKm: order.deliveryDistanceKm,
       discountAmount: order.discountAmount,
       finalAmount: order.finalAmount,
@@ -348,6 +483,8 @@ export class OrdersService {
       acceptedAt: order.acceptedAt ?? null,
       preparedAt: order.preparedAt ?? null,
       deliveredAt: order.deliveredAt ?? null,
+      cancelledAt: order.cancelledAt ?? null,
+      cancellationReason: order.cancellationReason ?? null,
       estimatedDeliveryMinutes,
       items: order.items.map((item) => ({
         id: item.id,
@@ -385,6 +522,7 @@ export class OrdersService {
         id: statusLog.id,
         orderId: statusLog.orderId,
         status: statusLog.status,
+        note: statusLog.note,
         changedAt: statusLog.changedAt,
       })),
       payments: order.payments?.map((payment) => ({
@@ -430,7 +568,18 @@ export class OrdersService {
       delivery: order.delivery
         ? {
             id: order.delivery.id,
+            agentId: order.delivery.agentId,
+            agentName: order.delivery.agent?.name ?? null,
+            agentPhone: order.delivery.agent?.phone ?? null,
             status: order.delivery.status,
+          }
+        : null,
+      invoice: order.invoice
+        ? {
+            id: order.invoice.id,
+            invoiceNumber: order.invoice.invoiceNumber,
+            status: order.paymentStatus === 'PAID' ? 'AVAILABLE' : 'LOCKED',
+            canDownload: order.paymentStatus === 'PAID',
           }
         : null,
     };

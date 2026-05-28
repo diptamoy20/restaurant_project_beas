@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
 import { ADMIN_ORDER_STATUSES } from '../../../common/constants/order-status';
 
@@ -8,4 +8,14 @@ export class UpdateOrderStatusDto {
   @IsString()
   @IsIn([...ADMIN_ORDER_STATUSES])
   status!: string;
+
+  @ApiProperty({
+    example: 'Restaurant is unable to fulfil this order',
+    required: false,
+  })
+  @ValidateIf((payload: UpdateOrderStatusDto) => payload.status === 'CANCELLED')
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  cancellationReason?: string;
 }

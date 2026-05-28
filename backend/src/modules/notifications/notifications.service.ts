@@ -20,8 +20,7 @@ export class NotificationsService {
     requester: AuthenticatedUser,
     query?: { offset?: number; limit?: number },
   ): Promise<PaginatedResult<NotificationResponseDto>> {
-    const canReadOnlyOwn =
-      requester.roles.includes(Role.CUSTOMER) || requester.roles.includes(Role.DELIVERY_BOY);
+    const canReadOnlyOwn = [Role.CUSTOMER, Role.DELIVERY_BOY].includes(requester.role);
 
     if (canReadOnlyOwn && requester.id !== userId) {
       throw new ForbiddenException('You do not have permission to access these notifications');
