@@ -121,8 +121,8 @@ async function main() {
         address: '12 MG Road',
         city: 'Bengaluru',
         state: 'Karnataka',
-        latitude: 12.9716,
-        longitude: 77.5946,
+        latitude: 22.6236,
+        longitude: 88.4410,
         isDefault: true,
       },
     }));
