@@ -299,6 +299,8 @@ model Order {
   coupons              CouponUsage[]
   invoice              Invoice?
 
+  @@index([userId, restaurantId, createdAt])
+  @@index([restaurantId, createdAt])
   @@map("orders")
 }
 
@@ -315,6 +317,8 @@ model OrderItem {
   variant    MenuItemVariant? @relation(fields: [variantId], references: [id])
   addons     OrderItemAddon[]
 
+  @@index([orderId, menuItemId])
+  @@index([menuItemId])
   @@map("order_items")
 }
 
