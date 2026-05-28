@@ -23,6 +23,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
 
 const MENU_CACHE_TTL_SECONDS = 300;
+const FREQUENT_ITEM_LIMIT = 10;
+const MIN_PERSONAL_ORDER_SESSIONS = 2;
 
 const MENU_ITEM_INCLUDE = {
   category: true,
@@ -235,63 +237,76 @@ export class MenuService {
 
   async getFrequentItems(restaurantId: number, userId?: number): Promise<MenuItemDto[]> {
     if (!userId) {
-      return [];
+      return this.getRestaurantPopularItems(restaurantId);
     }
 
-    const lastOrders = await this.prisma.order.findMany({
-      where: {
-        userId,
-        restaurantId,
-        status: { notIn: ['CANCELLED', 'REJECTED'] },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: { id: true },
-    });
+    const recommendations = await this.prisma.$queryRaw<
+      {
+        menuItemId: number;
+        recommendationScore: number;
+        distinctOrderCount: number;
+      }[]
+    >`
+      WITH user_order_items AS (
+        SELECT
+          oi."menu_item_id" AS "menuItemId",
+          oi."quantity",
+          o."id" AS "orderId",
+          o."created_at" AS "createdAt"
+        FROM "orders" o
+        INNER JOIN "order_items" oi ON oi."order_id" = o."id"
+        INNER JOIN "menu_items" mi ON mi."id" = oi."menu_item_id"
+        WHERE
+          o."user_id" = ${userId}
+          AND o."restaurant_id" = ${restaurantId}
+          AND o."status" NOT IN ('CANCELLED', 'REJECTED')
+          AND mi."restaurant_id" = ${restaurantId}
+          AND mi."is_available" = true
+      ),
+      item_habits AS (
+        SELECT
+          "menuItemId",
+          SUM("quantity")::int AS "totalOrderCount",
+          COUNT(DISTINCT "orderId")::int AS "distinctOrderCount",
+          COUNT(DISTINCT DATE_TRUNC('week', "createdAt"))::int AS "activeWeeks",
+          SUM(
+            CASE WHEN "createdAt" >= NOW() - INTERVAL '30 days' THEN "quantity" ELSE 0 END
+          )::int AS "recentOrderCount",
+          MAX("createdAt") AS "latestOrderedAt"
+        FROM user_order_items
+        GROUP BY "menuItemId"
+      )
+      SELECT
+        "menuItemId",
+        "distinctOrderCount",
+        (
+          ("totalOrderCount" * 10)
+          + ("recentOrderCount" * 20)
+          + (LEAST("distinctOrderCount", 8) * 12)
+          + (LEAST("activeWeeks", 6) * 8)
+          + CASE
+              WHEN "latestOrderedAt" >= NOW() - INTERVAL '7 days' THEN 30
+              WHEN "latestOrderedAt" >= NOW() - INTERVAL '30 days' THEN 15
+              WHEN "latestOrderedAt" >= NOW() - INTERVAL '90 days' THEN 5
+              ELSE 0
+            END
+        )::float AS "recommendationScore"
+      FROM item_habits
+      WHERE "totalOrderCount" >= 2 OR "distinctOrderCount" >= 2
+      ORDER BY "recommendationScore" DESC, "distinctOrderCount" DESC, "latestOrderedAt" DESC
+      LIMIT ${FREQUENT_ITEM_LIMIT};
+    `;
 
-    if (lastOrders.length === 0) {
-      return [];
+    const hasEnoughHistory =
+      recommendations.reduce((total, item) => total + item.distinctOrderCount, 0) >=
+      MIN_PERSONAL_ORDER_SESSIONS;
+    const sortedMenuItemIds = recommendations.map((item) => item.menuItemId);
+
+    if (!hasEnoughHistory || sortedMenuItemIds.length === 0) {
+      return this.getRestaurantPopularItems(restaurantId);
     }
 
-    const orderIds = lastOrders.map((o) => o.id);
-
-    const orderItems = await this.prisma.orderItem.findMany({
-      where: {
-        orderId: { in: orderIds },
-      },
-      select: {
-        menuItemId: true,
-      },
-    });
-
-    if (orderItems.length === 0) {
-      return [];
-    }
-
-    const frequencies: Record<number, number> = {};
-    for (const item of orderItems) {
-      frequencies[item.menuItemId] = (frequencies[item.menuItemId] ?? 0) + 1;
-    }
-
-    const sortedMenuItemIds = Object.keys(frequencies)
-      .map(Number)
-      .sort((a, b) => frequencies[b] - frequencies[a])
-      .slice(0, 10);
-
-    if (sortedMenuItemIds.length === 0) {
-      return [];
-    }
-
-    const items = await this.prisma.menuItem.findMany({
-      where: {
-        id: { in: sortedMenuItemIds },
-        restaurantId,
-        isAvailable: true,
-      },
-      include: {
-        ...MENU_ITEM_INCLUDE,
-      },
-    });
+    const items = await this.findAvailableMenuItemsByIds(restaurantId, sortedMenuItemIds);
 
     const itemMap = new Map(items.map((item) => [item.id, item]));
     const result: MenuItemDto[] = [];
@@ -303,6 +318,43 @@ export class MenuService {
     }
 
     return result;
+  }
+
+  private async getRestaurantPopularItems(restaurantId: number): Promise<MenuItemDto[]> {
+    const items = await this.prisma.menuItem.findMany({
+      where: {
+        restaurantId,
+        isAvailable: true,
+      },
+      include: {
+        ...MENU_ITEM_INCLUDE,
+      },
+      orderBy: [
+        { isBestSelling: 'desc' },
+        { popularityScore: 'desc' },
+        { rating: 'desc' },
+        { id: 'desc' },
+      ],
+      take: FREQUENT_ITEM_LIMIT,
+    });
+
+    return items.map((item) => this.mapMenuItem(item));
+  }
+
+  private findAvailableMenuItemsByIds(
+    restaurantId: number,
+    menuItemIds: number[],
+  ): Promise<MenuItemRow[]> {
+    return this.prisma.menuItem.findMany({
+      where: {
+        id: { in: menuItemIds },
+        restaurantId,
+        isAvailable: true,
+      },
+      include: {
+        ...MENU_ITEM_INCLUDE,
+      },
+    });
   }
 
   async createAdminMenuItem(
