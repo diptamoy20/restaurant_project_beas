@@ -317,11 +317,11 @@ export function RestaurantsPage() {
                     </div>
                   ),
                 },
-                {
-                  key: 'deliveryRadiusKm',
-                  header: 'Delivery Radius',
-                  render: (row) => <span className="text-sm text-slate-700">{row.deliveryRadiusKm} km</span>,
-                },
+                // {
+                //   key: 'deliveryRadiusKm',
+                //   header: 'Delivery Radius',
+                //   render: (row) => <span className="text-sm text-slate-700">{row.deliveryRadiusKm} km</span>,
+                // },
                 {
                   key: 'deliveryPricing',
                   header: 'Delivery Fee',
@@ -369,9 +369,6 @@ export function RestaurantsPage() {
                       <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
                         <Button onClick={() => openMenu(row, 'list')} variant="secondary">
                           All Menu
-                        </Button>
-                        <Button onClick={() => openMenu(row, 'create')} variant="secondary">
-                          Add Menu
                         </Button>
                         <Button onClick={() => handleEdit(row)} variant="secondary">
                           Edit

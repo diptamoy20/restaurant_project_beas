@@ -127,6 +127,11 @@ export class OrderStatusLogResponseDto {
   @IsString()
   status!: string;
 
+  @ApiPropertyOptional({ example: 'Cancelled because restaurant is closed', nullable: true })
+  @IsOptional()
+  @IsString()
+  note!: string | null;
+
   @ApiProperty({ example: '2026-04-20T00:00:00.000Z' })
   @IsDate()
   changedAt!: Date;
@@ -311,6 +316,10 @@ export class OrderResponseDto {
   @IsNumber()
   packagingCharge!: number;
 
+  @ApiProperty({ example: 30 })
+  @IsNumber()
+  tipAmount!: number;
+
   @ApiPropertyOptional({ example: 1.13, nullable: true })
   @IsOptional()
   @IsNumber()
@@ -404,6 +413,15 @@ export class OrderResponseDto {
   @IsOptional()
   deliveredAt!: Date | null;
 
+  @ApiPropertyOptional({ example: 'Customer requested cancellation', nullable: true })
+  @IsOptional()
+  @IsString()
+  cancellationReason!: string | null;
+
+  @ApiPropertyOptional({ example: '2026-04-20T00:00:00.000Z', nullable: true })
+  @IsOptional()
+  cancelledAt!: Date | null;
+
   @ApiPropertyOptional({ example: 45 })
   @IsOptional()
   estimatedDeliveryMinutes?: number;
@@ -456,6 +474,22 @@ export class OrderResponseDto {
   @ValidateNested()
   @Type(() => OrderDeliverySummaryDto)
   delivery?: OrderDeliverySummaryDto | null;
+
+  @ApiPropertyOptional({
+    example: {
+      invoiceNumber: 'INV-20260527-000101',
+      status: 'AVAILABLE',
+      canDownload: true,
+    },
+    nullable: true,
+  })
+  @IsOptional()
+  invoice?: {
+    id: number;
+    invoiceNumber: string;
+    status: string;
+    canDownload: boolean;
+  } | null;
 }
 
 export class PaginatedOrderResponseDto extends PaginationMetaDto {

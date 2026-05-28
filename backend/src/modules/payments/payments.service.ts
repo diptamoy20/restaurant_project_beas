@@ -9,6 +9,7 @@ import { RazorpayOrderResponseDto, VerifyPaymentResponseDto } from './dto/paymen
 import { RecordPaymentFailureDto } from './dto/record-payment-failure.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class PaymentsService {
@@ -17,6 +18,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly invoicesService: InvoicesService,
   ) {
     this.razorpay = new Razorpay({
       key_id: this.configService.getOrThrow<string>('RAZORPAY_KEY_ID'),
@@ -139,6 +141,7 @@ export class PaymentsService {
         },
       }),
     ]);
+    await this.invoicesService.markInvoicePaid(order.id);
 
     return {
       orderId: order.id,
@@ -201,6 +204,51 @@ export class PaymentsService {
       paymentStatus: 'PENDING',
       paymentMethod: 'COD',
       message: 'Cash on delivery selected',
+    };
+  }
+
+  async confirmCodPaymentByAdmin(orderId: number): Promise<VerifyPaymentResponseDto> {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.paymentMethod !== 'COD') {
+      throw new BadRequestException('Only COD orders can be confirmed by admin');
+    }
+
+    if (order.paymentStatus === 'PAID') {
+      throw new BadRequestException('Order payment is already completed');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: 'PAID',
+          paymentMethod: 'COD',
+          paymentFailureReason: null,
+        },
+      }),
+      this.prisma.payment.create({
+        data: {
+          orderId: order.id,
+          userId: order.userId,
+          transactionId: `COD-${order.orderNumber}`,
+          amount: order.finalAmount,
+          status: 'SUCCESS',
+          method: 'COD',
+        },
+      }),
+    ]);
+    await this.invoicesService.markInvoicePaid(order.id);
+
+    return {
+      orderId: order.id,
+      paymentStatus: 'PAID',
+      paymentMethod: 'COD',
+      message: 'COD payment confirmed',
     };
   }
 

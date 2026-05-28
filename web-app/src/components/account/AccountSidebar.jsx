@@ -1,5 +1,6 @@
 const accountSections = [
   { id: 'profile', label: 'Edit Profile' },
+  { id: 'support', label: 'Help & Support' },
   { id: 'addresses', label: 'Addresses' },
 ];
 

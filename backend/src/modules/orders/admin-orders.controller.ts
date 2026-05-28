@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Query, Req } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -18,6 +18,7 @@ import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
+import { AuthenticatedUser } from '../auth/auth.types';
 
 @Controller('admin/orders')
 @ApiTags('Admin Orders')
@@ -100,7 +101,11 @@ export class AdminOrdersController {
   updateOrderStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateOrderStatusDto,
+    @Req() request: { user: AuthenticatedUser },
   ): Promise<OrderResponseDto> {
-    return this.ordersService.updateOrderStatusByAdmin(id, body.status);
+    return this.ordersService.updateOrderStatusByAdmin(id, body.status, {
+      cancellationReason: body.cancellationReason,
+      changedByUserId: request.user.id,
+    });
   }
 }

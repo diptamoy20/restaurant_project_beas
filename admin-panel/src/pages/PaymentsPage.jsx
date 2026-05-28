@@ -6,6 +6,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { Table } from '../components/ui/Table';
 import { TextField } from '../components/ui/TextField';
 import { useInitiatePaymentMutation } from '../services/paymentApi';
+import { formatDate } from '../utils/date';
 
 const formatCurrency = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -30,7 +31,7 @@ export function PaymentsPage() {
     () =>
       history.filter((item) => {
         const matchesStatus = !filters.status || item.status === filters.status;
-        const matchesDate = !filters.date || item.createdDate === filters.date;
+        const matchesDate = !filters.date || item.createdDate?.slice(0, 10) === filters.date;
         return matchesStatus && matchesDate;
       }),
     [filters.date, filters.status, history],
@@ -54,7 +55,7 @@ export function PaymentsPage() {
               {
                 ...payload,
                 id: response.id ?? `${payload.transactionId}-${current.length + 1}`,
-                createdDate: new Date().toISOString().slice(0, 10),
+                createdDate: new Date().toISOString(),
               },
               ...current,
             ]);
@@ -101,7 +102,7 @@ export function PaymentsPage() {
               { key: 'orderId', header: 'Order ID' },
               { key: 'amount', header: 'Amount', render: (row) => formatCurrency.format(row.amount) },
               { key: 'status', header: 'Status' },
-              { key: 'createdDate', header: 'Date' },
+              { key: 'createdDate', header: 'Date', render: (row) => formatDate(row.createdDate) },
             ]}
             data={filteredHistory}
             emptyMessage="Submitted payments will appear here. The current backend does not expose a payment history endpoint yet."
