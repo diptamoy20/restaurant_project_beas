@@ -78,8 +78,15 @@ DB_SSL_REJECT_UNAUTHORIZED=true
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=120
 
+CLOUDINARY_CLOUD_NAME=""
+CLOUDINARY_API_KEY=""
+CLOUDINARY_API_SECRET=""
+IMAGE_UPLOAD_MAX_MB=1
+
 LOG_LEVELS="log,warn,error,debug,verbose"
 ```
+
+`CLOUDINARY_*` values are required in production and whenever image upload endpoints are used. `IMAGE_UPLOAD_MAX_MB` controls backend image upload size.
 
 ## Installation
 

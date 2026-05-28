@@ -41,6 +41,20 @@ export const restaurantApi = createApi({
       invalidatesTags: ["Restaurant"],
     }),
 
+    uploadRestaurantImage: builder.mutation({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append("image", file);
+
+        return {
+          url: `/restaurants/${id}/image`,
+          method: "POST",
+          body: formData,
+        };
+      },
+      invalidatesTags: ["Restaurant"],
+    }),
+
     /**
      * Delete a restaurant
      */
@@ -66,6 +80,7 @@ export const {
   useGetAllRestaurantsQuery,
   useCreateRestaurantMutation,
   useUpdateRestaurantMutation,
+  useUploadRestaurantImageMutation,
   useDeleteRestaurantMutation,
   useGetRestaurantQuery,
 } = restaurantApi;

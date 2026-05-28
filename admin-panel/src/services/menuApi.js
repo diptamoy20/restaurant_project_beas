@@ -44,6 +44,26 @@ export const menuApi = createApi({
             ]
           : ["Menu"],
     }),
+    uploadMenuItemImage: builder.mutation({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append("image", file);
+
+        return {
+          url: `/admin/menu/${id}/image`,
+          method: "POST",
+          body: formData,
+        };
+      },
+      invalidatesTags: (_result, _error, { restaurantId }) =>
+        restaurantId
+          ? [
+              { type: "AdminMenu", id: restaurantId },
+              { type: "Category", id: restaurantId },
+              "Menu",
+            ]
+          : ["Menu"],
+    }),
     deleteAdminMenuItem: builder.mutation({
       query: ({ id }) => ({
         url: `/admin/menu/${id}`,
@@ -107,6 +127,7 @@ export const {
   useGetAdminRestaurantMenuQuery,
   useCreateAdminMenuItemMutation,
   useUpdateAdminMenuItemMutation,
+  useUploadMenuItemImageMutation,
   useDeleteAdminMenuItemMutation,
   useGetRestaurantCategoriesQuery,
   useCreateCategoryMutation,

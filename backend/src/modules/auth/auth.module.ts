@@ -7,9 +7,11 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { FirebaseAuthService } from './firebase-auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
+    CloudinaryModule,
     ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

@@ -1,7 +1,7 @@
-import { fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-import { logout } from '../features/auth/authSlice';
-import { loadPersistedAuth } from '../utils/auth';
+import { logout } from "../features/auth/authSlice";
+import { loadPersistedAuth } from "../utils/auth";
 
 function getAuthToken(state) {
   if (state.auth.token) {
@@ -13,16 +13,20 @@ function getAuthToken(state) {
 }
 
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001/api').replace(/\/$/, ''),
-  prepareHeaders: (headers, { getState }) => {
+  baseUrl: (
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:4001/api"
+  ).replace(/\/$/, ""),
+  prepareHeaders: (headers, { arg, getState }) => {
     const token = getAuthToken(getState());
 
     if (token) {
-      headers.set('authorization', `Bearer ${token}`);
+      headers.set("authorization", `Bearer ${token}`);
     }
 
-    headers.set('content-type', 'application/json');
-    headers.set('x-client-type', 'web');
+    if (!(typeof FormData !== "undefined" && arg?.body instanceof FormData)) {
+      headers.set("content-type", "application/json");
+    }
+    headers.set("x-client-type", "web");
     return headers;
   },
 });
@@ -34,7 +38,12 @@ export async function baseQueryWithAuth(args, api, extraOptions) {
     api.dispatch(logout());
   }
 
-  if (result.data && typeof result.data === 'object' && result.data.success === true && 'data' in result.data) {
+  if (
+    result.data &&
+    typeof result.data === "object" &&
+    result.data.success === true &&
+    "data" in result.data
+  ) {
     return {
       ...result,
       data: result.data.data,
@@ -47,9 +56,8 @@ export async function baseQueryWithAuth(args, api, extraOptions) {
 export function createUnavailableHandler(feature) {
   return async () => ({
     error: {
-      status: 'CUSTOM_ERROR',
+      status: "CUSTOM_ERROR",
       error: `${feature} is not exposed by the current backend API.`,
     },
   });
 }
-

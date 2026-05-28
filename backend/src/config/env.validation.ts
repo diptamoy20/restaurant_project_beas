@@ -26,6 +26,35 @@ function parsePositiveInt(rawValue: string | undefined, key: string, fallback: n
   return parsed;
 }
 
+function parsePositiveNumber(rawValue: string | undefined, key: string, fallback: number): number {
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${key} must be a positive number`);
+  }
+
+  return parsed;
+}
+
+function parseNumberInRange(
+  rawValue: string | undefined,
+  key: string,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const parsed = parsePositiveNumber(rawValue, key, fallback);
+
+  if (parsed < min || parsed > max) {
+    throw new Error(`${key} must be between ${min} and ${max}`);
+  }
+
+  return parsed;
+}
+
 function parseIntInRange(
   rawValue: string | undefined,
   key: string,
@@ -111,6 +140,20 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     throw new Error('RAZORPAY_KEY_SECRET is required');
   }
 
+  if (nodeEnv === 'production') {
+    if (!env.CLOUDINARY_CLOUD_NAME) {
+      throw new Error('CLOUDINARY_CLOUD_NAME is required in production');
+    }
+
+    if (!env.CLOUDINARY_API_KEY) {
+      throw new Error('CLOUDINARY_API_KEY is required in production');
+    }
+
+    if (!env.CLOUDINARY_API_SECRET) {
+      throw new Error('CLOUDINARY_API_SECRET is required in production');
+    }
+  }
+
   if (firebaseAuthEnabled) {
     if (!env.FIREBASE_PROJECT_ID) {
       throw new Error('FIREBASE_PROJECT_ID is required when FIREBASE_AUTH_ENABLED=true');
@@ -178,8 +221,18 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
       'RATE_LIMIT_MAX_REQUESTS',
       120,
     ),
+    IMAGE_UPLOAD_MAX_MB: parseNumberInRange(
+      env.IMAGE_UPLOAD_MAX_MB,
+      'IMAGE_UPLOAD_MAX_MB',
+      1,
+      0.1,
+      20,
+    ),
     RAZORPAY_KEY_ID: env.RAZORPAY_KEY_ID,
     RAZORPAY_KEY_SECRET: env.RAZORPAY_KEY_SECRET,
+    CLOUDINARY_CLOUD_NAME: env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: env.CLOUDINARY_API_SECRET,
     FIREBASE_AUTH_ENABLED: firebaseAuthEnabled,
     FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID,
     FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL,

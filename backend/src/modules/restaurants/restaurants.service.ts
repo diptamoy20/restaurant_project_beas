@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { Restaurant, Category, Prisma } from '@prisma/client';
 
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
@@ -8,6 +8,8 @@ import {
   RestaurantResponseDto,
   RestaurantTableResponseDto,
 } from './dto/restaurant-response.dto';
+import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
+import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
   buildPaginationMeta,
   normalizePagination,
@@ -19,9 +21,12 @@ import { LocationService } from '../location/location.service';
 
 @Injectable()
 export class RestaurantsService {
+  private readonly logger = new Logger(RestaurantsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly locationService: LocationService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   /**
@@ -246,7 +251,14 @@ export class RestaurantsService {
    */
   async updateRestaurant(id: number, data: UpdateRestaurantDto): Promise<RestaurantResponseDto> {
     // Verify restaurant exists
-    await this.getRestaurant(id);
+    const existingRestaurant = await this.prisma.restaurant.findUnique({
+      where: { id },
+      select: { id: true, imageUrl: true, imagePublicId: true },
+    });
+
+    if (!existingRestaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
 
     // Validate coordinates if provided
     if (data.latitude !== undefined && data.longitude !== undefined) {
@@ -257,13 +269,16 @@ export class RestaurantsService {
     this.validateDeliveryPricing(data);
 
     try {
+      const imageUrl = data.imageUrl === undefined ? undefined : data.imageUrl;
+      const shouldReplaceImage = imageUrl !== undefined && imageUrl !== existingRestaurant.imageUrl;
       const updateData: Prisma.RestaurantUpdateInput = {
         name: data.name,
         address: data.address,
         city: data.city,
         cuisineType: data.cuisineType,
         description: data.description,
-        imageUrl: data.imageUrl,
+        imageUrl,
+        imagePublicId: shouldReplaceImage ? null : undefined,
         deliveryRadiusKm: data.deliveryRadiusKm,
         deliveryEnabled: data.deliveryEnabled,
         deliveryBaseFee: data.deliveryBaseFee,
@@ -308,6 +323,10 @@ export class RestaurantsService {
         include: { categories: true },
       });
 
+      if (shouldReplaceImage && existingRestaurant.imagePublicId) {
+        await this.cloudinaryService.deleteImage(existingRestaurant.imagePublicId);
+      }
+
       return this.mapRestaurant(restaurant);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -322,7 +341,14 @@ export class RestaurantsService {
    */
   async deleteRestaurant(id: number): Promise<{ message: string }> {
     // Verify restaurant exists
-    await this.getRestaurant(id);
+    const existingRestaurant = await this.prisma.restaurant.findUnique({
+      where: { id },
+      select: { imagePublicId: true },
+    });
+
+    if (!existingRestaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
 
     // Check if restaurant has orders
     const orderCount = await this.prisma.order.count({
@@ -341,7 +367,48 @@ export class RestaurantsService {
       await this.prisma.restaurant.delete({
         where: { id },
       });
+      await this.cloudinaryService.deleteImage(existingRestaurant.imagePublicId);
       return { message: 'Restaurant deleted successfully' };
+    }
+  }
+
+  async uploadRestaurantImage(
+    id: number,
+    file: Express.Multer.File,
+  ): Promise<RestaurantResponseDto> {
+    const existingRestaurant = await this.prisma.restaurant.findUnique({
+      where: { id },
+      select: { imagePublicId: true },
+    });
+
+    if (!existingRestaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    let uploadedImage: CloudinaryImageUploadResult | null = null;
+
+    try {
+      uploadedImage = await this.cloudinaryService.uploadImage(file, 'restaurants');
+
+      const restaurant = await this.prisma.restaurant.update({
+        where: { id },
+        data: {
+          imageUrl: uploadedImage.secureUrl,
+          imagePublicId: uploadedImage.publicId,
+        },
+        include: { categories: true },
+      });
+
+      await this.cloudinaryService.deleteImage(existingRestaurant.imagePublicId);
+
+      return this.mapRestaurant(restaurant);
+    } catch (error) {
+      if (uploadedImage) {
+        await this.cloudinaryService.deleteImage(uploadedImage.publicId);
+      }
+
+      this.logger.warn(`Restaurant image upload failed for ${id}`);
+      throw error;
     }
   }
 

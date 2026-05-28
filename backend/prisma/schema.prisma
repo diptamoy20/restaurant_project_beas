@@ -18,6 +18,7 @@ model User {
   email                  String?              @unique
   phone                  String?              @unique
   profileImageUrl        String?              @map("profile_image_url")
+  profileImagePublicId   String?              @map("profile_image_public_id")
   password               String
   permissions            Json?
   isActive               Boolean              @default(true) @map("is_active")
@@ -61,8 +62,8 @@ model SocialAccount {
 }
 
 model RoleMaster {
-  id    Int               @id @default(autoincrement())
-  name  String            @unique
+  id    Int        @id @default(autoincrement())
+  name  String     @unique
   users UserRole[]
 
   @@map("role_master")
@@ -105,6 +106,7 @@ model Restaurant {
   cuisineType            String?                               @map("cuisine_type")
   description            String?
   imageUrl               String?                               @map("image_url")
+  imagePublicId          String?                               @map("image_public_id")
   deliveryRadiusKm       Float                                 @default(8) @map("delivery_radius_km")
   deliveryEnabled        Boolean                               @default(true) @map("delivery_enabled")
   deliveryBaseFee        Float                                 @default(20) @map("delivery_base_fee")
@@ -178,6 +180,7 @@ model MenuItem {
   price               Float
   discountPrice       Float?            @map("discount_price")
   imageUrl            String?           @map("image_url")
+  imagePublicId       String?           @map("image_public_id")
   foodType            String            @default("VEG") @map("food_type")
   spicyLevel          Int?              @map("spicy_level")
   ingredients         String?
