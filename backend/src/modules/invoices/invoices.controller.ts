@@ -7,6 +7,7 @@ import {
   ApiProduces,
   ApiTags,
 } from '@nestjs/swagger';
+import { Response } from 'express';
 
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { InvoicesService } from './invoices.service';
@@ -43,7 +44,7 @@ export class InvoicesController {
   async downloadInvoice(
     @Param('orderId', ParseIntPipe) orderId: number,
     @Req() request: { user: AuthenticatedUser },
-    @Res() response: any,
+    @Res() response: Response,
   ): Promise<void> {
     const file = await this.invoicesService.downloadInvoicePdf(orderId, request.user);
 
