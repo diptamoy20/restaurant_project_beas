@@ -1,56 +1,64 @@
-import { useState, useRef } from 'react';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { EmptyState } from '../components/ui/EmptyState';
-import { ErrorState } from '../components/ui/ErrorState';
-import { Loader } from '../components/ui/Loader';
-import { Modal } from '../components/ui/Modal';
-import { Table } from '../components/ui/Table';
-import { TextField } from '../components/ui/TextField';
-import { PermissionGate } from '../components/PermissionGate';
+import { useState, useRef } from "react";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { EmptyState } from "../components/ui/EmptyState";
+import { ErrorState } from "../components/ui/ErrorState";
+import { Loader } from "../components/ui/Loader";
+import { Modal } from "../components/ui/Modal";
+import { Table } from "../components/ui/Table";
+import { TextField } from "../components/ui/TextField";
+import { PermissionGate } from "../components/PermissionGate";
 import {
   useGetAllRestaurantsQuery,
   useCreateRestaurantMutation,
   useUpdateRestaurantMutation,
+  useUploadRestaurantImageMutation,
   useDeleteRestaurantMutation,
-} from '../services/restaurantApi';
-import { useGetAdminRestaurantMenuQuery } from '../services/menuApi';
-import { RestaurantMenuModal } from '../components/RestaurantMenuModal.jsx';
+} from "../services/restaurantApi";
+import { useGetAdminRestaurantMenuQuery } from "../services/menuApi";
+import { RestaurantMenuModal } from "../components/RestaurantMenuModal.jsx";
+import { IMAGE_UPLOAD_ACCEPT, validateImageFile } from "../utils/imageUpload";
 
 const initialFormState = {
-  name: '',
-  address: '',
-  city: '',
-  latitude: '',
-  longitude: '',
-  cuisineType: '',
-  description: '',
-  imageUrl: '',
-  deliveryRadiusKm: '8',
+  name: "",
+  address: "",
+  city: "",
+  latitude: "",
+  longitude: "",
+  cuisineType: "",
+  description: "",
+  imageUrl: "",
+  deliveryRadiusKm: "8",
   deliveryEnabled: true,
-  deliveryBaseFee: '20',
-  deliveryBaseDistanceKm: '1',
-  deliveryPerKmFee: '7',
-  deliveryFeeMin: '',
-  deliveryFeeCap: '',
-  freeDeliveryMinAmount: '',
-  packagingCharge: '0',
-  gstin: '',
-  gstRate: '5',
+  deliveryBaseFee: "20",
+  deliveryBaseDistanceKm: "1",
+  deliveryPerKmFee: "7",
+  deliveryFeeMin: "",
+  deliveryFeeCap: "",
+  freeDeliveryMinAmount: "",
+  packagingCharge: "0",
+  gstin: "",
+  gstRate: "5",
   gstEnabled: true,
   isLocationEnabled: true,
   isActive: true,
 };
 
-const formatCurrency = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
+const formatCurrency = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
   maximumFractionDigits: 2,
 });
 
-function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurantsError, onAddMenu, onViewMenu }) {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+function ManageMenuSection({
+  restaurants = [],
+  isRestaurantsLoading,
+  restaurantsError,
+  onAddMenu,
+  onViewMenu,
+}) {
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const selectedRestaurant = restaurants.find(
     (restaurant) => String(restaurant.id) === String(selectedRestaurantId),
@@ -117,31 +125,44 @@ function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurants
                   message={
                     restaurantsError?.data?.message ||
                     restaurantsError?.error ||
-                    'Failed to load restaurants.'
+                    "Failed to load restaurants."
                   }
                 />
               </div>
             ) : null}
 
-            {!isRestaurantsLoading && !restaurantsError && filteredRestaurants.length === 0 ? (
-              <div className="px-4 py-5 text-sm text-slate-500">No restaurants match your search.</div>
+            {!isRestaurantsLoading &&
+            !restaurantsError &&
+            filteredRestaurants.length === 0 ? (
+              <div className="px-4 py-5 text-sm text-slate-500">
+                No restaurants match your search.
+              </div>
             ) : null}
 
             {filteredRestaurants.map((restaurant) => {
-              const isSelected = String(restaurant.id) === String(selectedRestaurantId);
+              const isSelected =
+                String(restaurant.id) === String(selectedRestaurantId);
 
               return (
                 <button
                   className={`block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 ${
-                    isSelected ? 'bg-slate-950 text-white' : 'bg-white text-slate-900 hover:bg-slate-50'
+                    isSelected
+                      ? "bg-slate-950 text-white"
+                      : "bg-white text-slate-900 hover:bg-slate-50"
                   }`}
                   key={restaurant.id}
                   onClick={() => setSelectedRestaurantId(String(restaurant.id))}
                   type="button"
                 >
-                  <span className="block text-sm font-semibold">{restaurant.name}</span>
-                  <span className={`mt-1 block text-xs ${isSelected ? 'text-slate-200' : 'text-slate-500'}`}>
-                    {restaurant.city || restaurant.cuisineType || 'Location not specified'}
+                  <span className="block text-sm font-semibold">
+                    {restaurant.name}
+                  </span>
+                  <span
+                    className={`mt-1 block text-xs ${isSelected ? "text-slate-200" : "text-slate-500"}`}
+                  >
+                    {restaurant.city ||
+                      restaurant.cuisineType ||
+                      "Location not specified"}
                   </span>
                 </button>
               );
@@ -152,7 +173,9 @@ function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurants
         <section className="min-h-[190px] rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-5">
           {!selectedRestaurant ? (
             <div className="flex min-h-[150px] flex-col items-center justify-center text-center">
-              <h3 className="text-base font-semibold text-slate-900">Select a restaurant</h3>
+              <h3 className="text-base font-semibold text-slate-900">
+                Select a restaurant
+              </h3>
               <p className="mt-2 text-sm text-slate-500">
                 Search and select a restaurant to manage its menu.
               </p>
@@ -163,13 +186,20 @@ function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurants
             <div className="space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-semibold text-slate-950">{selectedRestaurant.name}</h3>
+                  <h3 className="text-base font-semibold text-slate-950">
+                    {selectedRestaurant.name}
+                  </h3>
                   <p className="mt-1 text-sm text-slate-500">
                     {selectedRestaurant.address}
-                    {selectedRestaurant.city ? `, ${selectedRestaurant.city}` : ''}
+                    {selectedRestaurant.city
+                      ? `, ${selectedRestaurant.city}`
+                      : ""}
                   </p>
                 </div>
-                <Button onClick={() => onViewMenu(selectedRestaurant)} variant="secondary">
+                <Button
+                  onClick={() => onViewMenu(selectedRestaurant)}
+                  variant="secondary"
+                >
                   Open Full Menu
                 </Button>
               </div>
@@ -177,7 +207,11 @@ function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurants
               {isMenuLoading ? <Loader label="Loading menu items..." /> : null}
               {menuError ? (
                 <ErrorState
-                  message={menuError?.data?.message || menuError?.error || 'Unable to load menu items.'}
+                  message={
+                    menuError?.data?.message ||
+                    menuError?.error ||
+                    "Unable to load menu items."
+                  }
                 />
               ) : null}
 
@@ -193,39 +227,41 @@ function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurants
                   <Table
                     columns={[
                       {
-                        key: 'name',
-                        header: 'Menu Item',
+                        key: "name",
+                        header: "Menu Item",
                         render: (row) => (
                           <div>
-                            <p className="font-medium text-slate-900">{row.name}</p>
+                            <p className="font-medium text-slate-900">
+                              {row.name}
+                            </p>
                             <p className="mt-1 text-xs text-slate-500">
-                              {row.description || 'No description available'}
+                              {row.description || "No description available"}
                             </p>
                           </div>
                         ),
                       },
                       {
-                        key: 'category',
-                        header: 'Category',
-                        render: (row) => row.category?.name ?? 'Unassigned',
+                        key: "category",
+                        header: "Category",
+                        render: (row) => row.category?.name ?? "Unassigned",
                       },
                       {
-                        key: 'price',
-                        header: 'Price',
+                        key: "price",
+                        header: "Price",
                         render: (row) => formatCurrency.format(row.price),
                       },
                       {
-                        key: 'isAvailable',
-                        header: 'Status',
+                        key: "isAvailable",
+                        header: "Status",
                         render: (row) => (
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
                               row.isAvailable
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-200 text-slate-700'
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-slate-200 text-slate-700"
                             }`}
                           >
-                            {row.isAvailable ? 'Available' : 'Unavailable'}
+                            {row.isAvailable ? "Available" : "Unavailable"}
                           </span>
                         ),
                       },
@@ -245,16 +281,20 @@ function ManageMenuSection({ restaurants = [], isRestaurantsLoading, restaurants
 export function RestaurantsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [menuRestaurant, setMenuRestaurant] = useState(null);
-  const [menuMode, setMenuMode] = useState('list');
+  const [menuMode, setMenuMode] = useState("list");
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialFormState);
   const [errors, setErrors] = useState({});
+  const [imageFile, setImageFile] = useState(null);
+  const [imageError, setImageError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
   const { data, isLoading, error } = useGetAllRestaurantsQuery();
   const [createRestaurant, createState] = useCreateRestaurantMutation();
   const [updateRestaurant, updateState] = useUpdateRestaurantMutation();
+  const [uploadRestaurantImage, uploadImageState] =
+    useUploadRestaurantImageMutation();
   const [deleteRestaurant, deleteState] = useDeleteRestaurantMutation();
 
   const mutationError =
@@ -262,6 +302,8 @@ export function RestaurantsPage() {
     createState.error?.error ||
     updateState.error?.data?.message ||
     updateState.error?.error ||
+    uploadImageState.error?.data?.message ||
+    uploadImageState.error?.error ||
     deleteState.error?.data?.message ||
     deleteState.error?.error;
 
@@ -269,66 +311,73 @@ export function RestaurantsPage() {
     const newErrors = {};
 
     if (!form.name.trim()) {
-      newErrors.name = 'Restaurant name is required';
+      newErrors.name = "Restaurant name is required";
     }
 
     if (!form.address.trim()) {
-      newErrors.address = 'Address is required';
+      newErrors.address = "Address is required";
     }
 
     const lat = parseFloat(form.latitude);
     const lng = parseFloat(form.longitude);
 
     if (!form.latitude || isNaN(lat) || lat < -90 || lat > 90) {
-      newErrors.latitude = 'Valid latitude is required (-90 to 90)';
+      newErrors.latitude = "Valid latitude is required (-90 to 90)";
     }
 
     if (!form.longitude || isNaN(lng) || lng < -180 || lng > 180) {
-      newErrors.longitude = 'Valid longitude is required (-180 to 180)';
+      newErrors.longitude = "Valid longitude is required (-180 to 180)";
     }
 
     const radius = parseFloat(form.deliveryRadiusKm);
     if (!form.deliveryRadiusKm || isNaN(radius) || radius < 0.1) {
-      newErrors.deliveryRadiusKm = 'Delivery radius must be at least 0.1 km';
+      newErrors.deliveryRadiusKm = "Delivery radius must be at least 0.1 km";
     }
 
     const deliveryFields = [
-      ['deliveryBaseFee', 'Base fee'],
-      ['deliveryBaseDistanceKm', 'Base distance'],
-      ['deliveryPerKmFee', 'Per km fee'],
-      ['packagingCharge', 'Packaging charge'],
+      ["deliveryBaseFee", "Base fee"],
+      ["deliveryBaseDistanceKm", "Base distance"],
+      ["deliveryPerKmFee", "Per km fee"],
+      ["packagingCharge", "Packaging charge"],
     ];
 
     deliveryFields.forEach(([key, label]) => {
       const value = parseFloat(form[key]);
-      if (form[key] === '' || isNaN(value) || value < 0) {
+      if (form[key] === "" || isNaN(value) || value < 0) {
         newErrors[key] = `${label} must be 0 or more`;
       }
     });
 
-    ['deliveryFeeMin', 'deliveryFeeCap', 'freeDeliveryMinAmount'].forEach((key) => {
-      if (form[key] === '') {
-        return;
-      }
-      const value = parseFloat(form[key]);
-      if (isNaN(value) || value < 0) {
-        newErrors[key] = 'Value must be 0 or more';
-      }
-    });
+    ["deliveryFeeMin", "deliveryFeeCap", "freeDeliveryMinAmount"].forEach(
+      (key) => {
+        if (form[key] === "") {
+          return;
+        }
+        const value = parseFloat(form[key]);
+        if (isNaN(value) || value < 0) {
+          newErrors[key] = "Value must be 0 or more";
+        }
+      },
+    );
 
-    const minFee = form.deliveryFeeMin === '' ? null : parseFloat(form.deliveryFeeMin);
-    const maxFee = form.deliveryFeeCap === '' ? null : parseFloat(form.deliveryFeeCap);
+    const minFee =
+      form.deliveryFeeMin === "" ? null : parseFloat(form.deliveryFeeMin);
+    const maxFee =
+      form.deliveryFeeCap === "" ? null : parseFloat(form.deliveryFeeCap);
     if (minFee !== null && maxFee !== null && maxFee < minFee) {
-      newErrors.deliveryFeeCap = 'Max fee cannot be less than min fee';
+      newErrors.deliveryFeeCap = "Max fee cannot be less than min fee";
     }
 
     const gstRate = parseFloat(form.gstRate);
-    if (form.gstEnabled && (form.gstRate === '' || isNaN(gstRate) || gstRate < 0 || gstRate > 28)) {
-      newErrors.gstRate = 'GST rate must be between 0 and 28';
+    if (
+      form.gstEnabled &&
+      (form.gstRate === "" || isNaN(gstRate) || gstRate < 0 || gstRate > 28)
+    ) {
+      newErrors.gstRate = "GST rate must be between 0 and 28";
     }
 
     if (form.gstin && !/^[0-9A-Z]{15}$/.test(form.gstin.trim().toUpperCase())) {
-      newErrors.gstin = 'GSTIN must be 15 uppercase letters/numbers';
+      newErrors.gstin = "GSTIN must be 15 uppercase letters/numbers";
     }
 
     setErrors(newErrors);
@@ -339,7 +388,7 @@ export function RestaurantsPage() {
     const { name, value, type, checked } = event.target;
     setForm((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -347,45 +396,75 @@ export function RestaurantsPage() {
     setEditingId(null);
     setForm(initialFormState);
     setErrors({});
+    setImageFile(null);
+    setImageError("");
     setModalOpen(true);
   };
 
   const handleEdit = (restaurant) => {
     setEditingId(restaurant.id);
     setForm({
-      name: restaurant.name || '',
-      address: restaurant.address || '',
-      city: restaurant.city || '',
+      name: restaurant.name || "",
+      address: restaurant.address || "",
+      city: restaurant.city || "",
       latitude: restaurant.latitude.toString(),
       longitude: restaurant.longitude.toString(),
-      cuisineType: restaurant.cuisineType || '',
-      description: restaurant.description || '',
-      imageUrl: restaurant.imageUrl || '',
+      cuisineType: restaurant.cuisineType || "",
+      description: restaurant.description || "",
+      imageUrl: restaurant.imageUrl || "",
       deliveryRadiusKm: (restaurant.deliveryRadiusKm || 8).toString(),
       deliveryEnabled: restaurant.deliveryEnabled !== false,
       deliveryBaseFee: (restaurant.deliveryBaseFee ?? 20).toString(),
-      deliveryBaseDistanceKm: (restaurant.deliveryBaseDistanceKm ?? 1).toString(),
+      deliveryBaseDistanceKm: (
+        restaurant.deliveryBaseDistanceKm ?? 1
+      ).toString(),
       deliveryPerKmFee: (restaurant.deliveryPerKmFee ?? 7).toString(),
-      deliveryFeeMin: restaurant.deliveryFeeMin != null ? restaurant.deliveryFeeMin.toString() : '',
-      deliveryFeeCap: restaurant.deliveryFeeCap != null ? restaurant.deliveryFeeCap.toString() : '',
+      deliveryFeeMin:
+        restaurant.deliveryFeeMin != null
+          ? restaurant.deliveryFeeMin.toString()
+          : "",
+      deliveryFeeCap:
+        restaurant.deliveryFeeCap != null
+          ? restaurant.deliveryFeeCap.toString()
+          : "",
       freeDeliveryMinAmount:
-        restaurant.freeDeliveryMinAmount != null ? restaurant.freeDeliveryMinAmount.toString() : '',
+        restaurant.freeDeliveryMinAmount != null
+          ? restaurant.freeDeliveryMinAmount.toString()
+          : "",
       packagingCharge: (restaurant.packagingCharge ?? 0).toString(),
-      gstin: restaurant.gstin || '',
+      gstin: restaurant.gstin || "",
       gstRate: (restaurant.gstRate ?? 5).toString(),
       gstEnabled: restaurant.gstEnabled !== false,
       isLocationEnabled: restaurant.isLocationEnabled !== false,
       isActive: restaurant.isActive !== false,
     });
     setErrors({});
+    setImageFile(null);
+    setImageError("");
     setModalOpen(true);
+  };
+
+  const handleImageFileChange = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    const validationError = file ? validateImageFile(file) : "";
+
+    if (validationError) {
+      setImageFile(null);
+      setImageError(validationError);
+      window.alert(validationError);
+      event.target.value = "";
+      return;
+    }
+
+    setImageFile(file);
+    setImageError("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (isSubmitting || submittingRef.current) {
-      console.log('[DEBUG] Form submission already in progress, ignoring');
+      console.log("[DEBUG] Form submission already in progress, ignoring");
       return;
     }
 
@@ -404,37 +483,63 @@ export function RestaurantsPage() {
       longitude: parseFloat(form.longitude),
       cuisineType: form.cuisineType || undefined,
       description: form.description || undefined,
-      imageUrl: form.imageUrl || undefined,
+      imageUrl: imageFile ? undefined : form.imageUrl || undefined,
       deliveryRadiusKm: parseFloat(form.deliveryRadiusKm),
       deliveryEnabled: form.deliveryEnabled,
       deliveryBaseFee: parseFloat(form.deliveryBaseFee),
       deliveryBaseDistanceKm: parseFloat(form.deliveryBaseDistanceKm),
       deliveryPerKmFee: parseFloat(form.deliveryPerKmFee),
-      deliveryFeeMin: form.deliveryFeeMin === '' ? null : parseFloat(form.deliveryFeeMin),
-      deliveryFeeCap: form.deliveryFeeCap === '' ? null : parseFloat(form.deliveryFeeCap),
+      deliveryFeeMin:
+        form.deliveryFeeMin === "" ? null : parseFloat(form.deliveryFeeMin),
+      deliveryFeeCap:
+        form.deliveryFeeCap === "" ? null : parseFloat(form.deliveryFeeCap),
       freeDeliveryMinAmount:
-        form.freeDeliveryMinAmount === '' ? null : parseFloat(form.freeDeliveryMinAmount),
+        form.freeDeliveryMinAmount === ""
+          ? null
+          : parseFloat(form.freeDeliveryMinAmount),
       packagingCharge: parseFloat(form.packagingCharge),
       gstin: form.gstin.trim() ? form.gstin.trim().toUpperCase() : undefined,
-      gstRate: parseFloat(form.gstRate || '0'),
+      gstRate: parseFloat(form.gstRate || "0"),
       gstEnabled: form.gstEnabled,
       isLocationEnabled: form.isLocationEnabled,
       isActive: form.isActive,
     };
 
     try {
+      let savedRestaurant;
+
       if (editingId) {
-        await updateRestaurant({ id: editingId, ...payload }).unwrap();
+        savedRestaurant = await updateRestaurant({
+          id: editingId,
+          ...payload,
+        }).unwrap();
       } else {
-        console.log('[DEBUG] Calling createRestaurant API');
-        await createRestaurant(payload).unwrap();
-        console.log('[DEBUG] createRestaurant API call completed');
+        console.log("[DEBUG] Calling createRestaurant API");
+        savedRestaurant = await createRestaurant(payload).unwrap();
+        console.log("[DEBUG] createRestaurant API call completed");
       }
+
+      if (imageFile) {
+        const restaurantId = savedRestaurant?.id ?? editingId;
+        await uploadRestaurantImage({
+          id: restaurantId,
+          file: imageFile,
+        }).unwrap();
+      }
+
       setModalOpen(false);
       setForm(initialFormState);
       setErrors({});
+      setImageFile(null);
+      setImageError("");
     } catch (err) {
-      console.error('Failed to save restaurant:', err);
+      console.error("Failed to save restaurant:", err);
+      const message =
+        err?.data?.message ||
+        err?.error ||
+        err?.message ||
+        "Failed to save restaurant.";
+      window.alert(message);
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
@@ -442,14 +547,14 @@ export function RestaurantsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this restaurant?')) {
+    if (!window.confirm("Are you sure you want to delete this restaurant?")) {
       return;
     }
 
     try {
       await deleteRestaurant(id).unwrap();
     } catch (err) {
-      console.error('Failed to delete restaurant:', err);
+      console.error("Failed to delete restaurant:", err);
     }
   };
 
@@ -471,7 +576,13 @@ export function RestaurantsPage() {
       >
         {isLoading ? <Loader label="Loading restaurants..." /> : null}
         {error ? (
-          <ErrorState message={error?.data?.message || error?.error || 'Failed to load restaurants.'} />
+          <ErrorState
+            message={
+              error?.data?.message ||
+              error?.error ||
+              "Failed to load restaurants."
+            }
+          />
         ) : null}
         {!isLoading && !error && !(data?.length > 0) ? (
           <EmptyState
@@ -485,8 +596,8 @@ export function RestaurantsPage() {
             <Table
               columns={[
                 {
-                  key: 'name',
-                  header: 'Restaurant',
+                  key: "name",
+                  header: "Restaurant",
                   render: (row) => (
                     <div className="flex items-center gap-3">
                       {row.imageUrl ? (
@@ -500,14 +611,16 @@ export function RestaurantsPage() {
                       )}
                       <div>
                         <p className="font-medium text-slate-900">{row.name}</p>
-                        <p className="text-xs text-slate-500">{row.cuisineType || 'Cuisine not specified'}</p>
+                        <p className="text-xs text-slate-500">
+                          {row.cuisineType || "Cuisine not specified"}
+                        </p>
                       </div>
                     </div>
                   ),
                 },
                 {
-                  key: 'address',
-                  header: 'Location',
+                  key: "address",
+                  header: "Location",
                   render: (row) => (
                     <div>
                       <p className="text-sm text-slate-900">{row.address}</p>
@@ -523,58 +636,76 @@ export function RestaurantsPage() {
                 //   render: (row) => <span className="text-sm text-slate-700">{row.deliveryRadiusKm} km</span>,
                 // },
                 {
-                  key: 'deliveryPricing',
-                  header: 'Delivery Fee',
+                  key: "deliveryPricing",
+                  header: "Delivery Fee",
                   render: (row) => (
                     <span className="text-sm text-slate-700">
                       {row.deliveryEnabled === false
-                        ? 'Disabled'
+                        ? "Disabled"
                         : `₹${row.deliveryBaseFee ?? 20} + ₹${row.deliveryPerKmFee ?? 7}/km`}
                     </span>
                   ),
                 },
                 {
-                  key: 'gst',
-                  header: 'GST',
+                  key: "gst",
+                  header: "GST",
                   render: (row) => (
                     <span className="text-sm text-slate-700">
-                      {row.gstEnabled === false ? 'Off' : `${row.gstRate ?? 5}%`}
+                      {row.gstEnabled === false
+                        ? "Off"
+                        : `${row.gstRate ?? 5}%`}
                     </span>
                   ),
                 },
                 {
-                  key: 'isActive',
-                  header: 'Status',
+                  key: "isActive",
+                  header: "Status",
                   render: (row) => (
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         row.isActive
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-200 text-slate-700'
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-200 text-slate-700"
                       }`}
                     >
-                      {row.isActive ? 'Active' : 'Inactive'}
+                      {row.isActive ? "Active" : "Inactive"}
                     </span>
                   ),
                 },
                 {
-                  key: 'actions',
-                  header: 'Actions',
+                  key: "actions",
+                  header: "Actions",
                   render: (row) => (
                     <PermissionGate
-                      fallback={<span className="text-xs text-slate-400">Read only</span>}
+                      fallback={
+                        <span className="text-xs text-slate-400">
+                          Read only
+                        </span>
+                      }
                       module="restaurants"
                       action="edit"
                     >
-                      <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
-                        <Button onClick={() => openMenu(row, 'list')} variant="secondary">
+                      <div
+                        className="flex gap-2"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Button
+                          onClick={() => openMenu(row, "list")}
+                          variant="secondary"
+                        >
                           All Menu
                         </Button>
-                        <Button onClick={() => handleEdit(row)} variant="secondary">
+                        <Button
+                          onClick={() => handleEdit(row)}
+                          variant="secondary"
+                        >
                           Edit
                         </Button>
                         <PermissionGate module="restaurants" action="delete">
-                          <Button onClick={() => handleDelete(row.id)} variant="danger">
+                          <Button
+                            onClick={() => handleDelete(row.id)}
+                            variant="danger"
+                          >
                             Delete
                           </Button>
                         </PermissionGate>
@@ -616,15 +747,25 @@ export function RestaurantsPage() {
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting || createState.isLoading || updateState.isLoading}
+              disabled={
+                isSubmitting ||
+                createState.isLoading ||
+                updateState.isLoading ||
+                uploadImageState.isLoading
+              }
             >
-              {isSubmitting || createState.isLoading || updateState.isLoading ? 'Saving...' : 'Save Restaurant'}
+              {isSubmitting ||
+              createState.isLoading ||
+              updateState.isLoading ||
+              uploadImageState.isLoading
+                ? "Saving..."
+                : "Save Restaurant"}
             </Button>
           </div>
         }
         onClose={() => setModalOpen(false)}
         open={modalOpen}
-        title={editingId ? 'Edit Restaurant' : 'Add New Restaurant'}
+        title={editingId ? "Edit Restaurant" : "Add New Restaurant"}
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
           <TextField
@@ -702,6 +843,26 @@ export function RestaurantsPage() {
             value={form.imageUrl}
           />
 
+          <label className="block text-sm font-medium text-slate-700">
+            <span className="mb-2 block">Upload Image</span>
+            <input
+              accept={IMAGE_UPLOAD_ACCEPT}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+              onChange={handleImageFileChange}
+              type="file"
+            />
+            {imageFile ? (
+              <span className="mt-1 block text-xs text-slate-500">
+                {imageFile.name}
+              </span>
+            ) : null}
+            {imageError ? (
+              <span className="mt-1 block text-xs text-rose-600">
+                {imageError}
+              </span>
+            ) : null}
+          </label>
+
           {/*
           <TextField
             error={errors.deliveryRadiusKm}
@@ -718,8 +879,12 @@ export function RestaurantsPage() {
 
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="mb-3">
-              <h3 className="text-sm font-semibold text-slate-900">Delivery pricing</h3>
-              <p className="text-xs text-slate-500">Distance-based charges used by checkout.</p>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Delivery pricing
+              </h3>
+              <p className="text-xs text-slate-500">
+                Distance-based charges used by checkout.
+              </p>
             </div>
 
             <label className="mb-4 flex items-center gap-3">
@@ -730,7 +895,9 @@ export function RestaurantsPage() {
                 onChange={handleInputChange}
                 type="checkbox"
               />
-              <span className="text-sm font-medium text-slate-700">Enable delivery</span>
+              <span className="text-sm font-medium text-slate-700">
+                Enable delivery
+              </span>
             </label>
 
             <div className="grid grid-cols-2 gap-4">
@@ -827,7 +994,10 @@ export function RestaurantsPage() {
               label="GSTIN"
               name="gstin"
               onChange={(event) =>
-                setForm((prev) => ({ ...prev, gstin: event.target.value.toUpperCase() }))
+                setForm((prev) => ({
+                  ...prev,
+                  gstin: event.target.value.toUpperCase(),
+                }))
               }
               placeholder="29ABCDE1234F1Z5"
               value={form.gstin}
@@ -855,7 +1025,9 @@ export function RestaurantsPage() {
                 onChange={handleInputChange}
                 type="checkbox"
               />
-              <span className="text-sm font-medium text-slate-700">Enable GST billing</span>
+              <span className="text-sm font-medium text-slate-700">
+                Enable GST billing
+              </span>
             </label>
 
             <label className="flex items-center gap-3">
@@ -866,7 +1038,9 @@ export function RestaurantsPage() {
                 onChange={handleInputChange}
                 type="checkbox"
               />
-              <span className="text-sm font-medium text-slate-700">Enable location-based delivery</span>
+              <span className="text-sm font-medium text-slate-700">
+                Enable location-based delivery
+              </span>
             </label>
 
             <label className="flex items-center gap-3">

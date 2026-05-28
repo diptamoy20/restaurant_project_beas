@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import {
@@ -14,6 +14,8 @@ import {
 } from './dto/admin-category.dto';
 import { CreateAdminMenuItemDto, UpdateAdminMenuItemDto } from './dto/admin-menu-item.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
+import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
+import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
   buildPaginationMeta,
   normalizePagination,
@@ -67,10 +69,13 @@ type MenuQueryOptions = {
 
 @Injectable()
 export class MenuService {
+  private readonly logger = new Logger(MenuService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly locationService: LocationService,
     private readonly cache: GeoCacheService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async getMenuByRestaurant(
@@ -587,6 +592,9 @@ export class MenuService {
       } as CreateAdminMenuItemDto);
     }
 
+    const imageUrl = dto.imageUrl === undefined ? undefined : dto.imageUrl.trim() || null;
+    const shouldReplaceImage = imageUrl !== undefined && imageUrl !== existing.imageUrl;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const item = await tx.menuItem.update({
         where: { id: menuItemId },
@@ -595,7 +603,8 @@ export class MenuService {
           description: dto.description === undefined ? undefined : dto.description?.trim() || null,
           price: dto.price,
           discountPrice: dto.discountPrice === undefined ? undefined : dto.discountPrice,
-          imageUrl: dto.imageUrl === undefined ? undefined : dto.imageUrl?.trim() || null,
+          imageUrl,
+          imagePublicId: shouldReplaceImage ? null : undefined,
           foodType: dto.foodType,
           spicyLevel: dto.spicyLevel === undefined ? undefined : dto.spicyLevel,
           ingredients: dto.ingredients === undefined ? undefined : dto.ingredients?.trim() || null,
@@ -652,7 +661,49 @@ export class MenuService {
 
     await this.clearMenuCache(existing.restaurantId);
 
+    if (shouldReplaceImage && existing.imagePublicId) {
+      await this.cloudinaryService.deleteImage(existing.imagePublicId);
+    }
+
     return this.mapMenuItem(updated);
+  }
+
+  async uploadMenuItemImage(menuItemId: number, file: Express.Multer.File): Promise<MenuItemDto> {
+    const existing = await this.prisma.menuItem.findUnique({
+      where: { id: menuItemId },
+      select: { restaurantId: true, imagePublicId: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Menu item not found');
+    }
+
+    let uploadedImage: CloudinaryImageUploadResult | null = null;
+
+    try {
+      uploadedImage = await this.cloudinaryService.uploadImage(file, 'menu-items');
+
+      const updated = await this.prisma.menuItem.update({
+        where: { id: menuItemId },
+        data: {
+          imageUrl: uploadedImage.secureUrl,
+          imagePublicId: uploadedImage.publicId,
+        },
+        include: ADMIN_MENU_ITEM_INCLUDE,
+      });
+
+      await this.clearMenuCache(existing.restaurantId);
+      await this.cloudinaryService.deleteImage(existing.imagePublicId);
+
+      return this.mapMenuItem(updated);
+    } catch (error) {
+      if (uploadedImage) {
+        await this.cloudinaryService.deleteImage(uploadedImage.publicId);
+      }
+
+      this.logger.warn(`Menu item image upload failed for ${menuItemId}`);
+      throw error;
+    }
   }
 
   async deleteAdminMenuItem(menuItemId: number): Promise<{ ok: boolean }> {
@@ -679,6 +730,7 @@ export class MenuService {
     });
 
     await this.clearMenuCache(existing.restaurantId);
+    await this.cloudinaryService.deleteImage(existing.imagePublicId);
 
     return { ok: true };
   }

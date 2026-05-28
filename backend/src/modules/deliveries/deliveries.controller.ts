@@ -61,12 +61,7 @@ export class DeliveriesController {
   @ApiQuery({
     name: 'status',
     required: false,
-    enum: [
-      DELIVERY_STATUS.ASSIGNED,
-      DELIVERY_STATUS.OUT_FOR_DELIVERY,
-      DELIVERY_STATUS.ON_THE_WAY,
-      DELIVERY_STATUS.DELIVERED,
-    ],
+    enum: [DELIVERY_STATUS.ASSIGNED, DELIVERY_STATUS.ON_THE_WAY, DELIVERY_STATUS.DELIVERED],
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
