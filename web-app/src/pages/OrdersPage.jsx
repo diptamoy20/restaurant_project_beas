@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { orderApi } from '../services/orderApi';
+import { formatDateTime } from '../utils/date';
 
 const STATUS_THEME = {
   PENDING: { label: 'Pending', className: 'order-chip order-chip--pending' },
@@ -26,6 +27,7 @@ export function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloadError, setDownloadError] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -123,7 +125,7 @@ export function OrdersPage() {
               <div>
                 <p className="order-meta-label">Placed</p>
                 <p className="order-meta-value">
-                  {new Date(order.createdAt).toLocaleString()}
+                  {formatDateTime(order.createdAt)}
                 </p>
               </div>
               <div>
@@ -135,9 +137,30 @@ export function OrdersPage() {
                 </p>
               </div>
             </footer>
+            {order.cancellationReason ? (
+              <div className="order-status-banner error">
+                Cancelled: {order.cancellationReason}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="ghost-button"
+              disabled={order.paymentStatus !== 'PAID'}
+              onClick={async () => {
+                setDownloadError('');
+                try {
+                  await orderApi.downloadInvoice(order.id);
+                } catch (invoiceError) {
+                  setDownloadError(invoiceError.message || 'Invoice download failed.');
+                }
+              }}
+            >
+              {order.paymentStatus === 'PAID' ? 'Download Invoice' : 'Invoice pending'}
+            </button>
           </article>
         ))}
       </div>
+      {downloadError ? <div className="order-status-banner error">{downloadError}</div> : null}
     </section>
   );
 }

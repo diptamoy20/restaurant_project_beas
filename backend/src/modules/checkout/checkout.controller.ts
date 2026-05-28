@@ -55,6 +55,7 @@ export class CheckoutController {
       addressId: payload.addressId,
       orderType: payload.orderType,
       couponCode: payload.couponCode,
+      tipAmount: payload.tipAmount,
       items: payload.items,
     });
   }

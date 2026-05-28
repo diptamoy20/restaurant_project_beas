@@ -153,6 +153,37 @@ export function ProfilePage() {
                 </button>
               </div>
             </form>
+          ) : activeSection === 'support' ? (
+            <div className="info-card account-support-panel">
+              <div className="profile-form-header">
+                <div>
+                  <h3>Help & Support</h3>
+                  <p>Find quick answers or contact the team about your account and orders.</p>
+                </div>
+              </div>
+
+              <div className="support-grid">
+                <article className="support-card">
+                  <span>Orders</span>
+                  <h4>Order support</h4>
+                  <p>Need help with an active order, cancellation, payment, or invoice?</p>
+                  <a href="/orders" className="text-link">View orders</a>
+                </article>
+                <article className="support-card">
+                  <span>Contact</span>
+                  <h4>Contact support</h4>
+                  <p>Email our support desk and include your order number for faster help.</p>
+                  <a href="mailto:support@restaurant-app.local" className="text-link">
+                    support@restaurant-app.local
+                  </a>
+                </article>
+                <article className="support-card">
+                  <span>FAQs</span>
+                  <h4>Common questions</h4>
+                  <p>Invoices, payment status, delivery updates, and account changes are handled here.</p>
+                </article>
+              </div>
+            </div>
           ) : (
             <div className="info-card account-address-panel">
               <AddressManager />

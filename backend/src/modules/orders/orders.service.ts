@@ -42,6 +42,7 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
         agent: true;
       };
     };
+    invoice: true;
   };
 }>;
 
@@ -64,6 +65,7 @@ const ORDER_INCLUDE = {
       agent: true,
     },
   },
+  invoice: true,
 } satisfies Prisma.OrderInclude;
 
 @Injectable()
@@ -246,7 +248,11 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  async updateOrderStatusByAdmin(orderId: number, status: string): Promise<OrderResponseDto> {
+  async updateOrderStatusByAdmin(
+    orderId: number,
+    status: string,
+    options: { cancellationReason?: string; changedByUserId?: number } = {},
+  ): Promise<OrderResponseDto> {
     const existing = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: ORDER_INCLUDE,
@@ -257,10 +263,22 @@ export class OrdersService {
     }
 
     const now = new Date();
+    const cancellationReason = options.cancellationReason?.trim();
+
+    if (status === ORDER_STATUS.CANCELLED && !cancellationReason) {
+      throw new BadRequestException('Cancellation reason is required');
+    }
+
     const data: Prisma.OrderUpdateInput = {
       status,
       statusLogs: {
-        create: [{ status }],
+        create: [
+          {
+            status,
+            note: status === ORDER_STATUS.CANCELLED ? cancellationReason : undefined,
+            changedByUserId: options.changedByUserId,
+          },
+        ],
       },
     };
 
@@ -278,6 +296,12 @@ export class OrdersService {
 
     if (status === ORDER_STATUS.SERVED) {
       data.deliveredAt = now;
+    }
+
+    if (status === ORDER_STATUS.CANCELLED) {
+      data.cancelledAt = now;
+      data.cancellationReason = cancellationReason;
+      data.cancelledByUserId = options.changedByUserId;
     }
 
     const order = await this.prisma.order.update({
@@ -343,6 +367,7 @@ export class OrdersService {
           couponCode: payload.couponCode,
           manualDiscountAmount: payload.manualDiscountAmount,
           allowManualDiscount: payload.source === 'ADMIN',
+          tipAmount: payload.tipAmount,
         },
         transaction,
       );
@@ -358,6 +383,7 @@ export class OrdersService {
         totalAmount: billing.mrpSubtotal,
         deliveryCharge: billing.deliveryCharge,
         packagingCharge: billing.packagingCharge,
+        tipAmount: billing.tipAmount,
         deliveryDistanceKm: billing.deliveryDistanceKm,
         discountAmount:
           billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
@@ -434,6 +460,7 @@ export class OrdersService {
       totalAmount: order.totalAmount,
       deliveryCharge: order.deliveryCharge,
       packagingCharge: order.packagingCharge,
+      tipAmount: order.tipAmount,
       deliveryDistanceKm: order.deliveryDistanceKm,
       discountAmount: order.discountAmount,
       finalAmount: order.finalAmount,
@@ -456,6 +483,8 @@ export class OrdersService {
       acceptedAt: order.acceptedAt ?? null,
       preparedAt: order.preparedAt ?? null,
       deliveredAt: order.deliveredAt ?? null,
+      cancelledAt: order.cancelledAt ?? null,
+      cancellationReason: order.cancellationReason ?? null,
       estimatedDeliveryMinutes,
       items: order.items.map((item) => ({
         id: item.id,
@@ -493,6 +522,7 @@ export class OrdersService {
         id: statusLog.id,
         orderId: statusLog.orderId,
         status: statusLog.status,
+        note: statusLog.note,
         changedAt: statusLog.changedAt,
       })),
       payments: order.payments?.map((payment) => ({
@@ -542,6 +572,14 @@ export class OrdersService {
             agentName: order.delivery.agent?.name ?? null,
             agentPhone: order.delivery.agent?.phone ?? null,
             status: order.delivery.status,
+          }
+        : null,
+      invoice: order.invoice
+        ? {
+            id: order.invoice.id,
+            invoiceNumber: order.invoice.invoiceNumber,
+            status: order.paymentStatus === 'PAID' ? 'AVAILABLE' : 'LOCKED',
+            canDownload: order.paymentStatus === 'PAID',
           }
         : null,
     };

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getOrder } from '../store/slices/orderSlice';
 import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
+import { orderApi } from '../services/orderApi';
 
 const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
 const formatCurrency = new Intl.NumberFormat('en-IN', {
@@ -20,6 +21,7 @@ export function PaymentPage() {
   const { currentOrder, loading, error } = useSelector((state) => state.orders);
   const [statusMessage, setStatusMessage] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState('');
   const orderSnapshot = useMemo(() => {
     const raw = sessionStorage.getItem(LAST_ORDER_STORAGE_KEY);
 
@@ -106,7 +108,24 @@ export function PaymentPage() {
             {paymentLoading ? 'Retrying...' : 'Retry payment'}
           </button>
         ) : null}
+        {displayStatus === 'PAID' ? (
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={async () => {
+              setInvoiceError('');
+              try {
+                await orderApi.downloadInvoice(orderId);
+              } catch (error) {
+                setInvoiceError(error.message || 'Invoice download failed.');
+              }
+            }}
+          >
+            Download Invoice
+          </button>
+        ) : null}
         {statusMessage ? <div className="order-status-banner success">{statusMessage}</div> : null}
+        {invoiceError ? <div className="order-status-banner error">{invoiceError}</div> : null}
       </div>
     </section>
   );

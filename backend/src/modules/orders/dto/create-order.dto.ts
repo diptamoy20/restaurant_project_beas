@@ -123,6 +123,19 @@ export class CreateOrderDto {
   @Matches(/^[A-Za-z0-9_-]+$/)
   couponCode?: string;
 
+  @ApiPropertyOptional({ enum: ['RAZORPAY', 'COD'], example: 'RAZORPAY' })
+  @IsOptional()
+  @IsString()
+  @IsIn(['RAZORPAY', 'COD'])
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ example: 30 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  tipAmount?: number;
+
   @ApiProperty({ type: () => OrderItemInputDto, isArray: true })
   @IsArray()
   @ArrayMinSize(1)

@@ -9,6 +9,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { DeliveryDashboardPage } from './pages/DeliveryDashboardPage';
 import { DeliveryOrdersPage } from './pages/DeliveryOrdersPage';
 import { LoginPage } from './pages/LoginPage';
+import { MenuPage } from './pages/MenuPage';
 import { RestaurantsPage } from './pages/RestaurantsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrdersPage } from './pages/OrdersPage';
@@ -49,6 +50,10 @@ export default function App() {
 
           <Route element={<ProtectedRoute module="categories" />}>
             <Route element={<CategoriesPage />} path="/categories" />
+          </Route>
+
+          <Route element={<ProtectedRoute module="menu" />}>
+            <Route element={<MenuPage />} path="/menu" />
           </Route>
 
           <Route element={<ProtectedRoute module="coupons" />}>

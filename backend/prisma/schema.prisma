@@ -256,6 +256,7 @@ model Order {
   totalAmount          Float            @map("total_amount")
   deliveryCharge       Float            @default(0) @map("delivery_charge")
   packagingCharge      Float            @default(0) @map("packaging_charge")
+  tipAmount            Float            @default(0) @map("tip_amount")
   deliveryDistanceKm   Float?           @map("delivery_distance_km")
   discountAmount       Float?           @map("discount_amount")
   finalAmount          Float            @map("final_amount")
@@ -280,6 +281,9 @@ model Order {
   acceptedAt           DateTime?        @map("accepted_at")
   preparedAt           DateTime?        @map("prepared_at")
   deliveredAt          DateTime?        @map("delivered_at")
+  cancelledAt          DateTime?        @map("cancelled_at")
+  cancellationReason   String?          @map("cancellation_reason")
+  cancelledByUserId    Int?             @map("cancelled_by_user_id")
   createdAt            DateTime         @default(now()) @map("created_at")
   user                 User?            @relation(fields: [userId], references: [id])
   restaurant           Restaurant       @relation(fields: [restaurantId], references: [id])
@@ -290,6 +294,7 @@ model Order {
   payments             Payment[]
   delivery             Delivery?
   coupons              CouponUsage[]
+  invoice              Invoice?
 
   @@map("orders")
 }
@@ -328,13 +333,30 @@ model OrderItemAddon {
 }
 
 model OrderStatusLog {
-  id        Int      @id @default(autoincrement())
-  orderId   Int      @map("order_id")
-  status    String
-  changedAt DateTime @default(now()) @map("changed_at")
-  order     Order    @relation(fields: [orderId], references: [id])
+  id              Int      @id @default(autoincrement())
+  orderId         Int      @map("order_id")
+  status          String
+  note            String?
+  changedByUserId Int?     @map("changed_by_user_id")
+  changedAt       DateTime @default(now()) @map("changed_at")
+  order           Order    @relation(fields: [orderId], references: [id])
 
   @@map("order_status_logs")
+}
+
+model Invoice {
+  id            Int       @id @default(autoincrement())
+  orderId       Int       @unique @map("order_id")
+  invoiceNumber String    @unique @map("invoice_number")
+  status        String    @default("LOCKED")
+  issuedAt      DateTime? @map("issued_at")
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("invoices")
 }
 
 model DeliveryAgent {

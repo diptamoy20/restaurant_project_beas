@@ -67,4 +67,16 @@ export class PaymentsController {
   ): Promise<VerifyPaymentResponseDto> {
     return this.paymentsService.confirmCodPayment(payload.orderId, request.user.id);
   }
+
+  @Post('cod/admin-confirm')
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Confirm physical COD payment and unlock invoice' })
+  @ApiBody({ type: ConfirmCodPaymentDto })
+  @ApiCreatedResponse({ type: VerifyPaymentResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  async confirmCodPaymentByAdmin(
+    @Body() payload: ConfirmCodPaymentDto,
+  ): Promise<VerifyPaymentResponseDto> {
+    return this.paymentsService.confirmCodPaymentByAdmin(payload.orderId);
+  }
 }

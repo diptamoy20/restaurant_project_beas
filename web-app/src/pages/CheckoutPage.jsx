@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { CheckoutAddressPicker } from '../components/checkout/CheckoutAddressPicker.jsx';
 import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
 import { checkoutApi } from '../services/checkoutApi';
+import { paymentApi } from '../services/paymentApi';
 import {
   createSessionAwarePath,
   resolveRestaurantId,
@@ -39,6 +40,8 @@ export function CheckoutPage() {
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [couponListLoading, setCouponListLoading] = useState(false);
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
+  const [tipInput, setTipInput] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('RAZORPAY');
 
   const cartRestaurantId = useMemo(
     () => items.find((item) => item.restaurantId)?.restaurantId ?? '',
@@ -51,6 +54,10 @@ export function CheckoutPage() {
     [items],
   );
   const totalAmount = quote?.finalAmount ?? subtotal;
+  const tipAmount = useMemo(() => {
+    const value = Number(tipInput);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }, [tipInput]);
   const isSubmitting = orderLoading || isPaying || quoteLoading;
 
   const buildQuotePayload = useCallback(
@@ -59,6 +66,7 @@ export function CheckoutPage() {
       addressId: selectedAddressId ? Number(selectedAddressId) : undefined,
       orderType: 'DELIVERY',
       couponCode: couponCode || undefined,
+      tipAmount,
       items: items.map((item) => ({
         menuItemId: item.menuItemId || item.id,
         variantId: item.variantId || undefined,
@@ -66,7 +74,7 @@ export function CheckoutPage() {
         addons: item.addons,
       })),
     }),
-    [appliedCouponCode, items, restaurantId, selectedAddressId],
+    [appliedCouponCode, items, restaurantId, selectedAddressId, tipAmount],
   );
 
   const refreshQuote = useCallback(
@@ -99,7 +107,7 @@ export function CheckoutPage() {
     } else {
       setQuote(null);
     }
-  }, [appliedCouponCode, items, refreshQuote, selectedAddressId, user]);
+  }, [appliedCouponCode, items, refreshQuote, selectedAddressId, tipAmount, user]);
 
   const applyCoupon = async () => {
     const nextCode = couponInput.trim().toUpperCase();
@@ -240,6 +248,11 @@ export function CheckoutPage() {
       return;
     }
 
+    if (tipInput && (!Number.isFinite(Number(tipInput)) || Number(tipInput) < 0)) {
+      setErrorMessage('Enter a valid tip amount.');
+      return;
+    }
+
     const orderPayload = {
       userId: user.id,
       restaurantId: Number(restaurantId),
@@ -247,6 +260,8 @@ export function CheckoutPage() {
       addressId: Number(selectedAddressId),
       orderType: 'DELIVERY',
       couponCode: appliedCouponCode || undefined,
+      tipAmount,
+      paymentMethod,
       items: items.map((item) => ({
         menuItemId: item.menuItemId || item.id,
         variantId: item.variantId || undefined,
@@ -264,13 +279,18 @@ export function CheckoutPage() {
       setStatusMessage('Creating your order...');
       const order = await dispatch(createOrder(orderPayload)).unwrap();
 
-      setStatusMessage('Opening secure payment...');
-      await startRazorpayPayment({
-        order,
-        user,
-        onSuccess: () => setStatusMessage('Payment successful. Finalizing order...'),
-        onFailure: (message) => setErrorMessage(message),
-      });
+      if (paymentMethod === 'COD') {
+        setStatusMessage('Confirming cash on delivery...');
+        await paymentApi.confirmCodPayment(order.id);
+      } else {
+        setStatusMessage('Opening secure payment...');
+        await startRazorpayPayment({
+          order,
+          user,
+          onSuccess: () => setStatusMessage('Payment successful. Finalizing order...'),
+          onFailure: (message) => setErrorMessage(message),
+        });
+      }
 
       dispatch(setLastOrderId(order.id));
       dispatch(clearCart());
@@ -281,9 +301,10 @@ export function CheckoutPage() {
           tableId: order.tableId,
           addressId: order.addressId,
           totalAmount: order.finalAmount,
-          paymentStatus: 'PAID',
-          paymentMethod: 'RAZORPAY',
+          paymentStatus: paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+          paymentMethod,
           customerNote,
+          tipAmount,
         }),
       );
       setStatusMessage('Checkout complete. Redirecting...');
@@ -427,6 +448,63 @@ export function CheckoutPage() {
             ) : null}
           </div>
 
+          <div className="checkout-coupon-row">
+            <div>
+              <strong>Tip</strong>
+              <span>Optional amount for the restaurant team</span>
+            </div>
+            <div className="checkout-coupon-actions">
+              {[20, 50, 100].map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setTipInput(String(amount))}
+                >
+                  {formatCurrency.format(amount)}
+                </button>
+              ))}
+              <input
+                className="coupon-input"
+                min="0"
+                value={tipInput}
+                onChange={(event) => setTipInput(event.target.value)}
+                placeholder="Custom"
+                type="number"
+              />
+              {tipInput ? (
+                <button type="button" className="ghost-button" onClick={() => setTipInput('')}>
+                  Clear
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="checkout-coupon-row">
+            <div>
+              <strong>Payment method</strong>
+              <span>{paymentMethod === 'COD' ? 'Pay by cash on delivery' : 'Pay online securely'}</span>
+            </div>
+            <div className="checkout-coupon-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setPaymentMethod('RAZORPAY')}
+                disabled={paymentMethod === 'RAZORPAY'}
+              >
+                Online
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setPaymentMethod('COD')}
+                disabled={paymentMethod === 'COD'}
+              >
+                COD
+              </button>
+            </div>
+          </div>
+
           <div className="bill-summary-rows">
             <div className="bill-row">
               <span>Item total</span>
@@ -461,6 +539,13 @@ export function CheckoutPage() {
                 <span>Packaging</span>
                 <i aria-hidden="true" />
                 <strong>{formatCurrency.format(quote.packagingCharge)}</strong>
+              </div>
+            ) : null}
+            {quote?.tipAmount ? (
+              <div className="bill-row">
+                <span>Tip</span>
+                <i aria-hidden="true" />
+                <strong>{formatCurrency.format(quote.tipAmount)}</strong>
               </div>
             ) : null}
             {quote?.taxAmount ? (
@@ -512,9 +597,13 @@ export function CheckoutPage() {
               type="button"
               className="place-order-button"
               disabled={isSubmitting || items.length === 0}
-              onClick={submitCheckout}
-            >
-              {isSubmitting ? 'Processing...' : 'Confirm checkout'}
+            onClick={submitCheckout}
+          >
+              {isSubmitting
+                ? 'Processing...'
+                : paymentMethod === 'COD'
+                  ? 'Place COD order'
+                  : 'Confirm checkout'}
             </button>
           )}
         </aside>
