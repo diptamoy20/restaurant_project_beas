@@ -17,7 +17,7 @@ export class NotificationResponseDto {
   @IsString()
   title!: string;
 
-  @ApiProperty({ example: 'Your order is out for delivery and will arrive soon.' })
+  @ApiProperty({ example: 'Your order is on the way and will arrive soon.' })
   @IsString()
   message!: string;
 

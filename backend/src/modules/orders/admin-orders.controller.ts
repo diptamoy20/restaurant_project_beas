@@ -36,7 +36,7 @@ export class AdminOrdersController {
   @ApiQuery({
     name: 'status',
     required: false,
-    enum: ['PREPARING', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'SERVED'],
+    enum: ['PREPARING', 'ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'SERVED'],
   })
   @ApiQuery({ name: 'action', required: false, enum: ['ACCEPT', 'REJECT'] })
   @ApiQuery({ name: 'search', required: false })

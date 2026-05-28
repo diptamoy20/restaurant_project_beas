@@ -27,7 +27,6 @@ const statusClasses = {
   PENDING: "bg-amber-100 text-amber-800",
   ACCEPTED: "bg-blue-100 text-blue-800",
   PREPARING: "bg-orange-100 text-orange-900",
-  OUT_FOR_DELIVERY: "bg-indigo-100 text-indigo-900",
   ON_THE_WAY: "bg-blue-100 text-blue-700",
   DELIVERED: "bg-emerald-100 text-emerald-900",
   SERVED: "bg-emerald-100 text-emerald-900",
@@ -56,7 +55,6 @@ const paymentOptions = [
 const statusOptions = [
   { value: "", label: "Status" },
   { value: "PREPARING", label: "Preparing" },
-  { value: "OUT_FOR_DELIVERY", label: "Out For Delivery" },
   { value: "ON_THE_WAY", label: "On The Way" },
   { value: "DELIVERED", label: "Delivered" },
   { value: "CANCELLED", label: "Cancelled" },
@@ -530,7 +528,7 @@ function Timeline({ order }) {
     { label: "Accepted", statuses: ["ACCEPTED"], at: order.acceptedAt },
     {
       label: order.orderType === "DINE_IN" ? "Preparing" : "On The Way",
-      statuses: ["PREPARING", "OUT_FOR_DELIVERY", "ON_THE_WAY"],
+      statuses: ["PREPARING", "ON_THE_WAY"],
       at: order.preparedAt,
     },
     {

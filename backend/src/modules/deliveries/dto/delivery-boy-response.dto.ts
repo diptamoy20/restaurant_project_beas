@@ -146,7 +146,7 @@ export class DeliveryBoyOrderHeaderDto {
   @IsString()
   orderNumber!: string;
 
-  @ApiProperty({ example: 'OUT_FOR_DELIVERY' })
+  @ApiProperty({ example: 'ON_THE_WAY' })
   @IsString()
   status!: string;
 
@@ -378,10 +378,6 @@ export class DeliveryBoyOrderActionsDto {
   @ApiProperty({ example: true })
   @IsBoolean()
   canAccept!: boolean;
-
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  canMarkOutForDelivery!: boolean;
 
   @ApiProperty({ example: false })
   @IsBoolean()

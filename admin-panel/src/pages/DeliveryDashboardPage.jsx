@@ -69,7 +69,7 @@ export function DeliveryDashboardPage() {
 
         <div className="grid gap-4 md:grid-cols-3">
           <StatCard label="Assigned" value={stats.assigned} />
-          <StatCard label="Out for delivery / On the way" value={stats.onTheWay} />
+          <StatCard label="On the way" value={stats.onTheWay} />
           <StatCard label="Delivered" value={stats.delivered} />
         </div>
       </Card>

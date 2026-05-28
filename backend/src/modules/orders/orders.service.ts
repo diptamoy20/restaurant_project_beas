@@ -666,7 +666,6 @@ export class OrdersService {
             ORDER_STATUS.PLACED,
             ORDER_STATUS.ACCEPTED,
             ORDER_STATUS.PREPARING,
-            ORDER_STATUS.OUT_FOR_DELIVERY,
             ORDER_STATUS.ON_THE_WAY,
           ],
         },

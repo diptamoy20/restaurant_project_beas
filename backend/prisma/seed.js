@@ -265,7 +265,7 @@ async function main() {
         tableId: downtownBranch.tables[0]?.id,
         addressId: address.id,
         orderNumber: 'ORD-DEMO-1001',
-        status: 'OUT_FOR_DELIVERY',
+        status: 'ON_THE_WAY',
         orderType: 'DELIVERY',
         totalAmount: 288,
         discountAmount: 20,
@@ -282,7 +282,7 @@ async function main() {
           ],
         },
         statusLogs: {
-          create: [{ status: 'PLACED' }, { status: 'CONFIRMED' }, { status: 'OUT_FOR_DELIVERY' }],
+          create: [{ status: 'PLACED' }, { status: 'CONFIRMED' }, { status: 'ON_THE_WAY' }],
         },
         payments: {
           create: [
@@ -337,7 +337,7 @@ async function main() {
       data: {
         userId: customer.id,
         title: 'Order on the way',
-        message: 'Your order is out for delivery and will arrive soon.',
+        message: 'Your order is on the way and will arrive soon.',
         isRead: false,
       },
     });
