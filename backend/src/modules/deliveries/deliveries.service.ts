@@ -13,6 +13,7 @@ import {
   DeliveryLocationUpdateResponseDto,
   DeliveryTrackingLogDto,
   DeliveryTrackingResponseDto,
+  SendOtpResponseDto,
 } from './dto';
 import { DeliveryBoyOrdersQueryDto } from './dto/delivery-boy-query.dto';
 import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
@@ -32,6 +33,7 @@ import {
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { NotificationService } from '../notifications/notification.service';
 
 const DELIVERY_CARD_INCLUDE = {
   order: {
@@ -76,7 +78,10 @@ type DeliveryDetailRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY
 
 @Injectable()
 export class DeliveriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
     const agent = await this.getCurrentAgentOrThrow(requester.id);
@@ -191,6 +196,40 @@ export class DeliveriesService {
     });
 
     return this.mapOrderDetails(updated);
+  }
+
+  async sendDeliveryOtp(
+    requester: AuthenticatedUser,
+    orderId: number,
+  ): Promise<SendOtpResponseDto> {
+    const agent = await this.getCurrentAgentOrThrow(requester.id);
+
+    const delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
+
+    if (delivery.status !== DELIVERY_STATUS.ON_THE_WAY) {
+      throw new BadRequestException('OTP can only be sent for orders that are on the way');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (!delivery.order.userId) {
+      throw new BadRequestException('Cannot send OTP for an order without a customer account');
+    }
+
+    await this.notificationService.sendPushToUser({
+      userId: delivery.order.userId,
+      title: 'Delivery Verification OTP',
+      body: `Your delivery OTP is ${otp}`,
+      data: {
+        otp,
+        orderId: String(orderId),
+      },
+    });
+
+    return {
+      message: 'OTP sent successfully',
+      otp,
+    };
   }
 
   async updateMyOrderStatus(

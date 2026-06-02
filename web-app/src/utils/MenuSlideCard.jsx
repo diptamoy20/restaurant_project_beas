@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState } from "react";
 
-const formatRupees = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
+const formatRupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 2
 });
 
 export function MenuSlideCard({ item, onAdd, subtitle }) {
@@ -14,10 +14,8 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
       ? item.discountPrice
       : item.price;
 
-  const badge =
-    item.foodType === 'NON_VEG'
-      ? 'Non-veg'
-      : 'Veg';
+  const badge = item.foodType === "NON_VEG" ? "Non-veg" : "Veg";
+
 
   return (
     <article className="menu-slide-card">
@@ -27,7 +25,9 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
         ) : (
           <div className="menu-slide-placeholder" aria-hidden />
         )}
-        <span className={`menu-slide-badge menu-slide-badge--${item.foodType === 'NON_VEG' ? 'nv' : 'veg'}`}>
+        <span
+          className={`menu-slide-badge menu-slide-badge--${item.foodType === "NON_VEG" ? "nv" : "veg"}`}
+        >
           {badge}
         </span>
       </div>
@@ -35,13 +35,18 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
       <div className="menu-slide-body">
         <p className="menu-slide-eyebrow">{subtitle ?? item.category?.name}</p>
         <h4>{item.name}</h4>
-        <p 
+        <p
           className="menu-slide-description"
-          onClick={() => (item.description || item.ingredients) && setShowDetailsPopup(true)}
-          role={(item.description || item.ingredients) ? "button" : undefined}
-          tabIndex={(item.description || item.ingredients) ? 0 : undefined}
+          onClick={() =>
+            (item.description || item.ingredients) && setShowDetailsPopup(true)
+          }
+          role={item.description || item.ingredients ? "button" : undefined}
+          tabIndex={item.description || item.ingredients ? 0 : undefined}
           onKeyDown={(e) => {
-            if ((item.description || item.ingredients) && (e.key === 'Enter' || e.key === ' ')) {
+            if (
+              (item.description || item.ingredients) &&
+              (e.key === "Enter" || e.key === " ")
+            ) {
               setShowDetailsPopup(true);
             }
           }}
@@ -94,18 +99,30 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
         <div className="menu-slide-meta">
           <span className="menu-slide-price">{formatRupees.format(price)}</span>
           {item.rating != null ? (
-            <span className="menu-slide-rating">★ {item.rating.toFixed(1)}</span>
+            <span className="menu-slide-rating">
+              ★ {item.rating.toFixed(1)}
+            </span>
           ) : null}
         </div>
 
-        <button type="button" className="primary-btn menu-slide-cta" onClick={onAdd}>
+        <button
+          type="button"
+          className="primary-btn menu-slide-cta"
+          onClick={onAdd}
+        >
           Add to cart
         </button>
       </div>
 
       {showDetailsPopup && (
-        <div className="menu-slide-popup-overlay" onClick={() => setShowDetailsPopup(false)}>
-          <div className="menu-slide-popup" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="menu-slide-popup-overlay"
+          onClick={() => setShowDetailsPopup(false)}
+        >
+          <div
+            className="menu-slide-popup"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               className="menu-slide-popup-close"

@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { GeoCacheModule } from './common/cache/geo-cache.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { FirebaseAdminModule } from './common/firebase/firebase-admin.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
@@ -38,6 +39,7 @@ import { PrismaModule } from './prisma/prisma.module';
       validate: validateEnv,
     }),
     GeoCacheModule,
+    FirebaseAdminModule,
     PrismaModule,
     AuthModule,
     RestaurantsModule,
