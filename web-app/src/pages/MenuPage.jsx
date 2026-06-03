@@ -21,7 +21,8 @@ const HARDCODED_RESTAURANT_ID = "1";
 const formatRupees = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 function formatDeliveryLine(delivery) {
