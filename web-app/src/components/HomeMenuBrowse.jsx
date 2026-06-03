@@ -92,11 +92,17 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
         const rows = await getBestSellingMenu({
           lat: coordinates?.lat,
           lng: coordinates?.lng,
+          restaurantId,
           limit: 18,
           signal: controller.signal,
         });
 
-        setBestSelling(Array.isArray(rows) ? rows : []);
+        const list = Array.isArray(rows) ? rows : [];
+        setBestSelling(
+          restaurantId
+            ? list.filter((row) => Number(row.restaurantId) === Number(restaurantId))
+            : list,
+        );
       } catch {
         setBestSelling([]);
       } finally {
@@ -107,7 +113,7 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
     loadBest();
 
     return () => controller.abort();
-  }, [coordinates?.lat, coordinates?.lng]);
+  }, [coordinates?.lat, coordinates?.lng, restaurantId]);
 
   useEffect(() => {
     setActiveTab(0);
@@ -143,21 +149,22 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
     setToast('');
     dispatch(clearError());
 
+    const hasVariants = item.variants?.length > 0;
+    const hasAddons = item.addonGroups?.some((group) => group.options?.length > 0);
+
+    if (hasVariants || hasAddons) {
+      setToast('Open the full menu to customize this dish before adding it.');
+      window.setTimeout(() => setToast(''), 3200);
+      return;
+    }
+
+    const payload = { item, quantity: 1 };
+
     try {
       if (isAuthenticated) {
-        await dispatch(
-          addToCartAsync({
-            menuItemId: item.id,
-            quantity: 1,
-          }),
-        ).unwrap();
+        await dispatch(addToCartAsync(payload)).unwrap();
       } else {
-        dispatch(
-          addToCart({
-            item,
-            quantity: 1,
-          }),
-        );
+        dispatch(addToCart(payload));
       }
 
       setToast(`${item.name} added to cart`);

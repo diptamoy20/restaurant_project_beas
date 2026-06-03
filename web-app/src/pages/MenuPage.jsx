@@ -6,6 +6,7 @@ import {
   addToCart,
   addToCartAsync,
   clearError,
+  getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
 import { getCachedUserLocation } from "../hooks/useUserLocation";
@@ -286,7 +287,7 @@ export function MenuPage() {
   // Dynamically calculate customized unit price
   const customizedUnitPrice = useMemo(() => {
     if (!customizingItem) return 0;
-    const base = selectedVariant?.price ?? customizingItem.price;
+    const base = getEffectiveMenuPrice(customizingItem, selectedVariant);
     const addonsTotal = selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
     return base + addonsTotal;
   }, [customizingItem, selectedVariant, selectedAddons]);

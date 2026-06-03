@@ -5,8 +5,6 @@ import {
   decreaseQuantity as decreaseQuantityAction,
   increaseQuantity as increaseQuantityAction,
   removeItem as removeItemAction,
-  removeFromCartAsync,
-  updateCartItemAsync,
 } from '../store/slices/cartSlice';
 import {
   createSessionAwarePath,
@@ -65,39 +63,15 @@ export function CartPage() {
   );
 
   const increaseQuantity = (item) => {
-    const key = item.cartKey;
-    const nextQuantity = item.quantity + 1;
-
-    dispatch(increaseQuantityAction(key));
-
-    if (token) {
-      dispatch(updateCartItemAsync({ cartKey: key, quantity: nextQuantity }));
-    }
+    dispatch(increaseQuantityAction(item.cartKey));
   };
 
   const decreaseQuantity = (item) => {
-    const key = item.cartKey;
-    const nextQuantity = item.quantity - 1;
-
-    dispatch(decreaseQuantityAction(key));
-
-    if (token) {
-      if (nextQuantity <= 0) {
-        dispatch(removeFromCartAsync(key));
-      } else {
-        dispatch(updateCartItemAsync({ cartKey: key, quantity: nextQuantity }));
-      }
-    }
+    dispatch(decreaseQuantityAction(item.cartKey));
   };
 
   const removeItem = (item) => {
-    const key = item.cartKey;
-
-    dispatch(removeItemAction(key));
-
-    if (token) {
-      dispatch(removeFromCartAsync(key));
-    }
+    dispatch(removeItemAction(item.cartKey));
   };
 
   const proceedToCheckout = () => {
