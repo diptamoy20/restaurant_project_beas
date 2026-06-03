@@ -210,7 +210,7 @@ export class DeliveriesService {
       throw new BadRequestException('OTP can only be sent for orders that are on the way');
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     if (!delivery.order.userId) {
       throw new BadRequestException('Cannot send OTP for an order without a customer account');

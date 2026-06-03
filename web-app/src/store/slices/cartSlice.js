@@ -2,6 +2,27 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 const CART_STORAGE_KEY = 'cart_items';
 
+/** Matches backend CartService.getMenuItemPrice — discount applies only without a variant. */
+export function getEffectiveMenuPrice(menuItem, variant = null) {
+  if (variant != null && variant.price != null) {
+    return Number(variant.price);
+  }
+
+  const source = menuItem?.menuItem ?? menuItem ?? {};
+  const price = Number(source.price ?? menuItem?.price ?? 0);
+  const discountPrice = source.discountPrice ?? menuItem?.discountPrice;
+
+  if (
+    discountPrice != null &&
+    discountPrice > 0 &&
+    discountPrice < price
+  ) {
+    return Number(discountPrice);
+  }
+
+  return price;
+}
+
 function getAddOnKey(addOns = []) {
   return addOns
     .map((addOn) => `${addOn.addonGroupId}:${addOn.addonOptionId}`)
@@ -19,12 +40,20 @@ function getCartKey(item) {
 function normalizeCartItem(item) {
   const menuItem = item.menuItem ?? item;
   const menuItemId = item.menuItemId ?? menuItem.id ?? item.id;
+
+  if (menuItemId == null || Number.isNaN(Number(menuItemId))) {
+    return null;
+  }
+
   const variant = item.variant ?? null;
   const variantId = variant?.id ?? item.variantId ?? null;
   const addOns = item.addOns ?? item.addons ?? [];
 
-  const addOnsTotal = addOns.reduce((sum, addOn) => sum + (addOn.price ?? addOn.addonOptionPrice ?? 0), 0);
-  const baseItemPrice = Number(variant?.price ?? item.price ?? menuItem.price ?? 0);
+  const addOnsTotal = addOns.reduce(
+    (sum, addOn) => sum + (addOn.price ?? addOn.addonOptionPrice ?? 0),
+    0,
+  );
+  const baseItemPrice = getEffectiveMenuPrice(menuItem, variant);
   const unitPrice = baseItemPrice + addOnsTotal;
 
   const cartKey = item.cartKey ?? getCartKey({ menuItemId, variantId, addOns });
@@ -37,14 +66,48 @@ function normalizeCartItem(item) {
     variantId,
     name: menuItem.name ?? item.name ?? 'Menu item',
     category: menuItem.category ?? item.category,
-    restaurantId: menuItem.restaurantId ?? item.restaurantId,
+    restaurantId:
+      menuItem.restaurantId ?? item.restaurantId ?? menuItem.restaurant?.id,
     basePrice: baseItemPrice,
     price: unitPrice,
-    quantity: Number(item.quantity ?? 1),
+    quantity: Math.max(1, Number(item.quantity ?? 1)),
     menuItem,
     variant,
     addOns,
   };
+}
+
+function mergeCartItems(items) {
+  const merged = new Map();
+
+  for (const raw of items) {
+    const normalized = normalizeCartItem(raw);
+    if (!normalized) {
+      continue;
+    }
+
+    const existing = merged.get(normalized.cartKey);
+    if (existing) {
+      existing.quantity += normalized.quantity;
+      if (
+        !existing.menuItem?.name ||
+        existing.price === 0 ||
+        existing.name === 'Menu item'
+      ) {
+        existing.menuItem = normalized.menuItem;
+        existing.name = normalized.name;
+        existing.restaurantId = normalized.restaurantId;
+        existing.price = normalized.price;
+        existing.basePrice = normalized.basePrice;
+        existing.variant = normalized.variant;
+        existing.addOns = normalized.addOns;
+      }
+    } else {
+      merged.set(normalized.cartKey, normalized);
+    }
+  }
+
+  return [...merged.values()];
 }
 
 function matchesCartItem(item, keyOrId) {
@@ -60,7 +123,15 @@ function matchesCartItem(item, keyOrId) {
 const loadCartFromStorage = () => {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored).map(normalizeCartItem) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    const rawItems = Array.isArray(parsed) ? parsed : [];
+    const merged = mergeCartItems(rawItems);
+
+    if (rawItems.length !== merged.length) {
+      saveCartToStorage(merged);
+    }
+
+    return merged;
   } catch {
     return [];
   }
@@ -149,7 +220,16 @@ const cartSlice = createSlice({
   reducers: {
     addToCart(state, action) {
       const { item, variant, addOns = [], quantity = 1 } = action.payload;
+
+      if (!item) {
+        return;
+      }
+
       const normalizedItem = normalizeCartItem({ ...item, variant, addOns, quantity });
+
+      if (!normalizedItem) {
+        return;
+      }
       const existingItem = state.items.find(
         (cartItem) => cartItem.cartKey === normalizedItem.cartKey,
       );
@@ -217,7 +297,7 @@ const cartSlice = createSlice({
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.syncing = false;
         const serverItems = Array.isArray(action.payload)
-          ? action.payload.map(normalizeCartItem)
+          ? mergeCartItems(action.payload)
           : [];
 
         if (serverItems.length === 0 && state.items.length > 0) {
