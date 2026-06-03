@@ -127,8 +127,28 @@ export class AuthController {
   @Public()
   @Post('login/role')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Role-aware login for admin/manager clients' })
-  @ApiBody({ type: RoleLoginDto })
+  @ApiOperation({ summary: 'Role-aware login for admin, manager, or delivery-boy clients' })
+  @ApiBody({
+    type: RoleLoginDto,
+    examples: {
+      deliveryBoy: {
+        summary: 'Delivery-boy login',
+        value: {
+          email: 'delivery@example.com',
+          password: 'password123',
+          role: 'delivery_boy',
+        },
+      },
+      admin: {
+        summary: 'Admin login',
+        value: {
+          email: 'admin@example.com',
+          password: 'password123',
+          role: 'admin',
+        },
+      },
+    },
+  })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiForbiddenResponse({ description: 'User does not have requested role' })
   @ApiStandardErrorResponses({ badRequest: true, unauthorized: true })

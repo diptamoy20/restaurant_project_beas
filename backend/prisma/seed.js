@@ -122,7 +122,7 @@ async function main() {
         city: 'Bengaluru',
         state: 'Karnataka',
         latitude: 22.6236,
-        longitude: 88.4410,
+        longitude: 88.441,
         isDefault: true,
       },
     }));

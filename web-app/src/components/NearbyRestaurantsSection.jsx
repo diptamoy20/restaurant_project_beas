@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 const formatRupees = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 export function NearbyRestaurantsSection({

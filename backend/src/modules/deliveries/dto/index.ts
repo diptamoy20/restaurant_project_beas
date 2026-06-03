@@ -9,3 +9,4 @@ export * from './delivery-boy-response.dto';
 export * from './update-delivery-availability.dto';
 export * from './update-delivery-status.dto';
 export * from './update-my-delivery-location.dto';
+export * from './send-otp-response.dto';
