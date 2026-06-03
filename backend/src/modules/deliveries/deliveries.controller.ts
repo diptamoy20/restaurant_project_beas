@@ -38,6 +38,7 @@ import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { SendOtpResponseDto } from './dto/send-otp-response.dto';
 
 @Controller('deliveries')
 @ApiTags('Deliveries')
@@ -72,6 +73,25 @@ export class DeliveriesController {
     @Query() query: DeliveryBoyOrdersQueryDto,
   ): Promise<PaginatedDeliveryBoyOrderCardsDto> {
     return this.deliveriesService.listMyOrders(request.user, query);
+  }
+
+  @Roles(Role.DELIVERY_BOY)
+  @Post('me/orders/:orderId/send-otp')
+  @ApiOperation({
+    summary: 'Send delivery completion OTP to customer',
+  })
+  @ApiParam({
+    name: 'orderId',
+    type: Number,
+  })
+  @ApiOkResponse({
+    type: SendOtpResponseDto,
+  })
+  sendDeliveryOtp(
+    @Param('orderId', ParseIntPipe) orderId: number,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<SendOtpResponseDto> {
+    return this.deliveriesService.sendDeliveryOtp(request.user, orderId);
   }
 
   @Roles(Role.DELIVERY_BOY)

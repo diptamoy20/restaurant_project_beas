@@ -25,12 +25,6 @@ class GetMenuDto {
   restaurantId!: number;
 }
 
-type RequestWithUser = {
-  user?: {
-    id?: number;
-  };
-};
-
 @Controller('menu')
 @ApiTags('Menu')
 export class MenuController {

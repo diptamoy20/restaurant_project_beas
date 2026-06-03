@@ -19,7 +19,7 @@ export function LoginPage() {
   const [login, { isLoading, error }] = useLoginMutation();
   const [formError, setFormError] = useState('');
   const [form, setForm] = useState({
-    email: 'admin@example.com',
+    identifier: 'admin@example.com',
     password: 'password123',
   });
 
@@ -35,11 +35,13 @@ export function LoginPage() {
     event.preventDefault();
     setFormError('');
 
+    const identifier = form.identifier.trim();
+    const credentials = identifier.includes('@')
+      ? { email: identifier.toLowerCase(), password: form.password }
+      : { phone: identifier, password: form.password };
+
     try {
-      const response = await login({
-        email: form.email,
-        password: form.password,
-      }).unwrap();
+      const response = await login(credentials).unwrap();
 
       const authResponse = response?.data ?? response;
       const userRole = authResponse.user?.role;
@@ -96,12 +98,12 @@ export function LoginPage() {
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
             <TextField
-              label="Email"
-              name="email"
+              label="Email or phone"
+              name="identifier"
               onChange={handleChange}
-              placeholder="admin@example.com"
-              type="email"
-              value={form.email}
+              placeholder="admin@example.com or +919900000005"
+              type="text"
+              value={form.identifier}
             />
             <TextField
               label="Password"
