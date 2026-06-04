@@ -10,11 +10,18 @@ import {
   DeliveryBoyDashboardDto,
   DeliveryBoyOrderCardDto,
   DeliveryBoyOrderDetailsDto,
+  DeliveryBoyOrderHistoryItemDto,
+  DeliveryBoyOrderHistoryResponseDto,
   DeliveryLocationUpdateResponseDto,
   DeliveryTrackingLogDto,
   DeliveryTrackingResponseDto,
   SendOtpResponseDto,
 } from './dto';
+import {
+  DeliveryBoyOrderHistoryQueryDto,
+  getOrderHistoryDayBounds,
+  resolveOrderHistoryCalendarDate,
+} from './dto/delivery-boy-order-history-query.dto';
 import { DeliveryBoyOrdersQueryDto } from './dto/delivery-boy-query.dto';
 import { UpdateDeliveryLocationDto } from './dto/update-delivery-location.dto';
 import { UpdateMyDeliveryLocationDto } from './dto/update-my-delivery-location.dto';
@@ -50,6 +57,21 @@ const DELIVERY_CARD_INCLUDE = {
   },
 } satisfies Prisma.DeliveryInclude;
 
+const DELIVERY_HISTORY_INCLUDE = {
+  order: {
+    include: {
+      user: true,
+      restaurant: true,
+      items: {
+        select: {
+          id: true,
+          quantity: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.DeliveryInclude;
+
 const DELIVERY_DETAIL_INCLUDE = {
   order: {
     include: {
@@ -74,6 +96,7 @@ const DELIVERY_DETAIL_INCLUDE = {
 
 type DeliveryAgentRecord = Prisma.DeliveryAgentGetPayload<Record<string, never>>;
 type DeliveryCardRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_CARD_INCLUDE }>;
+type DeliveryHistoryRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_HISTORY_INCLUDE }>;
 type DeliveryDetailRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_DETAIL_INCLUDE }>;
 
 @Injectable()
@@ -115,6 +138,50 @@ export class DeliveriesService {
         delivered,
       },
       assignedOrders: activeOrders.map((delivery) => this.mapOrderCard(delivery)),
+    };
+  }
+
+  async getMyOrderHistory(
+    requester: AuthenticatedUser,
+    query: DeliveryBoyOrderHistoryQueryDto,
+  ): Promise<DeliveryBoyOrderHistoryResponseDto> {
+    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const selectedDate = resolveOrderHistoryCalendarDate(query.date);
+    const { start, end } = this.getOrderHistoryDayBoundsOrThrow(selectedDate);
+    const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
+    const where = this.buildDeliveredHistoryWhere(agent.id, start, end);
+
+    const [summaryAggregate, total, deliveries] = await Promise.all([
+      this.prisma.order.aggregate({
+        where: {
+          deliveredAt: { gte: start, lte: end },
+          delivery: {
+            is: {
+              agentId: agent.id,
+              status: DELIVERY_STATUS.DELIVERED,
+            },
+          },
+        },
+        _count: { _all: true },
+        _sum: { finalAmount: true },
+      }),
+      this.prisma.delivery.count({ where }),
+      this.prisma.delivery.findMany({
+        where,
+        orderBy: { order: { deliveredAt: 'desc' } },
+        include: DELIVERY_HISTORY_INCLUDE,
+        ...toPrismaPagination(pagination),
+      }),
+    ]);
+
+    return {
+      selectedDate,
+      summary: {
+        totalOrders: summaryAggregate._count._all,
+        totalDeliveredAmount: summaryAggregate._sum.finalAmount ?? 0,
+      },
+      items: deliveries.map((delivery) => this.mapOrderHistoryItem(delivery)),
+      ...buildPaginationMeta(total, pagination),
     };
   }
 
@@ -416,6 +483,50 @@ export class DeliveriesService {
       name: agent.name,
       phone: agent.phone,
       isAvailable: agent.isAvailable,
+    };
+  }
+
+  private buildDeliveredHistoryWhere(
+    agentId: number,
+    start: Date,
+    end: Date,
+  ): Prisma.DeliveryWhereInput {
+    return {
+      agentId,
+      status: DELIVERY_STATUS.DELIVERED,
+      order: {
+        deliveredAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+    };
+  }
+
+  private getOrderHistoryDayBoundsOrThrow(date: string): { start: Date; end: Date } {
+    try {
+      return getOrderHistoryDayBounds(date);
+    } catch {
+      throw new BadRequestException('date must be a valid calendar date in YYYY-MM-DD format');
+    }
+  }
+
+  private mapOrderHistoryItem(delivery: DeliveryHistoryRecord): DeliveryBoyOrderHistoryItemDto {
+    const itemCount = delivery.order.items.length;
+    const totalQuantity = delivery.order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+    return {
+      deliveryId: delivery.id,
+      orderId: delivery.order.id,
+      orderNumber: delivery.order.orderNumber,
+      customerName: delivery.order.user?.name ?? null,
+      restaurantName: delivery.order.restaurant.name,
+      itemCount,
+      totalQuantity,
+      finalAmount: delivery.order.finalAmount,
+      paymentMethod: delivery.order.paymentMethod,
+      paymentStatus: delivery.order.paymentStatus,
+      deliveredAt: delivery.order.deliveredAt!,
     };
   }
 
