@@ -23,6 +23,8 @@ import { DeliveriesService } from './deliveries.service';
 import {
   DeliveryBoyDashboardDto,
   DeliveryBoyOrderDetailsDto,
+  DeliveryBoyOrderHistoryQueryDto,
+  DeliveryBoyOrderHistoryResponseDto,
   DeliveryBoyOrdersQueryDto,
   DeliveryBoyProfileDto,
   DeliveryLocationUpdateResponseDto,
@@ -54,6 +56,29 @@ export class DeliveriesController {
   @ApiStandardErrorResponses({ notFound: true })
   getMyDashboard(@Req() request: { user: AuthenticatedUser }): Promise<DeliveryBoyDashboardDto> {
     return this.deliveriesService.getDashboard(request.user);
+  }
+
+  @Roles(Role.DELIVERY_BOY)
+  @Get('me/order-history')
+  @ApiOperation({
+    summary: 'List delivered order history for the current delivery boy by calendar date',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    example: '2026-06-03',
+    description: 'Calendar date (YYYY-MM-DD). Defaults to today.',
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: DeliveryBoyOrderHistoryResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  getMyOrderHistory(
+    @Req() request: { user: AuthenticatedUser },
+    @Query() query: DeliveryBoyOrderHistoryQueryDto,
+  ): Promise<DeliveryBoyOrderHistoryResponseDto> {
+    return this.deliveriesService.getMyOrderHistory(request.user, query);
   }
 
   @Roles(Role.DELIVERY_BOY)

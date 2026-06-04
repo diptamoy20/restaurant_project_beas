@@ -5,6 +5,8 @@ export * from './delivery-tracking-response.dto';
 export * from './delivery-location-update-response.dto';
 export * from './order-summary.dto';
 export * from './delivery-boy-query.dto';
+export * from './delivery-boy-order-history-query.dto';
+export * from './delivery-boy-order-history.dto';
 export * from './delivery-boy-response.dto';
 export * from './update-delivery-availability.dto';
 export * from './update-delivery-status.dto';
