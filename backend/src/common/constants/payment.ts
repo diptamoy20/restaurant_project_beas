@@ -11,7 +11,9 @@ export const COD_PAYMENT_METHODS = ['COD', 'CASH_ON_DELIVERY', 'CASH'] as const;
 
 export type CodPaymentMethodValue = (typeof COD_PAYMENT_METHODS)[number];
 
-export function isCodPaymentMethod(method: string | null | undefined): method is CodPaymentMethodValue {
+export function isCodPaymentMethod(
+  method: string | null | undefined,
+): method is CodPaymentMethodValue {
   if (!method) {
     return false;
   }
