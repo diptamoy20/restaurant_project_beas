@@ -8,6 +8,11 @@ import Razorpay from 'razorpay';
 import { RazorpayOrderResponseDto, VerifyPaymentResponseDto } from './dto/payment-response.dto';
 import { RecordPaymentFailureDto } from './dto/record-payment-failure.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
+import {
+  COD_PAYMENT_METHODS,
+  isCodPaymentMethod,
+  PAYMENT_STATUS,
+} from '../../common/constants/payment';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoicesService } from '../invoices/invoices.service';
 
@@ -214,11 +219,11 @@ export class PaymentsService {
       throw new NotFoundException('Order not found');
     }
 
-    if (order.paymentMethod !== 'COD') {
+    if (!isCodPaymentMethod(order.paymentMethod)) {
       throw new BadRequestException('Only COD orders can be confirmed by admin');
     }
 
-    if (order.paymentStatus === 'PAID') {
+    if (order.paymentStatus === PAYMENT_STATUS.PAID) {
       throw new BadRequestException('Order payment is already completed');
     }
 
@@ -235,14 +240,68 @@ export class PaymentsService {
     };
   }
 
-  async settleCodPaymentOnDelivery(
+  /**
+   * Merges COD paid fields into a pending order update (single order.update in caller).
+   */
+  async prepareCodPaidOrderUpdate(
     transaction: Prisma.TransactionClient,
     order: Pick<
       Order,
       'id' | 'orderNumber' | 'finalAmount' | 'userId' | 'paymentMethod' | 'paymentStatus'
     >,
+    orderUpdate: Prisma.OrderUpdateInput,
   ): Promise<boolean> {
-    return this.settleCodPaymentInTransaction(transaction, order);
+    if (order.paymentStatus === PAYMENT_STATUS.PAID) {
+      return false;
+    }
+
+    const codMethod = await this.resolveCodPaymentMethod(transaction, order);
+    if (!codMethod) {
+      return false;
+    }
+
+    orderUpdate.paymentStatus = PAYMENT_STATUS.PAID;
+    orderUpdate.paymentMethod = codMethod;
+    orderUpdate.paymentFailureReason = null;
+
+    return true;
+  }
+
+  async syncCodPaymentRecords(
+    transaction: Prisma.TransactionClient,
+    order: Pick<Order, 'id' | 'orderNumber' | 'finalAmount' | 'userId'>,
+  ): Promise<void> {
+    const existingPayment = await transaction.payment.findFirst({
+      where: {
+        orderId: order.id,
+        method: { in: [...COD_PAYMENT_METHODS] },
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    if (existingPayment) {
+      await transaction.payment.update({
+        where: { id: existingPayment.id },
+        data: {
+          status: 'SUCCESS',
+          transactionId: existingPayment.transactionId ?? `COD-${order.orderNumber}`,
+          amount: order.finalAmount,
+          method: 'COD',
+        },
+      });
+      return;
+    }
+
+    await transaction.payment.create({
+      data: {
+        orderId: order.id,
+        userId: order.userId,
+        transactionId: `COD-${order.orderNumber}`,
+        amount: order.finalAmount,
+        status: 'SUCCESS',
+        method: 'COD',
+      },
+    });
   }
 
   async finalizeCodPaymentAfterDelivery(orderId: number): Promise<void> {
@@ -256,47 +315,40 @@ export class PaymentsService {
       'id' | 'orderNumber' | 'finalAmount' | 'userId' | 'paymentMethod' | 'paymentStatus'
     >,
   ): Promise<boolean> {
-    if (order.paymentMethod !== 'COD' || order.paymentStatus === 'PAID') {
+    const orderUpdate: Prisma.OrderUpdateInput = {};
+    const shouldSettle = await this.prepareCodPaidOrderUpdate(transaction, order, orderUpdate);
+
+    if (!shouldSettle) {
       return false;
     }
 
     await transaction.order.update({
       where: { id: order.id },
-      data: {
-        paymentStatus: 'PAID',
-        paymentMethod: 'COD',
-        paymentFailureReason: null,
-      },
+      data: orderUpdate,
     });
-
-    const existingPayment = await transaction.payment.findFirst({
-      where: { orderId: order.id, method: 'COD' },
-      orderBy: { id: 'desc' },
-    });
-
-    if (existingPayment) {
-      await transaction.payment.update({
-        where: { id: existingPayment.id },
-        data: {
-          status: 'SUCCESS',
-          transactionId: existingPayment.transactionId ?? `COD-${order.orderNumber}`,
-          amount: order.finalAmount,
-        },
-      });
-    } else {
-      await transaction.payment.create({
-        data: {
-          orderId: order.id,
-          userId: order.userId,
-          transactionId: `COD-${order.orderNumber}`,
-          amount: order.finalAmount,
-          status: 'SUCCESS',
-          method: 'COD',
-        },
-      });
-    }
+    await this.syncCodPaymentRecords(transaction, order);
 
     return true;
+  }
+
+  private async resolveCodPaymentMethod(
+    transaction: Prisma.TransactionClient,
+    order: Pick<Order, 'id' | 'paymentMethod'>,
+  ): Promise<'COD' | null> {
+    if (isCodPaymentMethod(order.paymentMethod)) {
+      return 'COD';
+    }
+
+    const codPayment = await transaction.payment.findFirst({
+      where: {
+        orderId: order.id,
+        method: { in: [...COD_PAYMENT_METHODS] },
+      },
+      orderBy: { id: 'desc' },
+      select: { method: true },
+    });
+
+    return codPayment && isCodPaymentMethod(codPayment.method) ? 'COD' : null;
   }
 
   private async getOrderForUser(orderId: number, userId: number): Promise<Order> {
