@@ -319,23 +319,32 @@ export class DeliveriesService {
 
     this.assertDeliveryTransition(currentStatus, nextStatus);
 
+    const isDelivered = nextStatus === DELIVERY_STATUS.DELIVERED;
+    const orderStatus = isDelivered ? ORDER_STATUS.DELIVERED : ORDER_STATUS.ON_THE_WAY;
     let codSettled = false;
 
     const updated = await this.prisma.$transaction(async (transaction) => {
-      await transaction.order.update({
-        where: { id: orderId },
-        data: {
-          status: nextStatus,
-          deliveredAt: nextStatus === DELIVERY_STATUS.DELIVERED ? new Date() : undefined,
-          statusLogs: { create: [{ status: nextStatus }] },
-        },
-      });
+      const orderUpdateData: Prisma.OrderUpdateInput = {
+        status: orderStatus,
+        deliveredAt: isDelivered ? new Date() : undefined,
+        statusLogs: { create: [{ status: orderStatus }] },
+      };
 
-      if (nextStatus === DELIVERY_STATUS.DELIVERED) {
-        codSettled = await this.paymentsService.settleCodPaymentOnDelivery(
+      if (isDelivered) {
+        codSettled = await this.paymentsService.prepareCodPaidOrderUpdate(
           transaction,
           existing.order,
+          orderUpdateData,
         );
+      }
+
+      await transaction.order.update({
+        where: { id: orderId },
+        data: orderUpdateData,
+      });
+
+      if (codSettled) {
+        await this.paymentsService.syncCodPaymentRecords(transaction, existing.order);
       }
 
       return transaction.delivery.update({
