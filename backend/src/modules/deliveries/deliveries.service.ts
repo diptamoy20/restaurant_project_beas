@@ -64,6 +64,7 @@ const DELIVERY_HISTORY_INCLUDE = {
   order: {
     include: {
       user: true,
+      address: true,
       restaurant: true,
       items: {
         select: {
@@ -519,6 +520,7 @@ export class DeliveriesService {
   private mapOrderHistoryItem(delivery: DeliveryHistoryRecord): DeliveryBoyOrderHistoryItemDto {
     const itemCount = delivery.order.items.length;
     const totalQuantity = delivery.order.items.reduce((sum, item) => sum + item.quantity, 0);
+    const deliveredAt = delivery.order.deliveredAt ?? null;
 
     return {
       deliveryId: delivery.id,
@@ -531,7 +533,9 @@ export class DeliveriesService {
       finalAmount: delivery.order.finalAmount,
       paymentMethod: delivery.order.paymentMethod,
       paymentStatus: delivery.order.paymentStatus,
-      deliveredAt: delivery.order.deliveredAt!,
+      addressText: delivery.order.address ? this.formatAddress(delivery.order.address) : null,
+      deliveredAt,
+      deliveredTime: deliveredAt ? this.formatTime(deliveredAt) : null,
     };
   }
 
