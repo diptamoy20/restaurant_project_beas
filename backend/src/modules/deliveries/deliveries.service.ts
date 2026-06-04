@@ -96,7 +96,9 @@ const DELIVERY_DETAIL_INCLUDE = {
 
 type DeliveryAgentRecord = Prisma.DeliveryAgentGetPayload<Record<string, never>>;
 type DeliveryCardRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_CARD_INCLUDE }>;
-type DeliveryHistoryRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_HISTORY_INCLUDE }>;
+type DeliveryHistoryRecord = Prisma.DeliveryGetPayload<{
+  include: typeof DELIVERY_HISTORY_INCLUDE;
+}>;
 type DeliveryDetailRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_DETAIL_INCLUDE }>;
 
 @Injectable()
