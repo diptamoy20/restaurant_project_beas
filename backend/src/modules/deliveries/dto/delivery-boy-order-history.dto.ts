@@ -55,9 +55,24 @@ export class DeliveryBoyOrderHistoryItemDto {
   @IsString()
   paymentStatus!: string;
 
-  @ApiProperty({ example: '2026-06-03T12:15:00.000Z' })
+  @ApiPropertyOptional({
+    example:
+      'EN Block, Sector V, Bidhannagar, Kolkata Metropolitan Area, Bidhannagar, North 24 Parganas, West Bengal, 700091, India, Bidhannagar, West Bengal',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  addressText!: string | null;
+
+  @ApiPropertyOptional({ example: '2026-06-03T12:15:00.000Z', nullable: true })
+  @IsOptional()
   @IsDate()
-  deliveredAt!: Date;
+  deliveredAt!: Date | null;
+
+  @ApiPropertyOptional({ example: '12:15 PM', nullable: true })
+  @IsOptional()
+  @IsString()
+  deliveredTime!: string | null;
 }
 
 export class DeliveryBoyOrderHistoryResponseDto {
