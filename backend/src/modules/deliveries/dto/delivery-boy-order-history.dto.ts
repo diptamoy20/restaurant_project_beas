@@ -73,6 +73,11 @@ export class DeliveryBoyOrderHistoryItemDto {
   @IsOptional()
   @IsString()
   deliveredTime!: string | null;
+
+  @ApiPropertyOptional({ example: 25, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  minutesAgo!: number | null;
 }
 
 export class DeliveryBoyOrderHistoryResponseDto {

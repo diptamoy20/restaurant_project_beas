@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Order } from '@prisma/client';
+import { Order, Prisma } from '@prisma/client';
 import Razorpay from 'razorpay';
 
 import { RazorpayOrderResponseDto, VerifyPaymentResponseDto } from './dto/payment-response.dto';
@@ -222,16 +222,69 @@ export class PaymentsService {
       throw new BadRequestException('Order payment is already completed');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.order.update({
-        where: { id: order.id },
+    await this.prisma.$transaction(async (transaction) => {
+      await this.settleCodPaymentInTransaction(transaction, order);
+    });
+    await this.finalizeCodPaymentAfterDelivery(order.id);
+
+    return {
+      orderId: order.id,
+      paymentStatus: 'PAID',
+      paymentMethod: 'COD',
+      message: 'COD payment confirmed',
+    };
+  }
+
+  async settleCodPaymentOnDelivery(
+    transaction: Prisma.TransactionClient,
+    order: Pick<
+      Order,
+      'id' | 'orderNumber' | 'finalAmount' | 'userId' | 'paymentMethod' | 'paymentStatus'
+    >,
+  ): Promise<boolean> {
+    return this.settleCodPaymentInTransaction(transaction, order);
+  }
+
+  async finalizeCodPaymentAfterDelivery(orderId: number): Promise<void> {
+    await this.invoicesService.markInvoicePaid(orderId);
+  }
+
+  private async settleCodPaymentInTransaction(
+    transaction: Prisma.TransactionClient,
+    order: Pick<
+      Order,
+      'id' | 'orderNumber' | 'finalAmount' | 'userId' | 'paymentMethod' | 'paymentStatus'
+    >,
+  ): Promise<boolean> {
+    if (order.paymentMethod !== 'COD' || order.paymentStatus === 'PAID') {
+      return false;
+    }
+
+    await transaction.order.update({
+      where: { id: order.id },
+      data: {
+        paymentStatus: 'PAID',
+        paymentMethod: 'COD',
+        paymentFailureReason: null,
+      },
+    });
+
+    const existingPayment = await transaction.payment.findFirst({
+      where: { orderId: order.id, method: 'COD' },
+      orderBy: { id: 'desc' },
+    });
+
+    if (existingPayment) {
+      await transaction.payment.update({
+        where: { id: existingPayment.id },
         data: {
-          paymentStatus: 'PAID',
-          paymentMethod: 'COD',
-          paymentFailureReason: null,
+          status: 'SUCCESS',
+          transactionId: existingPayment.transactionId ?? `COD-${order.orderNumber}`,
+          amount: order.finalAmount,
         },
-      }),
-      this.prisma.payment.create({
+      });
+    } else {
+      await transaction.payment.create({
         data: {
           orderId: order.id,
           userId: order.userId,
@@ -240,16 +293,10 @@ export class PaymentsService {
           status: 'SUCCESS',
           method: 'COD',
         },
-      }),
-    ]);
-    await this.invoicesService.markInvoicePaid(order.id);
+      });
+    }
 
-    return {
-      orderId: order.id,
-      paymentStatus: 'PAID',
-      paymentMethod: 'COD',
-      message: 'COD payment confirmed',
-    };
+    return true;
   }
 
   private async getOrderForUser(orderId: number, userId: number): Promise<Order> {

@@ -44,6 +44,7 @@ import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { NotificationService } from '../notifications/notification.service';
+import { PaymentsService } from '../payments/payments.service';
 
 const DELIVERY_CARD_INCLUDE = {
   order: {
@@ -110,6 +111,7 @@ export class DeliveriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
@@ -317,6 +319,8 @@ export class DeliveriesService {
 
     this.assertDeliveryTransition(currentStatus, nextStatus);
 
+    let codSettled = false;
+
     const updated = await this.prisma.$transaction(async (transaction) => {
       await transaction.order.update({
         where: { id: orderId },
@@ -327,12 +331,23 @@ export class DeliveriesService {
         },
       });
 
+      if (nextStatus === DELIVERY_STATUS.DELIVERED) {
+        codSettled = await this.paymentsService.settleCodPaymentOnDelivery(
+          transaction,
+          existing.order,
+        );
+      }
+
       return transaction.delivery.update({
         where: { id: existing.id },
         data: { status: nextStatus },
         include: DELIVERY_DETAIL_INCLUDE,
       });
     });
+
+    if (codSettled) {
+      await this.paymentsService.finalizeCodPaymentAfterDelivery(orderId);
+    }
 
     return this.mapOrderDetails(updated);
   }
@@ -536,6 +551,7 @@ export class DeliveriesService {
       addressText: delivery.order.address ? this.formatAddress(delivery.order.address) : null,
       deliveredAt,
       deliveredTime: deliveredAt ? this.formatTime(deliveredAt) : null,
+      minutesAgo: deliveredAt ? this.getMinutesAgo(deliveredAt) : null,
     };
   }
 
