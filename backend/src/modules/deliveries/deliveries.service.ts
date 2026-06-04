@@ -18,8 +18,11 @@ import {
   SendOtpResponseDto,
 } from './dto';
 import {
+  buildOrderHistoryPaginationMeta,
   DeliveryBoyOrderHistoryQueryDto,
+  DELIVERY_ORDER_HISTORY_PAGE_SIZE,
   getOrderHistoryDayBounds,
+  normalizeOrderHistoryPage,
   resolveOrderHistoryCalendarDate,
 } from './dto/delivery-boy-order-history-query.dto';
 import { DeliveryBoyOrdersQueryDto } from './dto/delivery-boy-query.dto';
@@ -150,7 +153,7 @@ export class DeliveriesService {
     const agent = await this.getCurrentAgentOrThrow(requester.id);
     const selectedDate = resolveOrderHistoryCalendarDate(query.date);
     const { start, end } = this.getOrderHistoryDayBoundsOrThrow(selectedDate);
-    const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
+    const pagination = normalizeOrderHistoryPage(query.page);
     const where = this.buildDeliveredHistoryWhere(agent.id, start, end);
 
     const [summaryAggregate, total, deliveries] = await Promise.all([
@@ -183,7 +186,7 @@ export class DeliveriesService {
         totalDeliveredAmount: summaryAggregate._sum.finalAmount ?? 0,
       },
       items: deliveries.map((delivery) => this.mapOrderHistoryItem(delivery)),
-      ...buildPaginationMeta(total, pagination),
+      ...buildOrderHistoryPaginationMeta(total, pagination.page, DELIVERY_ORDER_HISTORY_PAGE_SIZE),
     };
   }
 

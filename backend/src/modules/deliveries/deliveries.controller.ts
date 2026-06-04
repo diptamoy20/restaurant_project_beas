@@ -70,8 +70,13 @@ export class DeliveriesController {
     example: '2026-06-03',
     description: 'Calendar date (YYYY-MM-DD). Defaults to today.',
   })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+    description: 'Page number (1-based). Page size is fixed on the server (20).',
+  })
   @ApiOkResponse({ type: DeliveryBoyOrderHistoryResponseDto })
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
   getMyOrderHistory(

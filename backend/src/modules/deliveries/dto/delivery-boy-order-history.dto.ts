@@ -2,8 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsDate, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 
-import { PaginationMetaDto } from '../../../common/dto/pagination.dto';
-
 export class DeliveryBoyOrderHistorySummaryDto {
   @ApiProperty({ example: 12 })
   @IsNumber()
@@ -62,7 +60,7 @@ export class DeliveryBoyOrderHistoryItemDto {
   deliveredAt!: Date;
 }
 
-export class DeliveryBoyOrderHistoryResponseDto extends PaginationMetaDto {
+export class DeliveryBoyOrderHistoryResponseDto {
   @ApiProperty({ example: '2026-06-03' })
   @IsString()
   selectedDate!: string;
@@ -77,4 +75,20 @@ export class DeliveryBoyOrderHistoryResponseDto extends PaginationMetaDto {
   @ValidateNested({ each: true })
   @Type(() => DeliveryBoyOrderHistoryItemDto)
   items!: DeliveryBoyOrderHistoryItemDto[];
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  page!: number;
+
+  @ApiProperty({ example: 20 })
+  @IsNumber()
+  pageSize!: number;
+
+  @ApiProperty({ example: 3 })
+  @IsNumber()
+  totalPages!: number;
+
+  @ApiProperty({ example: 50 })
+  @IsNumber()
+  total!: number;
 }
