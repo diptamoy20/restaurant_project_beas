@@ -66,7 +66,7 @@ export class DeliveryAgentProfileSummaryDto {
   @ApiPropertyOptional({
     example: true,
     nullable: true,
-    description: 'Null until delivery-agent verification status is represented in the schema.',
+    description: 'Delivery-agent verification status managed by admin.',
   })
   @IsOptional()
   @IsBoolean()
@@ -75,7 +75,7 @@ export class DeliveryAgentProfileSummaryDto {
   @ApiPropertyOptional({
     example: 'Salt Lake, Sector 1, Block B, Kolkata - 700064, West Bengal',
     nullable: true,
-    description: 'Null until a delivery-agent address field is represented in the schema.',
+    description: 'Delivery-agent address managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -109,7 +109,7 @@ export class DeliveryAgentPersonalDetailsDto {
   @ApiPropertyOptional({
     example: '1997-10-09',
     nullable: true,
-    description: 'Null until date of birth is represented in the schema.',
+    description: 'Delivery-agent date of birth managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -127,7 +127,7 @@ export class DeliveryAgentPersonalDetailsDto {
   @ApiPropertyOptional({
     example: 'MALE',
     nullable: true,
-    description: 'Null until gender is represented in the schema.',
+    description: 'Delivery-agent gender managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -136,7 +136,7 @@ export class DeliveryAgentPersonalDetailsDto {
   @ApiPropertyOptional({
     example: '+919123456789',
     nullable: true,
-    description: 'Null until emergency contact is represented in the schema.',
+    description: 'Delivery-agent emergency contact managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -147,7 +147,7 @@ export class DeliveryAgentVehicleDto {
   @ApiPropertyOptional({
     example: 'BIKE',
     nullable: true,
-    description: 'Null until delivery-agent vehicle type is represented in the schema.',
+    description: 'Delivery-agent vehicle type managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -156,7 +156,7 @@ export class DeliveryAgentVehicleDto {
   @ApiPropertyOptional({
     example: 'WB01AB1234',
     nullable: true,
-    description: 'Null until delivery-agent vehicle number is represented in the schema.',
+    description: 'Delivery-agent vehicle number managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -165,7 +165,7 @@ export class DeliveryAgentVehicleDto {
   @ApiPropertyOptional({
     example: 'Honda Shine',
     nullable: true,
-    description: 'Null until delivery-agent vehicle brand is represented in the schema.',
+    description: 'Delivery-agent vehicle brand managed by admin.',
   })
   @IsOptional()
   @IsString()
@@ -174,7 +174,7 @@ export class DeliveryAgentVehicleDto {
   @ApiPropertyOptional({
     example: 'Black',
     nullable: true,
-    description: 'Null until delivery-agent vehicle color is represented in the schema.',
+    description: 'Delivery-agent vehicle color managed by admin.',
   })
   @IsOptional()
   @IsString()

@@ -16,6 +16,8 @@ import {
   UpdateStaffStatusDto,
   UpdateStaffUserDto,
 } from './dto/staff.dto';
+import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
+import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
   getDefaultPermissionsForRoles,
   PermissionMap,
@@ -57,9 +59,24 @@ const DELIVERY_ATTENTION_STATUSES: string[] = [
   ORDER_STATUS.ON_THE_WAY,
 ];
 
+type DeliveryAgentProfileData = {
+  isVerified?: boolean;
+  address?: string | null;
+  dateOfBirth?: Date | null;
+  gender?: string | null;
+  emergencyContact?: string | null;
+  vehicleType?: string | null;
+  vehicleNumber?: string | null;
+  vehicleBrand?: string | null;
+  vehicleColor?: string | null;
+};
+
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   async getDashboard(): Promise<DashboardResponseDto> {
     const [totalOrders, totalUsers, totalRestaurants, payments] = await Promise.all([
@@ -532,6 +549,7 @@ export class AdminService {
     const email = payload.email?.trim().toLowerCase() || null;
     const phone = payload.phone?.trim() || null;
     const name = payload.name?.trim() || null;
+    const profileImageUrl = this.normalizeOptionalString(payload.profileImageUrl);
 
     if (!email && !phone) {
       throw new BadRequestException('Email or phone is required');
@@ -570,6 +588,7 @@ export class AdminService {
           name,
           email,
           phone,
+          profileImageUrl,
           password,
           permissions,
           role: {
@@ -585,6 +604,7 @@ export class AdminService {
             userId: created.id,
             name: name ?? email ?? phone!,
             phone: phone!,
+            ...this.normalizeDeliveryAgentProfileForCreate(payload.deliveryAgent),
           },
         });
       }
@@ -620,6 +640,12 @@ export class AdminService {
       payload.email === undefined ? user.email : payload.email?.trim().toLowerCase() || null;
     const phone = payload.phone === undefined ? user.phone : payload.phone?.trim() || null;
     const name = payload.name === undefined ? user.name : payload.name?.trim() || null;
+    const profileImageUrl =
+      payload.profileImageUrl === undefined
+        ? undefined
+        : this.normalizeOptionalString(payload.profileImageUrl);
+    const shouldReplaceProfileImageUrl =
+      profileImageUrl !== undefined && profileImageUrl !== user.profileImageUrl;
 
     if (!email && !phone) {
       throw new BadRequestException('Email or phone is required');
@@ -669,6 +695,8 @@ export class AdminService {
           name,
           email,
           phone,
+          profileImageUrl,
+          profileImagePublicId: shouldReplaceProfileImageUrl ? null : undefined,
           permissions: this.normalizePermissions(payload.permissions, nextRole),
         },
         include: STAFF_USER_INCLUDE,
@@ -680,11 +708,13 @@ export class AdminService {
           update: {
             name: name ?? email ?? phone!,
             phone: phone!,
+            ...this.normalizeDeliveryAgentProfileForUpdate(payload.deliveryAgent),
           },
           create: {
             userId: id,
             name: name ?? email ?? phone!,
             phone: phone!,
+            ...this.normalizeDeliveryAgentProfileForCreate(payload.deliveryAgent),
           },
         });
       } else if (updatedUser.deliveryAgent) {
@@ -706,7 +736,44 @@ export class AdminService {
       return refreshed;
     });
 
+    if (shouldReplaceProfileImageUrl) {
+      await this.cloudinaryService.deleteImage(user.profileImagePublicId);
+    }
+
     return this.mapStaffUser(updated);
+  }
+
+  async uploadStaffProfileImage(id: number, file: Express.Multer.File): Promise<StaffUserDto> {
+    const user = await this.findStaffUserOrThrow(id);
+
+    if (this.getUserRole(user) !== Role.DELIVERY_BOY || !user.deliveryAgent) {
+      throw new BadRequestException('Profile image upload is only available for delivery boys');
+    }
+
+    let uploadedImage: CloudinaryImageUploadResult | null = null;
+
+    try {
+      uploadedImage = await this.cloudinaryService.uploadImage(file, 'users/profile-images');
+
+      const updated = await this.prisma.user.update({
+        where: { id },
+        data: {
+          profileImageUrl: uploadedImage.secureUrl,
+          profileImagePublicId: uploadedImage.publicId,
+        },
+        include: STAFF_USER_INCLUDE,
+      });
+
+      await this.cloudinaryService.deleteImage(user.profileImagePublicId);
+
+      return this.mapStaffUser(updated);
+    } catch (error) {
+      if (uploadedImage) {
+        await this.cloudinaryService.deleteImage(uploadedImage.publicId);
+      }
+
+      throw error;
+    }
   }
 
   async updateStaffPermissions(
@@ -831,6 +898,7 @@ export class AdminService {
       name: user.name,
       email: user.email,
       phone: user.phone,
+      profileImageUrl: user.profileImageUrl,
       isActive: user.isActive,
       role,
       permissions: permissions ?? this.readPermissions(user.permissions, role),
@@ -840,9 +908,94 @@ export class AdminService {
             name: user.deliveryAgent.name,
             phone: user.deliveryAgent.phone,
             isAvailable: user.deliveryAgent.isAvailable,
+            isVerified: user.deliveryAgent.isVerified,
+            address: user.deliveryAgent.address,
+            dateOfBirth: this.formatDateOnly(user.deliveryAgent.dateOfBirth),
+            gender: user.deliveryAgent.gender,
+            emergencyContact: user.deliveryAgent.emergencyContact,
+            vehicleType: user.deliveryAgent.vehicleType,
+            vehicleNumber: user.deliveryAgent.vehicleNumber,
+            vehicleBrand: user.deliveryAgent.vehicleBrand,
+            vehicleColor: user.deliveryAgent.vehicleColor,
           }
         : null,
     };
+  }
+
+  private normalizeDeliveryAgentProfileForCreate(
+    profile: CreateStaffUserDto['deliveryAgent'] | UpdateStaffUserDto['deliveryAgent'],
+  ): Required<DeliveryAgentProfileData> {
+    return {
+      isVerified: profile?.isVerified ?? false,
+      address: this.normalizeOptionalString(profile?.address),
+      dateOfBirth: this.normalizeOptionalDate(profile?.dateOfBirth),
+      gender: this.normalizeOptionalString(profile?.gender),
+      emergencyContact: this.normalizeOptionalString(profile?.emergencyContact),
+      vehicleType: this.normalizeOptionalString(profile?.vehicleType),
+      vehicleNumber: this.normalizeVehicleNumber(profile?.vehicleNumber),
+      vehicleBrand: this.normalizeOptionalString(profile?.vehicleBrand),
+      vehicleColor: this.normalizeOptionalString(profile?.vehicleColor),
+    };
+  }
+
+  private normalizeDeliveryAgentProfileForUpdate(
+    profile: UpdateStaffUserDto['deliveryAgent'],
+  ): DeliveryAgentProfileData {
+    if (!profile) {
+      return {};
+    }
+
+    return {
+      isVerified: profile.isVerified,
+      address:
+        profile.address === undefined ? undefined : this.normalizeOptionalString(profile.address),
+      dateOfBirth:
+        profile.dateOfBirth === undefined
+          ? undefined
+          : this.normalizeOptionalDate(profile.dateOfBirth),
+      gender:
+        profile.gender === undefined ? undefined : this.normalizeOptionalString(profile.gender),
+      emergencyContact:
+        profile.emergencyContact === undefined
+          ? undefined
+          : this.normalizeOptionalString(profile.emergencyContact),
+      vehicleType:
+        profile.vehicleType === undefined
+          ? undefined
+          : this.normalizeOptionalString(profile.vehicleType),
+      vehicleNumber:
+        profile.vehicleNumber === undefined
+          ? undefined
+          : this.normalizeVehicleNumber(profile.vehicleNumber),
+      vehicleBrand:
+        profile.vehicleBrand === undefined
+          ? undefined
+          : this.normalizeOptionalString(profile.vehicleBrand),
+      vehicleColor:
+        profile.vehicleColor === undefined
+          ? undefined
+          : this.normalizeOptionalString(profile.vehicleColor),
+    };
+  }
+
+  private normalizeOptionalString(value: string | null | undefined): string | null {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  }
+
+  private normalizeVehicleNumber(value: string | null | undefined): string | null {
+    const normalized = this.normalizeOptionalString(value);
+
+    return normalized ? normalized.toUpperCase() : null;
+  }
+
+  private normalizeOptionalDate(value: string | null | undefined): Date | null {
+    const normalized = this.normalizeOptionalString(value);
+
+    return normalized ? new Date(`${normalized}T00:00:00.000Z`) : null;
+  }
+
+  private formatDateOnly(value: Date | null | undefined): string | null {
+    return value ? value.toISOString().slice(0, 10) : null;
   }
 
   private normalizeStaffPassword(value: string): string {

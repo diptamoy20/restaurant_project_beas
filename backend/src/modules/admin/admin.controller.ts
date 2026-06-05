@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,10 +11,13 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -35,6 +39,7 @@ import {
   UpdateStaffStatusDto,
   UpdateStaffUserDto,
 } from './dto/staff.dto';
+import { ImageFileInterceptor } from '../../common/cloudinary/image-file.interceptor';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -98,6 +103,37 @@ export class AdminController {
     @Req() request: { user: AuthenticatedUser },
   ): Promise<StaffUserDto> {
     return this.adminService.updateStaff(id, payload, request.user);
+  }
+
+  @Roles(Role.ADMIN)
+  @Post('staff/:id/profile-image')
+  @UseInterceptors(ImageFileInterceptor('image'))
+  @ApiOperation({ summary: 'Upload delivery-boy profile image to Cloudinary' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image'],
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ type: StaffUserDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  uploadStaffProfileImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<StaffUserDto> {
+    if (!file) {
+      throw new BadRequestException('Profile image is required');
+    }
+
+    return this.adminService.uploadStaffProfileImage(id, file);
   }
 
   @Roles(Role.ADMIN)
