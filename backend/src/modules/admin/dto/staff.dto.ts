@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsEmail,
   IsEnum,
   IsObject,
@@ -10,12 +11,101 @@ import {
   Matches,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 import { Role } from '../../../common/enums/role.enum';
 
 const PHONE_VALIDATION_MESSAGE =
   'Enter a valid phone number using digits only, with optional country code. Example: +919900000005 or 9900000005';
+const VEHICLE_NUMBER_VALIDATION_MESSAGE =
+  'Enter a valid vehicle number using letters, digits, spaces, or hyphens. Example: WB01AB1234';
+
+export enum StaffDeliveryAgentGender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
+}
+
+export enum StaffDeliveryAgentVehicleType {
+  BIKE = 'BIKE',
+  SCOOTER = 'SCOOTER',
+  CYCLE = 'CYCLE',
+  CAR = 'CAR',
+  OTHER = 'OTHER',
+}
+
+export class StaffDeliveryAgentProfileInputDto {
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  isVerified?: boolean;
+
+  @ApiPropertyOptional({ example: 'Salt Lake, Sector 1, Kolkata' })
+  @IsOptional()
+  @IsString()
+  address?: string | null;
+
+  @ApiPropertyOptional({ example: '1997-10-09' })
+  @ValidateIf(
+    (payload) =>
+      payload.dateOfBirth !== undefined &&
+      payload.dateOfBirth !== null &&
+      payload.dateOfBirth !== '',
+  )
+  @IsDateString({}, { message: 'Date of birth must be a valid date, for example 1997-10-09' })
+  dateOfBirth?: string | null;
+
+  @ApiPropertyOptional({ enum: StaffDeliveryAgentGender, example: StaffDeliveryAgentGender.MALE })
+  @ValidateIf(
+    (payload) => payload.gender !== undefined && payload.gender !== null && payload.gender !== '',
+  )
+  @IsEnum(StaffDeliveryAgentGender)
+  gender?: StaffDeliveryAgentGender | null;
+
+  @ApiPropertyOptional({ example: '+919123456789' })
+  @ValidateIf(
+    (payload) =>
+      payload.emergencyContact !== undefined &&
+      payload.emergencyContact !== null &&
+      payload.emergencyContact !== '',
+  )
+  @Matches(/^\+?[1-9]\d{7,14}$/, { message: PHONE_VALIDATION_MESSAGE })
+  emergencyContact?: string | null;
+
+  @ApiPropertyOptional({
+    enum: StaffDeliveryAgentVehicleType,
+    example: StaffDeliveryAgentVehicleType.BIKE,
+  })
+  @ValidateIf(
+    (payload) =>
+      payload.vehicleType !== undefined &&
+      payload.vehicleType !== null &&
+      payload.vehicleType !== '',
+  )
+  @IsEnum(StaffDeliveryAgentVehicleType)
+  vehicleType?: StaffDeliveryAgentVehicleType | null;
+
+  @ApiPropertyOptional({ example: 'WB01AB1234' })
+  @ValidateIf(
+    (payload) =>
+      payload.vehicleNumber !== undefined &&
+      payload.vehicleNumber !== null &&
+      payload.vehicleNumber !== '',
+  )
+  @Matches(/^[A-Za-z0-9 -]{4,20}$/, { message: VEHICLE_NUMBER_VALIDATION_MESSAGE })
+  vehicleNumber?: string | null;
+
+  @ApiPropertyOptional({ example: 'Honda Shine' })
+  @IsOptional()
+  @IsString()
+  vehicleBrand?: string | null;
+
+  @ApiPropertyOptional({ example: 'Black' })
+  @IsOptional()
+  @IsString()
+  vehicleColor?: string | null;
+}
 
 export class CreateStaffUserDto {
   @ApiPropertyOptional({ example: 'Ravi Kumar' })
@@ -52,6 +142,17 @@ export class CreateStaffUserDto {
   @IsOptional()
   @IsObject()
   permissions?: Record<string, string[]>;
+
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
+  @IsOptional()
+  @IsString()
+  profileImageUrl?: string | null;
+
+  @ApiPropertyOptional({ type: () => StaffDeliveryAgentProfileInputDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StaffDeliveryAgentProfileInputDto)
+  deliveryAgent?: StaffDeliveryAgentProfileInputDto;
 }
 
 export class UpdateStaffUserDto {
@@ -81,6 +182,17 @@ export class UpdateStaffUserDto {
   @IsOptional()
   @IsObject()
   permissions?: Record<string, string[]>;
+
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg' })
+  @IsOptional()
+  @IsString()
+  profileImageUrl?: string | null;
+
+  @ApiPropertyOptional({ type: () => StaffDeliveryAgentProfileInputDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StaffDeliveryAgentProfileInputDto)
+  deliveryAgent?: StaffDeliveryAgentProfileInputDto;
 }
 
 export class UpdateStaffPermissionsDto {
@@ -121,6 +233,38 @@ export class StaffDeliveryAgentDto {
   @ApiProperty({ example: true })
   @IsBoolean()
   isAvailable!: boolean;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isVerified!: boolean;
+
+  @ApiPropertyOptional({ example: 'Salt Lake, Sector 1, Kolkata', nullable: true })
+  address!: string | null;
+
+  @ApiPropertyOptional({ example: '1997-10-09', nullable: true })
+  dateOfBirth!: string | null;
+
+  @ApiPropertyOptional({ enum: StaffDeliveryAgentGender, example: StaffDeliveryAgentGender.MALE })
+  gender!: string | null;
+
+  @ApiPropertyOptional({ example: '+919123456789', nullable: true })
+  emergencyContact!: string | null;
+
+  @ApiPropertyOptional({
+    enum: StaffDeliveryAgentVehicleType,
+    example: StaffDeliveryAgentVehicleType.BIKE,
+    nullable: true,
+  })
+  vehicleType!: string | null;
+
+  @ApiPropertyOptional({ example: 'WB01AB1234', nullable: true })
+  vehicleNumber!: string | null;
+
+  @ApiPropertyOptional({ example: 'Honda Shine', nullable: true })
+  vehicleBrand!: string | null;
+
+  @ApiPropertyOptional({ example: 'Black', nullable: true })
+  vehicleColor!: string | null;
 }
 
 export class StaffUserDto {
@@ -135,6 +279,9 @@ export class StaffUserDto {
 
   @ApiPropertyOptional({ example: '+919900000005', nullable: true })
   phone!: string | null;
+
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg', nullable: true })
+  profileImageUrl!: string | null;
 
   @ApiProperty({ example: true })
   @IsBoolean()

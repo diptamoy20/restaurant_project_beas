@@ -368,13 +368,22 @@ model Invoice {
 }
 
 model DeliveryAgent {
-  id          Int        @id @default(autoincrement())
-  userId      Int?       @unique @map("user_id")
-  name        String
-  phone       String
-  isAvailable Boolean    @default(true) @map("is_available")
-  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  deliveries  Delivery[]
+  id               Int        @id @default(autoincrement())
+  userId           Int?       @unique @map("user_id")
+  name             String
+  phone            String
+  isAvailable      Boolean    @default(true) @map("is_available")
+  isVerified       Boolean    @default(false) @map("is_verified")
+  address          String?
+  dateOfBirth      DateTime?  @map("date_of_birth") @db.Date
+  gender           String?
+  emergencyContact String?    @map("emergency_contact")
+  vehicleType      String?    @map("vehicle_type")
+  vehicleNumber    String?    @map("vehicle_number")
+  vehicleBrand     String?    @map("vehicle_brand")
+  vehicleColor     String?    @map("vehicle_color")
+  user             User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deliveries       Delivery[]
 
   @@index([phone])
   @@map("delivery_agents")

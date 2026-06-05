@@ -35,6 +35,19 @@ export const userApi = createApi({
       }),
       invalidatesTags: ['Staff'],
     }),
+    uploadStaffProfileImage: builder.mutation({
+      query: ({ id, file }) => {
+        const body = new FormData();
+        body.append('image', file);
+
+        return {
+          url: `/admin/staff/${id}/profile-image`,
+          method: 'POST',
+          body,
+        };
+      },
+      invalidatesTags: ['Staff'],
+    }),
     updatePassword: builder.mutation({
       query: ({ id, password }) => ({
         url: `/admin/staff/${id}/password`,
@@ -69,4 +82,5 @@ export const {
   useUpdatePermissionsMutation,
   useUpdateStatusMutation,
   useUpdateUserMutation,
+  useUploadStaffProfileImageMutation,
 } = userApi;

@@ -561,8 +561,8 @@ export class DeliveriesService {
         name,
         phone,
         profileImageUrl: agent.user?.profileImageUrl ?? null,
-        isVerified: null,
-        address: null,
+        isVerified: agent.isVerified,
+        address: agent.address,
       },
       stats: {
         totalOrders,
@@ -571,17 +571,17 @@ export class DeliveriesService {
       },
       personalDetails: {
         fullName: name,
-        dateOfBirth: null,
+        dateOfBirth: this.formatDateOnly(agent.dateOfBirth),
         email: agent.user?.email ?? null,
         phone,
-        gender: null,
-        emergencyContact: null,
+        gender: agent.gender,
+        emergencyContact: agent.emergencyContact,
       },
       vehicle: {
-        vehicleType: null,
-        vehicleNumber: null,
-        brand: null,
-        color: null,
+        vehicleType: agent.vehicleType,
+        vehicleNumber: agent.vehicleNumber,
+        brand: agent.vehicleBrand,
+        color: agent.vehicleColor,
       },
     };
   }
@@ -819,6 +819,10 @@ export class DeliveriesService {
       minute: '2-digit',
       hour12: true,
     });
+  }
+
+  private formatDateOnly(value: Date | null | undefined): string | null {
+    return value ? value.toISOString().slice(0, 10) : null;
   }
 
   private getMinutesAgo(value: Date): number {
