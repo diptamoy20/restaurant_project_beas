@@ -1,22 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { CheckoutAddressPicker } from '../components/checkout/CheckoutAddressPicker.jsx';
-import { useRazorpayPayment } from '../hooks/useRazorpayPayment';
-import { checkoutApi } from '../services/checkoutApi';
-import { paymentApi } from '../services/paymentApi';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { CheckoutAddressPicker } from "../components/checkout/CheckoutAddressPicker.jsx";
+import { useRazorpayPayment } from "../hooks/useRazorpayPayment";
+import { checkoutApi } from "../services/checkoutApi";
+import { paymentApi } from "../services/paymentApi";
 import {
   createSessionAwarePath,
   resolveRestaurantId,
   resolveTableId,
-} from '../lib/tableSession';
-import { clearCart, setLastOrderId } from '../store/slices/cartSlice';
-import { createOrder } from '../store/slices/orderSlice';
+} from "../lib/tableSession";
+import { clearCart, setLastOrderId } from "../store/slices/cartSlice";
+import { createOrder } from "../store/slices/orderSlice";
 
-const LAST_ORDER_STORAGE_KEY = 'restaurant-web-last-order';
-const formatCurrency = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
+const LAST_ORDER_STORAGE_KEY = "restaurant-web-last-order";
+const formatCurrency = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
   maximumFractionDigits: 2,
 });
 
@@ -28,23 +28,23 @@ export function CheckoutPage() {
   const user = useSelector((state) => state.auth.user);
   const orderLoading = useSelector((state) => state.orders.loading);
   const { startRazorpayPayment } = useRazorpayPayment();
-  const [selectedAddressId, setSelectedAddressId] = useState('');
-  const [customerNote, setCustomerNote] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [customerNote, setCustomerNote] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [isPaying, setIsPaying] = useState(false);
-  const [couponInput, setCouponInput] = useState('');
-  const [appliedCouponCode, setAppliedCouponCode] = useState('');
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
   const [quote, setQuote] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [couponListLoading, setCouponListLoading] = useState(false);
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
-  const [tipInput, setTipInput] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('RAZORPAY');
+  const [tipInput, setTipInput] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("RAZORPAY");
 
   const cartRestaurantId = useMemo(
-    () => items.find((item) => item.restaurantId)?.restaurantId ?? '',
+    () => items.find((item) => item.restaurantId)?.restaurantId ?? "",
     [items],
   );
   const tableId = resolveTableId(location.search);
@@ -64,7 +64,7 @@ export function CheckoutPage() {
     (couponCode = appliedCouponCode) => ({
       restaurantId: Number(restaurantId),
       addressId: selectedAddressId ? Number(selectedAddressId) : undefined,
-      orderType: 'DELIVERY',
+      orderType: "DELIVERY",
       couponCode: couponCode || undefined,
       tipAmount,
       items: items.map((item) => ({
@@ -86,19 +86,30 @@ export function CheckoutPage() {
 
       setQuoteLoading(true);
       try {
-        const nextQuote = await checkoutApi.getQuote(buildQuotePayload(couponCode));
+        const nextQuote = await checkoutApi.getQuote(
+          buildQuotePayload(couponCode),
+        );
         setQuote(nextQuote);
-        setErrorMessage('');
+        setErrorMessage("");
         return nextQuote;
       } catch (error) {
         setQuote(null);
-        setErrorMessage(error?.message || 'Unable to calculate checkout total.');
+        setErrorMessage(
+          error?.message || "Unable to calculate checkout total.",
+        );
         return null;
       } finally {
         setQuoteLoading(false);
       }
     },
-    [appliedCouponCode, buildQuotePayload, items.length, restaurantId, selectedAddressId, user],
+    [
+      appliedCouponCode,
+      buildQuotePayload,
+      items.length,
+      restaurantId,
+      selectedAddressId,
+      user,
+    ],
   );
 
   useEffect(() => {
@@ -107,12 +118,19 @@ export function CheckoutPage() {
     } else {
       setQuote(null);
     }
-  }, [appliedCouponCode, items, refreshQuote, selectedAddressId, tipAmount, user]);
+  }, [
+    appliedCouponCode,
+    items,
+    refreshQuote,
+    selectedAddressId,
+    tipAmount,
+    user,
+  ]);
 
   const applyCoupon = async () => {
     const nextCode = couponInput.trim().toUpperCase();
     if (!nextCode) {
-      setErrorMessage('Enter a coupon code.');
+      setErrorMessage("Enter a coupon code.");
       return;
     }
 
@@ -120,7 +138,7 @@ export function CheckoutPage() {
     if (nextQuote) {
       setAppliedCouponCode(nextCode);
       setCouponInput(nextCode);
-      setStatusMessage('Coupon applied.');
+      setStatusMessage("Coupon applied.");
     }
   };
 
@@ -129,7 +147,7 @@ export function CheckoutPage() {
     const nextQuote = await refreshQuote(code);
     if (nextQuote) {
       setAppliedCouponCode(code);
-      setStatusMessage('Coupon applied.');
+      setStatusMessage("Coupon applied.");
       if (closeDialog) {
         setCouponDialogOpen(false);
       }
@@ -137,9 +155,9 @@ export function CheckoutPage() {
   };
 
   const removeCoupon = () => {
-    setAppliedCouponCode('');
-    setCouponInput('');
-    setStatusMessage('');
+    setAppliedCouponCode("");
+    setCouponInput("");
+    setStatusMessage("");
   };
 
   useEffect(() => {
@@ -189,7 +207,11 @@ export function CheckoutPage() {
 
   const renderCouponCard = (coupon, index, closeDialog = false) => (
     <div
-      className={coupon.eligible ? 'checkout-offer-card' : 'checkout-offer-card is-disabled'}
+      className={
+        coupon.eligible
+          ? "checkout-offer-card"
+          : "checkout-offer-card is-disabled"
+      }
       key={coupon.id}
     >
       <div>
@@ -198,58 +220,73 @@ export function CheckoutPage() {
           {index === 0 && coupon.eligible ? <span>Best offer</span> : null}
         </div>
         <p>
-          {coupon.discountType === 'PERCENTAGE'
-            ? `${coupon.discountValue}% off${coupon.maxDiscountAmount ? ` up to ${formatCurrency.format(coupon.maxDiscountAmount)}` : ''}`
+          {coupon.discountType === "PERCENTAGE"
+            ? `${coupon.discountValue}% off${coupon.maxDiscountAmount ? ` up to ${formatCurrency.format(coupon.maxDiscountAmount)}` : ""}`
             : `${formatCurrency.format(coupon.discountValue)} off`}
         </p>
         {coupon.minOrderAmount ? (
-          <small>Min order {formatCurrency.format(coupon.minOrderAmount)}</small>
+          <small>
+            Min order {formatCurrency.format(coupon.minOrderAmount)}
+          </small>
         ) : null}
-        {!coupon.eligible && coupon.reason ? <small>{coupon.reason}</small> : null}
+        {!coupon.eligible && coupon.reason ? (
+          <small>{coupon.reason}</small>
+        ) : null}
       </div>
       <button
         type="button"
         className="text-link"
-        disabled={!coupon.eligible || appliedCouponCode === coupon.code || quoteLoading}
+        disabled={
+          !coupon.eligible || appliedCouponCode === coupon.code || quoteLoading
+        }
         onClick={() => applyAvailableCoupon(coupon.code, closeDialog)}
       >
-        {appliedCouponCode === coupon.code ? 'Applied' : 'Apply'}
+        {appliedCouponCode === coupon.code ? "Applied" : "Apply"}
       </button>
     </div>
   );
 
   const submitCheckout = async () => {
-    setErrorMessage('');
-    setStatusMessage('');
+    setErrorMessage("");
+    setStatusMessage("");
 
     if (!user) {
       // Redirect to login so user can authenticate and return to checkout
-      navigate('/login', { state: { from: location }, replace: true });
+      navigate("/login", { state: { from: location }, replace: true });
       return;
     }
 
     if (items.length === 0) {
-      setErrorMessage('Your cart is empty.');
+      setErrorMessage("Your cart is empty.");
       return;
     }
 
     if (!restaurantId) {
-      setErrorMessage('Restaurant context is missing. Please open menu again.');
+      setErrorMessage("Restaurant context is missing. Please open menu again.");
       return;
     }
 
-    if (items.some((item) => String(item.restaurantId) !== String(restaurantId))) {
-      setErrorMessage('Cart contains items from a different restaurant. Please clear cart and retry.');
+    if (
+      items.some((item) => String(item.restaurantId) !== String(restaurantId))
+    ) {
+      setErrorMessage(
+        "Cart contains items from a different restaurant. Please clear cart and retry.",
+      );
       return;
     }
 
     if (!selectedAddressId) {
-      setErrorMessage('Please select or add a delivery address before checkout.');
+      setErrorMessage(
+        "Please select or add a delivery address before checkout.",
+      );
       return;
     }
 
-    if (tipInput && (!Number.isFinite(Number(tipInput)) || Number(tipInput) < 0)) {
-      setErrorMessage('Enter a valid tip amount.');
+    if (
+      tipInput &&
+      (!Number.isFinite(Number(tipInput)) || Number(tipInput) < 0)
+    ) {
+      setErrorMessage("Enter a valid tip amount.");
       return;
     }
 
@@ -258,7 +295,7 @@ export function CheckoutPage() {
       restaurantId: Number(restaurantId),
       tableId: tableId ? Number(tableId) : undefined,
       addressId: Number(selectedAddressId),
-      orderType: 'DELIVERY',
+      orderType: "DELIVERY",
       couponCode: appliedCouponCode || undefined,
       tipAmount,
       paymentMethod,
@@ -276,18 +313,19 @@ export function CheckoutPage() {
 
     try {
       setIsPaying(true);
-      setStatusMessage('Creating your order...');
+      setStatusMessage("Creating your order...");
       const order = await dispatch(createOrder(orderPayload)).unwrap();
 
-      if (paymentMethod === 'COD') {
-        setStatusMessage('Confirming cash on delivery...');
+      if (paymentMethod === "COD") {
+        setStatusMessage("Confirming cash on delivery...");
         await paymentApi.confirmCodPayment(order.id);
       } else {
-        setStatusMessage('Opening secure payment...');
+        setStatusMessage("Opening secure payment...");
         await startRazorpayPayment({
           order,
           user,
-          onSuccess: () => setStatusMessage('Payment successful. Finalizing order...'),
+          onSuccess: () =>
+            setStatusMessage("Payment successful. Finalizing order..."),
           onFailure: (message) => setErrorMessage(message),
         });
       }
@@ -301,19 +339,24 @@ export function CheckoutPage() {
           tableId: order.tableId,
           addressId: order.addressId,
           totalAmount: order.finalAmount,
-          paymentStatus: paymentMethod === 'COD' ? 'PENDING' : 'PAID',
+          paymentStatus: paymentMethod === "COD" ? "PENDING" : "PAID",
           paymentMethod,
           customerNote,
           tipAmount,
         }),
       );
-      setStatusMessage('Checkout complete. Redirecting...');
-      navigate(createSessionAwarePath(`/payment/${order.id}`, tableId, restaurantId), {
-        replace: true,
-      });
+      setStatusMessage("Checkout complete. Redirecting...");
+      navigate(
+        createSessionAwarePath(`/payment/${order.id}`, tableId, restaurantId),
+        {
+          replace: true,
+        },
+      );
     } catch (error) {
-      setErrorMessage(error?.message || error || 'Unable to complete checkout right now.');
-      setStatusMessage('');
+      setErrorMessage(
+        error?.message || error || "Unable to complete checkout right now.",
+      );
+      setStatusMessage("");
     } finally {
       setIsPaying(false);
     }
@@ -326,10 +369,13 @@ export function CheckoutPage() {
           <p className="eyebrow">Checkout</p>
           <h2>Confirm order</h2>
           <p className="cart-supporting-copy">
-            Table {tableId || 'N/A'} - Restaurant {restaurantId}
+            Table {tableId || "N/A"} - Restaurant {restaurantId}
           </p>
         </div>
-        <Link className="text-link" to={createSessionAwarePath('/cart', tableId, restaurantId)}>
+        <Link
+          className="text-link"
+          to={createSessionAwarePath("/cart", tableId, restaurantId)}
+        >
           Edit cart
         </Link>
       </div>
@@ -341,13 +387,13 @@ export function CheckoutPage() {
               <span className="checkout-step">1</span>
               <div>
                 <h3>Customer</h3>
-                <p>{user?.name || user?.email || 'Customer'}</p>
+                <p>{user?.name || user?.email || "Customer"}</p>
               </div>
             </div>
             <div className="checkout-detail-grid">
               <div>
                 <span>Order type</span>
-                <strong>{tableId ? 'Dine in' : 'Takeaway'}</strong>
+                <strong>{tableId ? "Dine in" : "Takeaway"}</strong>
               </div>
               <div>
                 <span>Items</span>
@@ -395,14 +441,18 @@ export function CheckoutPage() {
             ) : (
               items.map((item) => (
                 <div
-                  key={`${item.menuItemId || item.id}-${item.variantId || 'base'}`}
+                  key={`${item.menuItemId || item.id}-${item.variantId || "base"}`}
                   className="checkout-line-item"
                 >
                   <div>
                     <strong>{item.name}</strong>
-                    <span>{item.quantity} x {formatCurrency.format(item.price)}</span>
+                    <span>
+                      {item.quantity} x {formatCurrency.format(item.price)}
+                    </span>
                   </div>
-                  <strong>{formatCurrency.format(item.price * item.quantity)}</strong>
+                  <strong>
+                    {formatCurrency.format(item.price * item.quantity)}
+                  </strong>
                 </div>
               ))
             )}
@@ -411,30 +461,49 @@ export function CheckoutPage() {
           <div className="checkout-coupon-row">
             <div>
               <strong>Coupon</strong>
-              <span>{appliedCouponCode ? `${appliedCouponCode} applied` : 'Apply discount code'}</span>
+              <span>
+                {appliedCouponCode
+                  ? `${appliedCouponCode} applied`
+                  : "Apply discount code"}
+              </span>
             </div>
             <div className="checkout-coupon-actions">
               <input
                 className="coupon-input"
                 value={couponInput}
-                onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
+                onChange={(event) =>
+                  setCouponInput(event.target.value.toUpperCase())
+                }
                 placeholder="WELCOME50"
               />
-              <button type="button" className="ghost-button" disabled={quoteLoading} onClick={applyCoupon}>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={quoteLoading}
+                onClick={applyCoupon}
+              >
                 Apply
               </button>
               {appliedCouponCode ? (
-                <button type="button" className="ghost-button" onClick={removeCoupon}>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={removeCoupon}
+                >
                   Remove
                 </button>
               ) : null}
             </div>
             {couponListLoading ? (
-              <p className="checkout-offer-hint">Checking available coupons...</p>
+              <p className="checkout-offer-hint">
+                Checking available coupons...
+              </p>
             ) : null}
             {availableCoupons.length ? (
               <div className="checkout-offer-list">
-                {previewCoupons.map((coupon, index) => renderCouponCard(coupon, index))}
+                {previewCoupons.map((coupon, index) =>
+                  renderCouponCard(coupon, index),
+                )}
                 {sortedCoupons.length > previewCoupons.length ? (
                   <button
                     type="button"
@@ -473,7 +542,11 @@ export function CheckoutPage() {
                 type="number"
               />
               {tipInput ? (
-                <button type="button" className="ghost-button" onClick={() => setTipInput('')}>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setTipInput("")}
+                >
                   Clear
                 </button>
               ) : null}
@@ -483,22 +556,26 @@ export function CheckoutPage() {
           <div className="checkout-coupon-row">
             <div>
               <strong>Payment method</strong>
-              <span>{paymentMethod === 'COD' ? 'Pay by cash on delivery' : 'Pay online securely'}</span>
+              <span>
+                {paymentMethod === "COD"
+                  ? "Pay by cash on delivery"
+                  : "Pay online securely"}
+              </span>
             </div>
             <div className="checkout-coupon-actions">
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => setPaymentMethod('RAZORPAY')}
-                disabled={paymentMethod === 'RAZORPAY'}
+                onClick={() => setPaymentMethod("RAZORPAY")}
+                disabled={paymentMethod === "RAZORPAY"}
               >
                 Online
               </button>
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => setPaymentMethod('COD')}
-                disabled={paymentMethod === 'COD'}
+                onClick={() => setPaymentMethod("COD")}
+                disabled={paymentMethod === "COD"}
               >
                 COD
               </button>
@@ -509,27 +586,27 @@ export function CheckoutPage() {
             <div className="bill-row">
               <span>Item total</span>
               <i aria-hidden="true" />
-              <strong>{formatCurrency.format(quote?.subtotalAmount ?? subtotal)}</strong>
+              <strong>
+                {formatCurrency.format(quote?.subtotalAmount ?? subtotal)}
+              </strong>
             </div>
             {quote?.couponDiscountAmount ? (
               <div className="bill-row bill-row-discount">
                 <span>Coupon</span>
                 <i aria-hidden="true" />
-                <strong>-{formatCurrency.format(quote.couponDiscountAmount)}</strong>
+                <strong>
+                  -{formatCurrency.format(quote.couponDiscountAmount)}
+                </strong>
               </div>
             ) : null}
-            <div className="bill-row">
-              <span>Taxes</span>
-              <i aria-hidden="true" />
-              <strong>{formatCurrency.format(quote?.taxAmount ?? 0)}</strong>
-            </div>
+
             {quote?.deliveryCharge != null ? (
               <div className="bill-row">
                 <span>Delivery</span>
                 <i aria-hidden="true" />
                 <strong>
                   {Number(quote.deliveryCharge) === 0
-                    ? 'Free'
+                    ? "Free"
                     : formatCurrency.format(quote.deliveryCharge)}
                 </strong>
               </div>
@@ -548,17 +625,30 @@ export function CheckoutPage() {
                 <strong>{formatCurrency.format(quote.tipAmount)}</strong>
               </div>
             ) : null}
+            <div className="bill-row">
+              <span>Taxes</span>
+              <i aria-hidden="true" />
+              <strong>{formatCurrency.format(quote?.taxAmount ?? 0)}</strong>
+            </div>
             {quote?.taxAmount ? (
               <div className="bill-tax-breakup">
                 <div className="bill-row bill-row-muted">
-                  <span>CGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ''}</span>
+                  <span>
+                    CGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ""}
+                  </span>
                   <i aria-hidden="true" />
-                  <strong>{formatCurrency.format(quote?.cgstAmount ?? 0)}</strong>
+                  <strong>
+                    {formatCurrency.format(quote?.cgstAmount ?? 0)}
+                  </strong>
                 </div>
                 <div className="bill-row bill-row-muted">
-                  <span>SGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ''}</span>
+                  <span>
+                    SGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ""}
+                  </span>
                   <i aria-hidden="true" />
-                  <strong>{formatCurrency.format(quote?.sgstAmount ?? 0)}</strong>
+                  <strong>
+                    {formatCurrency.format(quote?.sgstAmount ?? 0)}
+                  </strong>
                 </div>
               </div>
             ) : null}
@@ -569,8 +659,12 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          {statusMessage ? <div className="order-status-banner success">{statusMessage}</div> : null}
-          {errorMessage ? <div className="order-status-banner error">{errorMessage}</div> : null}
+          {statusMessage ? (
+            <div className="order-status-banner success">{statusMessage}</div>
+          ) : null}
+          {errorMessage ? (
+            <div className="order-status-banner error">{errorMessage}</div>
+          ) : null}
 
           {!user ? (
             <div className="checkout-auth-cta">
@@ -579,14 +673,18 @@ export function CheckoutPage() {
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={() => navigate('/login', { state: { from: location } })}
+                  onClick={() =>
+                    navigate("/login", { state: { from: location } })
+                  }
                 >
                   Login
                 </button>
                 <button
                   type="button"
                   className="cta-button cta-button-primary"
-                  onClick={() => navigate('/register', { state: { from: location } })}
+                  onClick={() =>
+                    navigate("/register", { state: { from: location } })
+                  }
                 >
                   Register
                 </button>
@@ -597,20 +695,24 @@ export function CheckoutPage() {
               type="button"
               className="place-order-button"
               disabled={isSubmitting || items.length === 0}
-            onClick={submitCheckout}
-          >
+              onClick={submitCheckout}
+            >
               {isSubmitting
-                ? 'Processing...'
-                : paymentMethod === 'COD'
-                  ? 'Place COD order'
-                  : 'Confirm checkout'}
+                ? "Processing..."
+                : paymentMethod === "COD"
+                  ? "Place COD order"
+                  : "Confirm checkout"}
             </button>
           )}
         </aside>
       </div>
 
       {couponDialogOpen ? (
-        <div className="checkout-offer-dialog-backdrop" role="presentation" onMouseDown={() => setCouponDialogOpen(false)}>
+        <div
+          className="checkout-offer-dialog-backdrop"
+          role="presentation"
+          onMouseDown={() => setCouponDialogOpen(false)}
+        >
           <div
             className="checkout-offer-dialog"
             role="dialog"
@@ -633,7 +735,9 @@ export function CheckoutPage() {
               </button>
             </div>
             <div className="checkout-offer-dialog-list">
-              {sortedCoupons.map((coupon, index) => renderCouponCard(coupon, index, true))}
+              {sortedCoupons.map((coupon, index) =>
+                renderCouponCard(coupon, index, true),
+              )}
             </div>
           </div>
         </div>
