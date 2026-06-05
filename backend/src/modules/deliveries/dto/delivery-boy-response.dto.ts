@@ -45,6 +45,164 @@ export class DeliveryBoyStatsDto {
   delivered!: number;
 }
 
+export class DeliveryAgentProfileSummaryDto {
+  @ApiProperty({ example: 12 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'Surajit Bera' })
+  @IsString()
+  name!: string;
+
+  @ApiProperty({ example: '+919876543210' })
+  @IsString()
+  phone!: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/profile.jpg', nullable: true })
+  @IsOptional()
+  @IsString()
+  profileImageUrl!: string | null;
+
+  @ApiPropertyOptional({
+    example: true,
+    nullable: true,
+    description: 'Null until delivery-agent verification status is represented in the schema.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isVerified!: boolean | null;
+
+  @ApiPropertyOptional({
+    example: 'Salt Lake, Sector 1, Block B, Kolkata - 700064, West Bengal',
+    nullable: true,
+    description: 'Null until a delivery-agent address field is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  address!: string | null;
+}
+
+export class DeliveryAgentProfileStatsDto {
+  @ApiProperty({ example: 156 })
+  @IsNumber()
+  totalOrders!: number;
+
+  @ApiProperty({ example: 142 })
+  @IsNumber()
+  completedOrders!: number;
+
+  @ApiPropertyOptional({
+    example: 4.8,
+    nullable: true,
+    description: 'Null until delivery-agent ratings are implemented.',
+  })
+  @IsOptional()
+  @IsNumber()
+  rating!: number | null;
+}
+
+export class DeliveryAgentPersonalDetailsDto {
+  @ApiProperty({ example: 'Surajit Bera' })
+  @IsString()
+  fullName!: string;
+
+  @ApiPropertyOptional({
+    example: '1997-10-09',
+    nullable: true,
+    description: 'Null until date of birth is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  dateOfBirth!: string | null;
+
+  @ApiPropertyOptional({ example: 'surajitbera@example.com', nullable: true })
+  @IsOptional()
+  @IsString()
+  email!: string | null;
+
+  @ApiProperty({ example: '+919876543210' })
+  @IsString()
+  phone!: string;
+
+  @ApiPropertyOptional({
+    example: 'MALE',
+    nullable: true,
+    description: 'Null until gender is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  gender!: string | null;
+
+  @ApiPropertyOptional({
+    example: '+919123456789',
+    nullable: true,
+    description: 'Null until emergency contact is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  emergencyContact!: string | null;
+}
+
+export class DeliveryAgentVehicleDto {
+  @ApiPropertyOptional({
+    example: 'BIKE',
+    nullable: true,
+    description: 'Null until delivery-agent vehicle type is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  vehicleType!: string | null;
+
+  @ApiPropertyOptional({
+    example: 'WB01AB1234',
+    nullable: true,
+    description: 'Null until delivery-agent vehicle number is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  vehicleNumber!: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Honda Shine',
+    nullable: true,
+    description: 'Null until delivery-agent vehicle brand is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  brand!: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Black',
+    nullable: true,
+    description: 'Null until delivery-agent vehicle color is represented in the schema.',
+  })
+  @IsOptional()
+  @IsString()
+  color!: string | null;
+}
+
+export class DeliveryAgentProfileResponseDto {
+  @ApiProperty({ type: () => DeliveryAgentProfileSummaryDto })
+  @ValidateNested()
+  @Type(() => DeliveryAgentProfileSummaryDto)
+  profile!: DeliveryAgentProfileSummaryDto;
+
+  @ApiProperty({ type: () => DeliveryAgentProfileStatsDto })
+  @ValidateNested()
+  @Type(() => DeliveryAgentProfileStatsDto)
+  stats!: DeliveryAgentProfileStatsDto;
+
+  @ApiProperty({ type: () => DeliveryAgentPersonalDetailsDto })
+  @ValidateNested()
+  @Type(() => DeliveryAgentPersonalDetailsDto)
+  personalDetails!: DeliveryAgentPersonalDetailsDto;
+
+  @ApiProperty({ type: () => DeliveryAgentVehicleDto })
+  @ValidateNested()
+  @Type(() => DeliveryAgentVehicleDto)
+  vehicle!: DeliveryAgentVehicleDto;
+}
+
 export class DeliveryBoyOrderCardDto {
   @ApiProperty({ example: 1 })
   @IsNumber()

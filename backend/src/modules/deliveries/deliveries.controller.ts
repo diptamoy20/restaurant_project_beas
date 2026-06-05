@@ -21,6 +21,7 @@ import {
 
 import { DeliveriesService } from './deliveries.service';
 import {
+  DeliveryAgentProfileResponseDto,
   DeliveryBoyDashboardDto,
   DeliveryBoyOrderDetailsDto,
   DeliveryBoyOrderHistoryQueryDto,
@@ -56,6 +57,17 @@ export class DeliveriesController {
   @ApiStandardErrorResponses({ notFound: true })
   getMyDashboard(@Req() request: { user: AuthenticatedUser }): Promise<DeliveryBoyDashboardDto> {
     return this.deliveriesService.getDashboard(request.user);
+  }
+
+  @Roles(Role.DELIVERY_BOY)
+  @Get('me/profile')
+  @ApiOperation({ summary: 'Get current delivery-agent profile for mobile app' })
+  @ApiOkResponse({ type: DeliveryAgentProfileResponseDto })
+  @ApiStandardErrorResponses({ notFound: true })
+  getMyProfile(
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<DeliveryAgentProfileResponseDto> {
+    return this.deliveriesService.getMyProfile(request.user);
   }
 
   @Roles(Role.DELIVERY_BOY)
