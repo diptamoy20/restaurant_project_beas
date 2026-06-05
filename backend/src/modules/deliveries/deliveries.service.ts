@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 
 import {
+  DeliveryAgentProfileResponseDto,
   DeliveryBoyDashboardDto,
   DeliveryBoyOrderCardDto,
   DeliveryBoyOrderDetailsDto,
@@ -100,6 +101,9 @@ const DELIVERY_DETAIL_INCLUDE = {
 } satisfies Prisma.DeliveryInclude;
 
 type DeliveryAgentRecord = Prisma.DeliveryAgentGetPayload<Record<string, never>>;
+type DeliveryAgentProfileRecord = Prisma.DeliveryAgentGetPayload<{
+  include: { user: true };
+}>;
 type DeliveryCardRecord = Prisma.DeliveryGetPayload<{ include: typeof DELIVERY_CARD_INCLUDE }>;
 type DeliveryHistoryRecord = Prisma.DeliveryGetPayload<{
   include: typeof DELIVERY_HISTORY_INCLUDE;
@@ -147,6 +151,20 @@ export class DeliveriesService {
       },
       assignedOrders: activeOrders.map((delivery) => this.mapOrderCard(delivery)),
     };
+  }
+
+  async getMyProfile(requester: AuthenticatedUser): Promise<DeliveryAgentProfileResponseDto> {
+    const agent = await this.getCurrentAgentProfileOrThrow(requester.id);
+    const [totalOrders, completedOrders] = await Promise.all([
+      this.prisma.delivery.count({
+        where: { agentId: agent.id },
+      }),
+      this.prisma.delivery.count({
+        where: { agentId: agent.id, status: DELIVERY_STATUS.DELIVERED },
+      }),
+    ]);
+
+    return this.mapProfile(agent, totalOrders, completedOrders);
   }
 
   async getMyOrderHistory(
@@ -471,6 +489,19 @@ export class DeliveriesService {
     return agent;
   }
 
+  private async getCurrentAgentProfileOrThrow(userId: number): Promise<DeliveryAgentProfileRecord> {
+    const agent = await this.prisma.deliveryAgent.findUnique({
+      where: { userId },
+      include: { user: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Delivery agent profile not found for current user');
+    }
+
+    return agent;
+  }
+
   private async getMyDeliveryByOrderOrThrow(
     agentId: number,
     orderId: number,
@@ -513,6 +544,45 @@ export class DeliveriesService {
       name: agent.name,
       phone: agent.phone,
       isAvailable: agent.isAvailable,
+    };
+  }
+
+  private mapProfile(
+    agent: DeliveryAgentProfileRecord,
+    totalOrders: number,
+    completedOrders: number,
+  ): DeliveryAgentProfileResponseDto {
+    const name = agent.user?.name ?? agent.name;
+    const phone = agent.user?.phone ?? agent.phone;
+
+    return {
+      profile: {
+        id: agent.id,
+        name,
+        phone,
+        profileImageUrl: agent.user?.profileImageUrl ?? null,
+        isVerified: null,
+        address: null,
+      },
+      stats: {
+        totalOrders,
+        completedOrders,
+        rating: null,
+      },
+      personalDetails: {
+        fullName: name,
+        dateOfBirth: null,
+        email: agent.user?.email ?? null,
+        phone,
+        gender: null,
+        emergencyContact: null,
+      },
+      vehicle: {
+        vehicleType: null,
+        vehicleNumber: null,
+        brand: null,
+        color: null,
+      },
     };
   }
 
