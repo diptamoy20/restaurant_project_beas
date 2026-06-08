@@ -659,7 +659,7 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <Card eyebrow="Operations" title="Order Management">
+      <Card title="Order Management">
         <div className="mb-6 grid gap-4 lg:grid-cols-[220px_1fr]">
           <SelectField
             label="Time"
@@ -841,7 +841,7 @@ export function OrdersPage() {
                 >
                   <div className="flex gap-2">
                     <Button
-                      className="border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-50"
+                      className="border border-emerald-300 bg-white !text-emerald-700 hover:bg-emerald-50"
                       disabled={
                         acceptState.isLoading ||
                         isUpdating ||

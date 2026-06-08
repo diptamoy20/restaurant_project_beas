@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-const formatRupees = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
+const formatRupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
@@ -10,13 +10,12 @@ const formatRupees = new Intl.NumberFormat('en-IN', {
 export function MenuSlideCard({ item, onAdd, subtitle }) {
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
 
-  const price =
-    item.discountPrice != null && item.discountPrice > 0
-      ? item.discountPrice
-      : item.price;
+  // const price =
+  //   item.discountPrice != null && item.discountPrice > 0
+  //     ? item.discountPrice
+  //     : item.price;
 
   const badge = item.foodType === "NON_VEG" ? "Non-veg" : "Veg";
-
 
   return (
     <article className="menu-slide-card">
@@ -98,7 +97,20 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
         </p>
 
         <div className="menu-slide-meta">
-          <span className="menu-slide-price">{formatRupees.format(price)}</span>
+          {item.discountPrice != null && item.discountPrice < item.price ? (
+            <>
+              <span className="menu-slide-discounted-price">
+                {formatRupees.format(item.discountPrice)}
+              </span>
+              <span className="menu-slide-price menu-slide-price--strikethrough">
+                {formatRupees.format(item.price)}
+              </span>
+            </>
+          ) : (
+            <span className="menu-slide-price">
+              {formatRupees.format(item.price)}
+            </span>
+          )}
           {item.rating != null ? (
             <span className="menu-slide-rating">
               ★ {item.rating.toFixed(1)}
