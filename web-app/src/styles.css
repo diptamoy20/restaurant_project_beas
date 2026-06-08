@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap");
 
 :root {
   --color-primary: #1a472a;
@@ -16,7 +16,7 @@
   --radius-lg: 16px;
   --radius-md: 14px;
   --radius-sm: 12px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   color: var(--color-copy);
   background:
     radial-gradient(
@@ -141,7 +141,7 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   color: var(--color-primary-strong);
 }
 
@@ -268,7 +268,6 @@ h4 {
   margin-top: 1rem;
 }
 
-
 .nav a.nav-cta,
 .drawer-nav a.nav-cta {
   min-height: 2.9rem;
@@ -394,7 +393,7 @@ h4 {
     var(--color-accent) 100%
   );
   color: #fff;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 900;
   letter-spacing: 0;
   box-shadow: 0 12px 24px rgba(16, 48, 28, 0.16);
@@ -456,7 +455,7 @@ h4 {
 .drawer-profile-summary strong {
   display: block;
   color: var(--color-primary-strong);
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .profile-dropdown-header span,
@@ -583,7 +582,7 @@ h4 {
 .hero-media {
   background-image:
     linear-gradient(135deg, rgba(10, 27, 16, 0.56), rgba(10, 27, 16, 0.2)),
-    url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80');
+    url("https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1600&q=80");
   background-size: cover;
   background-position: center;
   transform: scale(1.08);
@@ -725,7 +724,7 @@ h4 {
 .spotlight-list strong {
   display: block;
   margin-bottom: 0.25rem;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   color: #fff;
 }
 
@@ -999,7 +998,7 @@ h4 {
 
 .footer-grid h4 {
   margin-bottom: 0.9rem;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1rem;
 }
 
@@ -1356,7 +1355,7 @@ h4 {
 
 .profile-edit-panel h3 {
   margin-bottom: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1.05rem;
 }
 
@@ -1382,7 +1381,7 @@ h4 {
   font-size: 0.9rem;
 }
 
-.profile-edit-panel button[type='submit'] {
+.profile-edit-panel button[type="submit"] {
   min-width: 11rem;
 }
 
@@ -2168,7 +2167,7 @@ h4 {
     justify-content: stretch;
   }
 
-  .profile-edit-panel button[type='submit'] {
+  .profile-edit-panel button[type="submit"] {
     width: 100%;
   }
 
@@ -2434,7 +2433,7 @@ h4 {
   max-width: 100%;
   overflow: hidden;
 }
-.menu-slide-ingredients{
+.menu-slide-ingredients {
   font-size: 14px;
   color: #64748b;
 }
@@ -2473,9 +2472,25 @@ h4 {
   border-radius: 999px !important;
 }
 
-.menu-slide-card {
-  border-radius: 1.25rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+.menu-slide-card { 
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
+  height: 100%;
+}
+
+.menu-slide-discounted-price {
+  font-weight: 700;
+  color: #0f172a;
+}
+.menu-slide-price {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.menu-slide-price--strikethrough {
+  text-decoration: line-through;
+  font-weight: 400;
   overflow: hidden;
   background: #fff;
   box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08);
@@ -2545,11 +2560,6 @@ h4 {
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.65rem;
-}
-
-.menu-slide-price {
-  font-weight: 700;
-  color: #0f172a;
 }
 
 .menu-slide-rating {
@@ -2884,7 +2894,7 @@ h4 {
 
 .support-card h4 {
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1rem;
 }
 
@@ -2923,7 +2933,7 @@ h4 {
 
 .address-manager-header h3 {
   margin-bottom: 0.2rem;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1.05rem;
 }
 
@@ -3364,7 +3374,7 @@ h4 {
 
 .address-dialog-header h3 {
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1.1rem;
 }
 
@@ -3469,7 +3479,7 @@ h4 {
 }
 
 .frequent-section h3 {
-  font-family: 'Outfit', 'Inter', sans-serif;
+  font-family: "Outfit", "Inter", sans-serif;
   font-size: 1.35rem;
   font-weight: 800;
   margin-bottom: 0.85rem;
@@ -3485,7 +3495,7 @@ h4 {
   gap: 1.25rem;
   padding-bottom: 0.75rem;
   scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none;  /* IE and Edge */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
 .frequent-scroll::-webkit-scrollbar {
@@ -3544,7 +3554,7 @@ h4 {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .frequent-card-info {
@@ -3554,7 +3564,7 @@ h4 {
 }
 
 .frequent-card-info h4 {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   margin: 0 0 0.4rem;
@@ -3577,7 +3587,7 @@ h4 {
 }
 
 .frequent-card-price {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1rem;
   font-weight: 800;
   color: var(--color-primary-strong);
@@ -3710,7 +3720,9 @@ h4 {
   color: var(--color-text);
   border-radius: 99px;
   border: 1px solid var(--color-border);
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E") no-repeat right 0.85rem center;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E")
+    no-repeat right 0.85rem center;
   background-size: 0.85rem;
   appearance: none;
   -webkit-appearance: none;
@@ -3829,7 +3841,7 @@ h4 {
 }
 
 .customizer-header-copy h2 {
-  font-family: 'Outfit', 'Inter', sans-serif;
+  font-family: "Outfit", "Inter", sans-serif;
   font-size: 1.15rem;
   font-weight: 800;
   margin: 0 0 0.2rem;
@@ -4018,8 +4030,8 @@ h4 {
   cursor: pointer;
 }
 
-.customizer-option-label input[type='radio'],
-.customizer-option-label input[type='checkbox'] {
+.customizer-option-label input[type="radio"],
+.customizer-option-label input[type="checkbox"] {
   width: 1.15rem;
   height: 1.15rem;
   accent-color: var(--color-primary);
@@ -4146,7 +4158,7 @@ h4 {
 }
 
 .veg-tag-indicator::after {
-  content: '';
+  content: "";
   width: 100%;
   height: 100%;
   background: #22c55e;
@@ -4165,7 +4177,7 @@ h4 {
 }
 
 .nonveg-tag-indicator::after {
-  content: '';
+  content: "";
   width: 0;
   height: 0;
   border-left: 4.5px solid transparent;
@@ -4224,4 +4236,3 @@ body.modal-open {
     padding: 0;
   }
 }
-

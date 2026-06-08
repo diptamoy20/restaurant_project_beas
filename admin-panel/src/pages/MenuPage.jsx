@@ -199,6 +199,14 @@ export function MenuPage() {
                           render: (row) => formatCurrency.format(row.price),
                         },
                         {
+                          key: 'discountPrice',
+                          header: 'Discounted Price',
+                          render: (row) =>
+                            row.discountPrice != null
+                              ? formatCurrency.format(row.discountPrice)
+                              : "-",
+                        },
+                        {
                           key: 'isAvailable',
                           header: 'Status',
                           render: (row) => (
