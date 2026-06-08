@@ -17,7 +17,8 @@ const POLL_MS = 22_000;
 const formatCurrency = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 export function OrdersPage() {
