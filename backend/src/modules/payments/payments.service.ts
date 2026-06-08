@@ -8,12 +8,12 @@ import Razorpay from 'razorpay';
 import { RazorpayOrderResponseDto, VerifyPaymentResponseDto } from './dto/payment-response.dto';
 import { RecordPaymentFailureDto } from './dto/record-payment-failure.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
+import { ORDER_STATUS } from '../../common/constants/order-status';
 import {
   COD_PAYMENT_METHODS,
   isCodPaymentMethod,
   PAYMENT_STATUS,
 } from '../../common/constants/payment';
-import { ORDER_STATUS } from '../../common/constants/order-status';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoicesService } from '../invoices/invoices.service';
 
