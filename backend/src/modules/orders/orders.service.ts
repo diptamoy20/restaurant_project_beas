@@ -401,7 +401,9 @@ export class OrdersService {
             tipAmount: billing.tipAmount,
             deliveryDistanceKm: billing.deliveryDistanceKm,
             discountAmount:
-              billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
+              billing.menuDiscountAmount +
+              billing.couponDiscountAmount +
+              billing.manualDiscountAmount,
             finalAmount: billing.finalAmount,
             subtotalAmount: billing.subtotalAmount,
             menuDiscountAmount: billing.menuDiscountAmount,
