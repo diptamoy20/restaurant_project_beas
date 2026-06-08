@@ -39,32 +39,15 @@ const timeOptions = [
   { value: "last_3_hours", label: "Last 3 Hours" },
 ];
 
-const typeOptions = [
-  { value: "", label: "Type" },
-  { value: "DINE_IN", label: "Dine In" },
-  { value: "DELIVERY", label: "Delivery" },
-];
-
-const paymentOptions = [
-  { value: "", label: "Payment" },
-  { value: "CASH", label: "Cash" },
-  { value: "UPI", label: "UPI" },
-  { value: "CARD", label: "Card" },
-];
-
 const statusOptions = [
-  { value: "", label: "Status" },
+  { value: "PLACED", label: "Placed" },
+  { value: "PENDING", label: "Pending" },
+  { value: "ACCEPTED", label: "Accepted" },
   { value: "PREPARING", label: "Preparing" },
   { value: "ON_THE_WAY", label: "On The Way" },
   { value: "DELIVERED", label: "Delivered" },
-  { value: "CANCELLED", label: "Cancelled" },
   { value: "SERVED", label: "Served" },
-];
-
-const actionOptions = [
-  { value: "", label: "Actions" },
-  { value: "ACCEPT", label: "Accept" },
-  { value: "REJECT", label: "Reject" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 function formatCurrency(value) {
@@ -150,6 +133,57 @@ function DeliveryAssignmentControl({
             assignState.error?.error ||
             "Delivery assignment failed."}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function OrderStatusSelect({ order, onCancel }) {
+  const [updateOrderStatus, updateState] = useUpdateOrderStatusMutation();
+  const [localError, setLocalError] = useState("");
+
+  const handleChange = async (event) => {
+    const nextStatus = event.target.value;
+
+    setLocalError("");
+
+    if (nextStatus === order.status) {
+      return;
+    }
+
+    if (nextStatus === "CANCELLED") {
+      onCancel(order);
+      return;
+    }
+
+    try {
+      await updateOrderStatus({
+        orderId: order.id,
+        status: nextStatus,
+      }).unwrap();
+    } catch (error) {
+      setLocalError(
+        error?.data?.message || error?.error || "Status update failed.",
+      );
+    }
+  };
+
+  return (
+    <div className="min-w-44 space-y-1">
+      <select
+        className={`w-full rounded-full border border-transparent px-3 py-2 text-xs font-semibold outline-none transition focus:border-slate-900 ${statusClasses[order.status] ?? "bg-slate-200 text-slate-700"}`}
+        disabled={updateState.isLoading}
+        onChange={handleChange}
+        value={order.status}
+      >
+        {statusOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {localError ? (
+        <p className="text-xs font-semibold text-rose-600">{localError}</p>
       ) : null}
     </div>
   );
@@ -573,10 +607,6 @@ function Timeline({ order }) {
 export function OrdersPage() {
   const [filters, setFilters] = useState({
     timeRange: "recent",
-    type: "",
-    payment: "",
-    status: "",
-    action: "",
     search: "",
     limit: 10,
     offset: 0,
@@ -714,63 +744,19 @@ export function OrdersPage() {
             },
             {
               key: "type",
-              header: (
-                <select
-                  className="w-full bg-transparent font-semibold outline-none"
-                  value={filters.type}
-                  onChange={(event) => updateFilter("type", event.target.value)}
-                >
-                  {typeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ),
+              header: "Type",
               render: (row) => formatLabel(row.orderType),
             },
             {
               key: "payment",
-              header: (
-                <select
-                  className="w-full bg-transparent font-semibold outline-none"
-                  value={filters.payment}
-                  onChange={(event) =>
-                    updateFilter("payment", event.target.value)
-                  }
-                >
-                  {paymentOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ),
+              header: "Payment",
               render: (row) => formatLabel(row.paymentMethod),
             },
             {
               key: "status",
-              header: (
-                <select
-                  className="w-full bg-transparent font-semibold outline-none"
-                  value={filters.status}
-                  onChange={(event) =>
-                    updateFilter("status", event.target.value)
-                  }
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ),
+              header: "Status",
               render: (row) => (
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[row.status] ?? "bg-slate-200 text-slate-700"}`}
-                >
-                  {formatLabel(row.status)}
-                </span>
+                <OrderStatusSelect order={row} onCancel={handleReject} />
               ),
             },
             {
@@ -816,21 +802,7 @@ export function OrdersPage() {
             },
             {
               key: "actions",
-              header: (
-                <select
-                  className="w-full bg-transparent font-semibold outline-none"
-                  value={filters.action}
-                  onChange={(event) =>
-                    updateFilter("action", event.target.value)
-                  }
-                >
-                  {actionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ),
+              header: "Actions",
               render: (row) => (
                 <PermissionGate
                   fallback={
