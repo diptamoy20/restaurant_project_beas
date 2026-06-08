@@ -13,6 +13,7 @@ import {
   isCodPaymentMethod,
   PAYMENT_STATUS,
 } from '../../common/constants/payment';
+import { ORDER_STATUS } from '../../common/constants/order-status';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoicesService } from '../invoices/invoices.service';
 
@@ -100,6 +101,16 @@ export class PaymentsService {
       throw new BadRequestException('Razorpay order id mismatch');
     }
 
+    if (order.paymentStatus === 'PAID') {
+      await this.invoicesService.markInvoicePaid(order.id);
+      return {
+        orderId: order.id,
+        paymentStatus: 'PAID',
+        paymentMethod: 'RAZORPAY',
+        message: 'Payment has already been processed',
+      };
+    }
+
     const generatedSignature = crypto
       .createHmac('sha256', this.configService.getOrThrow<string>('RAZORPAY_KEY_SECRET'))
       .update(`${payload.razorpayOrderId}|${payload.razorpayPaymentId}`)
@@ -121,10 +132,19 @@ export class PaymentsService {
       throw new BadRequestException('Invalid Razorpay signature');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.order.update({
+    const existingSuccessPayment = await this.prisma.payment.findFirst({
+      where: {
+        orderId: order.id,
+        transactionId: payload.razorpayPaymentId,
+        status: 'SUCCESS',
+      },
+    });
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.order.update({
         where: { id: order.id },
         data: {
+          status: ORDER_STATUS.PENDING,
           paymentStatus: 'PAID',
           paymentMethod: 'RAZORPAY',
           razorpayPaymentId: payload.razorpayPaymentId,
@@ -133,19 +153,32 @@ export class PaymentsService {
           razorpayDetails: {
             verifiedAt: new Date().toISOString(),
           },
+          statusLogs: {
+            create: [{ status: ORDER_STATUS.PENDING }],
+          },
         },
-      }),
-      this.prisma.payment.create({
-        data: {
-          orderId: order.id,
-          userId: order.userId,
-          transactionId: payload.razorpayPaymentId,
-          amount: order.finalAmount,
-          status: 'SUCCESS',
-          method: 'RAZORPAY',
-        },
-      }),
-    ]);
+      });
+
+      if (!existingSuccessPayment) {
+        await transaction.payment.create({
+          data: {
+            orderId: order.id,
+            userId: order.userId,
+            transactionId: payload.razorpayPaymentId,
+            amount: order.finalAmount,
+            status: 'SUCCESS',
+            method: 'RAZORPAY',
+          },
+        });
+      }
+
+      if (order.userId) {
+        await transaction.cartItem.deleteMany({
+          where: { userId: order.userId },
+        });
+      }
+    });
+
     await this.invoicesService.markInvoicePaid(order.id);
 
     return {
@@ -161,6 +194,16 @@ export class PaymentsService {
     userId: number,
   ): Promise<VerifyPaymentResponseDto> {
     const order = await this.getOrderForUser(payload.orderId, userId);
+
+    if (order.paymentStatus === 'PAID') {
+      return {
+        orderId: order.id,
+        paymentStatus: 'PAID',
+        paymentMethod: 'RAZORPAY',
+        message: 'Payment was already completed',
+      };
+    }
+
     await this.recordFailure(
       order.id,
       order.userId,

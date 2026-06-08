@@ -331,7 +331,7 @@ export class OrdersService {
   }
 
   async createOrder(payload: CreateOrderType): Promise<OrderResponseDto> {
-    const order = await this.prisma.$transaction(async (transaction) => {
+    const order = await this.prisma.$transaction<OrderWithRelations>(async (transaction) => {
       if (payload.tableId) {
         const table = await transaction.restaurantTable.findUnique({
           where: { id: payload.tableId },
@@ -372,12 +372,90 @@ export class OrdersService {
         transaction,
       );
 
+      const isRazorpayOrder = payload.paymentMethod === 'RAZORPAY';
+      const orderStatus = isRazorpayOrder ? ORDER_STATUS.PAYMENT_PENDING : ORDER_STATUS.PENDING;
+
+      const existingDraftOrder =
+        isRazorpayOrder && payload.userId
+          ? await transaction.order.findFirst({
+              where: {
+                userId: payload.userId,
+                restaurantId: payload.restaurantId,
+                status: ORDER_STATUS.PAYMENT_PENDING,
+                paymentMethod: 'RAZORPAY',
+              },
+              orderBy: { createdAt: 'desc' },
+            })
+          : null;
+
+      if (existingDraftOrder) {
+        const updatedOrder = await transaction.order.update({
+          where: { id: existingDraftOrder.id },
+          data: {
+            status: ORDER_STATUS.PAYMENT_PENDING,
+            source: payload.source,
+            orderType: payload.orderType,
+            totalAmount: billing.mrpSubtotal,
+            deliveryCharge: billing.deliveryCharge,
+            packagingCharge: billing.packagingCharge,
+            tipAmount: billing.tipAmount,
+            deliveryDistanceKm: billing.deliveryDistanceKm,
+            discountAmount:
+              billing.menuDiscountAmount + billing.couponDiscountAmount + billing.manualDiscountAmount,
+            finalAmount: billing.finalAmount,
+            subtotalAmount: billing.subtotalAmount,
+            menuDiscountAmount: billing.menuDiscountAmount,
+            couponDiscountAmount: billing.couponDiscountAmount,
+            manualDiscountAmount: billing.manualDiscountAmount,
+            taxableAmount: billing.taxableAmount,
+            gstRate: billing.gstRate,
+            cgstAmount: billing.cgstAmount,
+            sgstAmount: billing.sgstAmount,
+            igstAmount: billing.igstAmount,
+            taxAmount: billing.taxAmount,
+            paymentStatus: 'PENDING',
+            paymentMethod: 'RAZORPAY',
+            paymentFailureReason: null,
+            razorpayOrderId: null,
+            razorpayPaymentId: null,
+            razorpaySignature: null,
+            razorpayDetails: Prisma.DbNull,
+            items: {
+              deleteMany: {},
+              create: billing.items.map((item) => ({
+                menuItemId: item.menuItemId,
+                variantId: item.variantId ?? undefined,
+                quantity: item.quantity,
+                price: item.unitPrice,
+                totalPrice: item.totalPrice,
+                addons: item.addons.length ? { create: item.addons } : undefined,
+              })),
+            },
+            coupons: {
+              deleteMany: {},
+              ...(billing.couponId && payload.userId
+                ? {
+                    create: {
+                      couponId: billing.couponId,
+                      userId: payload.userId,
+                      discountAmount: billing.couponDiscountAmount,
+                    },
+                  }
+                : {}),
+            },
+          },
+          include: ORDER_INCLUDE,
+        });
+
+        return updatedOrder;
+      }
+
       const createdOrder = await this.createOrderWithUniqueNumber(transaction, {
         userId: payload.userId ?? null,
         restaurantId: payload.restaurantId,
         tableId: payload.tableId,
         addressId: payload.addressId,
-        status: ORDER_STATUS.PENDING,
+        status: orderStatus,
         source: payload.source,
         orderType: payload.orderType,
         totalAmount: billing.mrpSubtotal,
@@ -411,7 +489,7 @@ export class OrdersService {
           })),
         },
         statusLogs: {
-          create: [{ status: ORDER_STATUS.PENDING }],
+          create: [{ status: orderStatus }],
         },
       });
 
@@ -426,7 +504,7 @@ export class OrdersService {
         });
       }
 
-      if (payload.userId) {
+      if (!isRazorpayOrder && payload.userId) {
         await transaction.cartItem.deleteMany({
           where: {
             userId: payload.userId,
@@ -649,6 +727,8 @@ export class OrdersService {
     if (query.payment) {
       and.push({ paymentMethod: { in: this.mapPaymentFilter(query.payment) } });
     }
+
+    and.push({ status: { not: ORDER_STATUS.PAYMENT_PENDING } });
 
     if (query.status) {
       and.push({ status: query.status });
