@@ -13,7 +13,7 @@ export function HeroSection() {
       <div className="hero-content-shell">
         <div className="hero-content">
           <p className="eyebrow">Fresh Food, Fast Service</p>
-          <h1>Restaurant Web App</h1>
+          <h1 class="hero-title">Welcome to Foodyply</h1>
           <h2>Elevate every table with instant QR ordering and a checkout flow guests love.</h2>
           <p className="copy">
             Let diners scan, browse signatures, add favorites to cart, and pay in a few
@@ -23,12 +23,12 @@ export function HeroSection() {
             <Link className="cta-button cta-button-primary" to="/menu">
               Browse Menu
             </Link>
-            <a className="cta-button cta-button-secondary" href="#featured-menu">
+            {/* <Link className="cta-button cta-button-secondary" to="/menu">
               View Specials
-            </a>
+            </Link> */}
           </div>
         </div>
-        <div className="hero-spotlight glass-card">
+        {/* <div className="hero-spotlight glass-card">
           <p className="spotlight-label">Tonight&apos;s best sellers</p>
           <div className="spotlight-list">
             <div>
@@ -44,11 +44,11 @@ export function HeroSection() {
               <span>Silky espresso blend with cream foam</span>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
-      {user ? (
+      {/* {user ? (
         <div className="hero-badge glass-card">Signed in as {user.name || user.email}</div>
-      ) : null}
+      ) : null} */}
     </RevealSection>
   );
 }
