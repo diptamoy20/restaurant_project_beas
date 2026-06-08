@@ -32,7 +32,7 @@ export function Navbar() {
           <span className="text-lg">=</span>
         </button>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Operations</p>
+          {/* <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Operations</p> */}
           <h2 className="text-lg font-semibold text-slate-950">Restaurant Admin Workspace</h2>
         </div>
       </div>

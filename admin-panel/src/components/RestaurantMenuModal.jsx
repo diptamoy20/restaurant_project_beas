@@ -173,7 +173,7 @@ export function RestaurantMenuModal({
     }
 
     if (discount !== null && !Number.isNaN(discount) && discount > price) {
-      next.discountPrice = "Discount price cannot exceed price";
+      next.discountPrice = "Discounted price cannot exceed price";
     }
 
     setErrors(next);
@@ -480,7 +480,7 @@ export function RestaurantMenuModal({
                 },
                 {
                   key: "discountPrice",
-                  header: "Discount Price",
+                  header: "Discounted Price",
                   render: (row) =>
                     row.discountPrice != null
                       ? formatCurrency.format(row.discountPrice)
@@ -607,7 +607,7 @@ export function RestaurantMenuModal({
 
             <TextField
               error={errors.discountPrice}
-              label="Discount Price (₹)"
+              label="Discounted Price (₹)"
               min="0"
               name="discountPrice"
               step="0.01"
@@ -632,16 +632,6 @@ export function RestaurantMenuModal({
                 { value: "VEG", label: "Vegetarian" },
                 { value: "NON_VEG", label: "Non-vegetarian" },
               ]}
-            />
-
-            <TextField
-              label="Image URL"
-              name="imageUrl"
-              type="url"
-              value={form.imageUrl}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, imageUrl: event.target.value }))
-              }
             />
 
             <label className="block text-sm font-medium text-slate-700">
