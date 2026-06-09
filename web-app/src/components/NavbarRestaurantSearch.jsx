@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
+import { distanceKm } from "../lib/restaurantSelection";
+import { persistRestaurantId } from "../lib/tableSession";
 import { searchRestaurants } from "../services/locationApi";
 
 export function NavbarRestaurantSearch() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location, { limit: 16 });
   const { selectedRestaurantId, setSelectedRestaurantId } =
@@ -70,12 +75,11 @@ export function NavbarRestaurantSearch() {
       locationFlow.location?.lat != null &&
       locationFlow.location?.lng != null
     ) {
-      list.sort((a, b) => {
-        const da = distanceKm(locationFlow.location, a);
-        const db = distanceKm(locationFlow.location, b);
-
-        return da - db;
-      });
+      list.sort(
+        (a, b) =>
+          distanceKm(locationFlow.location, a) -
+          distanceKm(locationFlow.location, b),
+      );
     }
 
     return list;
@@ -147,6 +151,20 @@ export function NavbarRestaurantSearch() {
                   }
                   onClick={() => {
                     setSelectedRestaurantId(restaurant.id);
+                    persistRestaurantId(restaurant.id);
+
+                    if (location.pathname === "/menu") {
+                      const params = new URLSearchParams(location.search);
+                      params.set("restaurantId", String(restaurant.id));
+                      navigate(
+                        {
+                          pathname: "/menu",
+                          search: params.toString(),
+                        },
+                        { replace: true },
+                      );
+                    }
+
                     setOpen(false);
                     setQuery("");
                   }}
@@ -171,27 +189,4 @@ export function NavbarRestaurantSearch() {
       ) : null}
     </div>
   );
-}
-
-function distanceKm(origin, restaurant) {
-  if (!origin || !restaurant?.latitude || !restaurant?.longitude) {
-    return 0;
-  }
-
-  const R = 6371;
-  const dLat = deg2rad(restaurant.latitude - origin.lat);
-  const dLon = deg2rad(restaurant.longitude - origin.lng);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(origin.lat)) *
-      Math.cos(deg2rad(restaurant.latitude)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-function deg2rad(deg) {
-  return deg * (Math.PI / 180);
 }

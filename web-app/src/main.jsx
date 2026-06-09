@@ -20,11 +20,11 @@ if (!faviconLink.parentNode) {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Provider store={store}>
-      <SelectedRestaurantProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <SelectedRestaurantProvider>
           <App />
-        </BrowserRouter>
-      </SelectedRestaurantProvider>
+        </SelectedRestaurantProvider>
+      </BrowserRouter>
     </Provider>
   </React.StrictMode>,
 );

@@ -10,6 +10,7 @@ import { HomeMenuBrowse } from "../components/HomeMenuBrowse.jsx";
 import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
+import { getNearestRestaurantId } from "../lib/restaurantSelection";
 
 export function HomePage() {
   const locationFlow = useUserLocation();

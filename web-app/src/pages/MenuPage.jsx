@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   addToCart,
@@ -9,16 +9,20 @@ import {
   getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
-import { getCachedUserLocation } from "../hooks/useUserLocation";
+import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
+import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
+import { useUserLocation } from "../hooks/useUserLocation";
+import {
+  getRestaurantIdFromUrl,
+  resolveMenuRestaurantId,
+} from "../lib/restaurantSelection";
 import {
   persistRestaurantId,
   persistTableId,
-  resolveRestaurantId,
   resolveTableId,
 } from "../lib/tableSession";
+import { getBestSellingMenu } from "../services/menuPublicApi";
 import { MenuSlideCard } from "../utils/MenuSlideCard";
-
-const HARDCODED_RESTAURANT_ID = "1";
 const formatRupees = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -40,6 +44,11 @@ function formatDeliveryLine(delivery) {
 export function MenuPage() {
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
+  const locationFlow = useUserLocation();
+  const nearby = useNearbyRestaurants(locationFlow.location);
+  const { selectedRestaurantId, setSelectedRestaurantId } =
+    useSelectedRestaurant();
   const {
     items,
     loading,
@@ -50,18 +59,37 @@ export function MenuPage() {
     delivery,
   } = useSelector((state) => state.menu);
 
-  const { loading: cartLoading, error: cartError } = useSelector(
-    (state) => state.cart,
-  );
+  const { error: cartError } = useSelector((state) => state.cart);
 
   const isAuthenticated = useSelector((state) => !!state.auth.token);
 
-  const [resolvedRestaurantId, setResolvedRestaurantId] = useState(
-    HARDCODED_RESTAURANT_ID,
+  const urlRestaurantId = getRestaurantIdFromUrl(location.search);
+
+  const activeRestaurantId = useMemo(
+    () =>
+      resolveMenuRestaurantId({
+        urlRestaurantId,
+        selectedRestaurantId,
+        nearbyRestaurants: nearby.restaurants,
+        location: locationFlow.location,
+      }),
+    [
+      urlRestaurantId,
+      selectedRestaurantId,
+      nearby.restaurants,
+      locationFlow.location,
+    ],
   );
+
+  const isMenuStale =
+    activeRestaurantId != null &&
+    menuRestaurantId != null &&
+    Number(menuRestaurantId) !== Number(activeRestaurantId);
 
   // States for Filtering and Searching
   const [frequentItems, setFrequentItems] = useState([]);
+  const [bestSelling, setBestSelling] = useState([]);
+  const [bestSellingLoading, setBestSellingLoading] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -78,35 +106,77 @@ export function MenuPage() {
   const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
-    const nextRestaurantId = resolveRestaurantId(location.search) || HARDCODED_RESTAURANT_ID;
     const nextTableId = resolveTableId(location.search);
 
-    setResolvedRestaurantId(nextRestaurantId);
-    if (nextRestaurantId) {
-      persistRestaurantId(nextRestaurantId);
-    }
     if (nextTableId) {
       persistTableId(nextTableId);
     }
   }, [location.search]);
 
   useEffect(() => {
-    if (resolvedRestaurantId) {
-      dispatch(
-        fetchMenu({
-          restaurantId: Number(resolvedRestaurantId),
-          coordinates: getCachedUserLocation(),
-        }),
-      );
+    if (!activeRestaurantId) {
+      return;
     }
-  }, [dispatch, resolvedRestaurantId]);
 
-  const activeRestaurantId = useMemo(
-    () =>
-      menuRestaurantId ??
-      (resolvedRestaurantId ? Number(resolvedRestaurantId) : null),
-    [menuRestaurantId, resolvedRestaurantId],
-  );
+    persistRestaurantId(activeRestaurantId);
+
+    if (selectedRestaurantId !== activeRestaurantId) {
+      setSelectedRestaurantId(activeRestaurantId);
+    }
+  }, [
+    activeRestaurantId,
+    selectedRestaurantId,
+    setSelectedRestaurantId,
+  ]);
+
+  useEffect(() => {
+    if (!activeRestaurantId || urlRestaurantId) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    params.set("restaurantId", String(activeRestaurantId));
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString(),
+      },
+      { replace: true },
+    );
+  }, [
+    activeRestaurantId,
+    urlRestaurantId,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
+
+  useEffect(() => {
+    if (!activeRestaurantId) {
+      return;
+    }
+
+    dispatch(
+      fetchMenu({
+        restaurantId: activeRestaurantId,
+        coordinates: locationFlow.location,
+      }),
+    );
+  }, [
+    dispatch,
+    activeRestaurantId,
+    locationFlow.location?.lat,
+    locationFlow.location?.lng,
+  ]);
+
+  useEffect(() => {
+    setActiveCategoryId(null);
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setFrequentItems([]);
+    setBestSelling([]);
+  }, [activeRestaurantId]);
 
   // Fetch user-specific and restaurant-specific frequently ordered items
   useEffect(() => {
@@ -123,6 +193,48 @@ export function MenuPage() {
       setFrequentItems([]);
     }
   }, [isAuthenticated, activeRestaurantId]);
+
+  useEffect(() => {
+    if (!activeRestaurantId) {
+      setBestSelling([]);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    async function loadBestSelling() {
+      setBestSellingLoading(true);
+
+      try {
+        const rows = await getBestSellingMenu({
+          lat: locationFlow.location?.lat,
+          lng: locationFlow.location?.lng,
+          restaurantId: activeRestaurantId,
+          limit: 18,
+          signal: controller.signal,
+        });
+
+        const list = Array.isArray(rows) ? rows : [];
+        setBestSelling(
+          list.filter(
+            (row) => Number(row.restaurantId) === Number(activeRestaurantId),
+          ),
+        );
+      } catch {
+        setBestSelling([]);
+      } finally {
+        setBestSellingLoading(false);
+      }
+    }
+
+    loadBestSelling();
+
+    return () => controller.abort();
+  }, [
+    activeRestaurantId,
+    locationFlow.location?.lat,
+    locationFlow.location?.lng,
+  ]);
 
   // Lock background scroll when customizing sheet is open
   useEffect(() => {
@@ -293,15 +405,29 @@ export function MenuPage() {
   }, [customizingItem, selectedVariant, selectedAddons]);
 
   if (!activeRestaurantId) {
+    if (nearby.loading) {
+      return (
+        <section>
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Menu</p>
+              <h2>Finding nearby restaurants…</h2>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section>
         <div className="section-header">
           <div>
             <p className="eyebrow">Menu</p>
-            <h2>Restaurant not selected</h2>
+            <h2>No restaurant available</h2>
             <p>
-              Please open menu using a table QR that includes table and
-              restaurant context.
+              {locationFlow.location
+                ? "No restaurants were found within your delivery area. Try searching for a restaurant using the picker in the navigation bar."
+                : "Enable your location or choose a restaurant from the navigation bar to browse a menu."}
             </p>
           </div>
         </div>
@@ -309,7 +435,7 @@ export function MenuPage() {
     );
   }
 
-  if (loading) {
+  if (loading || isMenuStale) {
     return (
       <section>
         <div className="section-header">
@@ -381,7 +507,72 @@ export function MenuPage() {
         ) : null}
       </div>
 
-      {/* 2. FREQUENTLY ORDERED SECTION */}
+      {/* 2. BEST SELLING SECTION */}
+      {(bestSellingLoading || bestSelling.length > 0) && (
+        <div className="frequent-section">
+          <h3>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: "1.25rem" }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 00.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+            </svg>
+            Best Sellers
+          </h3>
+          {bestSellingLoading ? (
+            <p className="copy-muted">Loading favourites…</p>
+          ) : (
+            <div className="frequent-scroll">
+              {bestSelling.map((item) => {
+                const price = item.discountPrice != null && item.discountPrice > 0 ? item.discountPrice : item.price;
+                const hasVariants = item.variants && item.variants.length > 0;
+                const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+
+                return (
+                  <div key={`best-${item.id}`} className="frequent-card">
+                    <div className="frequent-card-media">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt="" loading="lazy" />
+                      ) : (
+                        <div className="menu-slide-placeholder" />
+                      )}
+                      <span className="food-type-icon">
+                        {item.foodType === "NON_VEG" ? (
+                          <div className="nonveg-tag-indicator" />
+                        ) : (
+                          <div className="veg-tag-indicator" />
+                        )}
+                      </span>
+                    </div>
+                    <div className="frequent-card-info">
+                      <h4>{item.name}</h4>
+                      <div className="frequent-card-footer">
+                        <span className="frequent-card-price">{formatRupees.format(price)}</span>
+                        <button
+                          type="button"
+                          className="frequent-add-btn"
+                          onClick={() => {
+                            if (hasVariants || hasAddons) {
+                              setCustomizingItem(item);
+                              setSelectedVariant(item.variants?.[0] || null);
+                              setSelectedAddons([]);
+                              setCustomizerQuantity(1);
+                              setCustomizerError("");
+                            } else {
+                              handleAddToCart(item);
+                            }
+                          }}
+                        >
+                          Add {hasVariants || hasAddons ? "+" : ""}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. FREQUENTLY ORDERED SECTION */}
       {frequentItems.length > 0 && (
         <div className="frequent-section">
           <h3>
@@ -442,7 +633,7 @@ export function MenuPage() {
         </div>
       )}
 
-      {/* 3. CATEGORIES + SEARCH + SORTING STICKY FILTER SECTION */}
+      {/* 4. CATEGORIES + SEARCH + SORTING STICKY FILTER SECTION */}
       <div className="sticky-filter-wrapper">
         <div className="filter-container">
           {/* Left half: scrollable category list */}

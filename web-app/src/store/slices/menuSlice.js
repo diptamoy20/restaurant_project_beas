@@ -17,11 +17,7 @@ export const fetchMenu = createAsyncThunk(
       let resolvedRestaurantId = restaurantId;
 
       if (!resolvedRestaurantId) {
-        const restaurantsResponse = await api.get("/restaurants?limit=50");
-        const restaurants = Array.isArray(restaurantsResponse)
-          ? restaurantsResponse
-          : (restaurantsResponse?.items ?? []);
-        resolvedRestaurantId = restaurants?.[0]?.id || "1";
+        return rejectWithValue("Restaurant ID is required to load the menu.");
       }
 
       const response = coordinates
@@ -71,9 +67,22 @@ const menuSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchMenu.pending, (state) => {
+      .addCase(fetchMenu.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+
+        const nextId =
+          typeof action.meta.arg === "object" && action.meta.arg !== null
+            ? action.meta.arg.restaurantId
+            : action.meta.arg;
+
+        if (nextId != null && Number(state.restaurantId) !== Number(nextId)) {
+          state.restaurantId = null;
+          state.items = [];
+          state.categories = [];
+          state.restaurant = null;
+          state.delivery = null;
+        }
       })
       .addCase(fetchMenu.fulfilled, (state, action) => {
         state.loading = false;

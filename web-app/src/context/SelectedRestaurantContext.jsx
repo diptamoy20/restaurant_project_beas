@@ -6,12 +6,16 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useLocation } from 'react-router-dom';
+import { persistRestaurantId } from '../lib/tableSession';
+import { getRestaurantIdFromUrl } from '../lib/restaurantSelection';
 
 const STORAGE_KEY = 'foodyply_selected_restaurant_id';
 
 const SelectedRestaurantContext = createContext(null);
 
 export function SelectedRestaurantProvider({ children }) {
+  const location = useLocation();
   const [selectedRestaurantId, setSelectedRestaurantIdState] = useState(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -30,22 +34,22 @@ export function SelectedRestaurantProvider({ children }) {
         window.sessionStorage.removeItem(STORAGE_KEY);
       } else {
         window.sessionStorage.setItem(STORAGE_KEY, String(id));
+        persistRestaurantId(id);
       }
     }
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get('restaurantId');
+    const fromUrl = getRestaurantIdFromUrl(location.search);
 
     if (fromUrl) {
-      const n = Number(fromUrl);
+      const parsed = Number(fromUrl);
 
-      if (!Number.isNaN(n)) {
-        setSelectedRestaurantId(n);
+      if (!Number.isNaN(parsed) && parsed !== selectedRestaurantId) {
+        setSelectedRestaurantId(parsed);
       }
     }
-  }, [setSelectedRestaurantId]);
+  }, [location.search, selectedRestaurantId, setSelectedRestaurantId]);
 
   const value = useMemo(
     () => ({
