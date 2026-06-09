@@ -21,11 +21,11 @@ export function NearbyRestaurantsSection({
         <div>
           <p className="eyebrow">Delivering near you</p>
           <h2>Restaurants matched to your location</h2>
-          <p className="copy">
+          {/* <p className="copy">
             {location
               ? `${location.lat}, ${location.lng}`
               : "Choose a location to see restaurants that serve your area."}
-          </p>
+          </p> */}
         </div>
         <div className="nearby-actions">
           <button
@@ -57,55 +57,71 @@ export function NearbyRestaurantsSection({
       {!loading && restaurants.length > 0 ? (
         <div className="nearby-grid">
           {restaurants.map((restaurant) => (
-            <article key={restaurant.id} className="restaurant-card">
-              <div>
-                <span
-                  className={
-                    restaurant.deliveryAvailable
-                      ? "pill"
-                      : "pill unavailable-pill"
+            <article key={restaurant.id} className="restaurant-card-modern">
+              <div className="restaurant-card-image">
+                <img
+                  src={
+                    restaurant.imageUrl ||
+                    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4"
                   }
-                >
-                  {restaurant.deliveryAvailable ? "Delivering" : "Unavailable"}
-                </span>
-                <h3>{restaurant.name}</h3>
-                <p>{restaurant.address}</p>
+                  alt={restaurant.name}
+                />
+
+                <div className="restaurant-card-overlay">
+                  <span
+                    className={
+                      restaurant.deliveryAvailable
+                        ? "restaurant-status available"
+                        : "restaurant-status unavailable"
+                    }
+                  >
+                    {restaurant.deliveryAvailable
+                      ? "● Delivering"
+                      : "● Unavailable"}
+                  </span>
+                </div>
               </div>
-              <dl className="restaurant-meta">
-                <div>
-                  <dt>Distance</dt>
-                  <dd>
-                    {restaurant.distanceKm?.toFixed?.(2) ??
-                      restaurant.distanceKm}{" "}
-                    km
-                  </dd>
+
+              <div className="restaurant-card-content">
+                <div className="restaurant-card-top">
+                  <h3>{restaurant.name}</h3>
+
+                  <div className="restaurant-rating">
+                    ★ {restaurant.rating ?? "4.5"}
+                  </div>
                 </div>
-                <div>
-                  <dt>ETA</dt>
-                  <dd>{restaurant.estimatedDeliveryTimeMinutes ?? "-"} min</dd>
-                </div>
-                <div>
-                  <dt>Delivery</dt>
-                  <dd>
+
+                <p className="restaurant-address">{restaurant.address}</p>
+
+                <div className="restaurant-stats">
+                  <span>📍 {restaurant.distanceKm?.toFixed?.(1)} km</span>
+
+                  <span>
+                    🕒 {restaurant.estimatedDeliveryTimeMinutes ?? "-"} min
+                  </span>
+
+                  <span>
                     {Number(restaurant.deliveryFee ?? 0) === 0
-                      ? "Free"
+                      ? "Free Delivery"
                       : formatRupees.format(restaurant.deliveryFee)}
-                  </dd>
+                  </span>
                 </div>
-              </dl>
-              <div className="restaurant-card-footer">
-                <span>
-                  {restaurant.availableMenuItemsCount ??
-                    restaurant.menuItems?.length ??
-                    0}{" "}
-                  items available
-                </span>
-                <Link
-                  className="cta-button cta-button-primary"
-                  to={`/menu?restaurantId=${restaurant.id}`}
-                >
-                  View Menu
-                </Link>
+
+                <div className="restaurant-card-footer">
+                  <span className="available-items">
+                    {restaurant.availableMenuItemsCount ??
+                      restaurant.menuItems?.length ??
+                      0}{" "}
+                    dishes available
+                  </span>
+
+                  <Link
+                    className="view-menu-btn"
+                    to={`/menu?restaurantId=${restaurant.id}`}
+                  >
+                    View Menu →
+                  </Link>
+                </div>
               </div>
             </article>
           ))}
