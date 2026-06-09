@@ -16,11 +16,7 @@ export function HomePage() {
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location);
   const { selectedRestaurantId } = useSelectedRestaurant();
-  const nearestRestaurantId = getNearestRestaurantId(
-    nearby.restaurants,
-    locationFlow.location,
-  );
-  const activeRestaurantId = selectedRestaurantId ?? nearestRestaurantId;
+  const activeRestaurantId = selectedRestaurantId ?? undefined;
 
   return (
     <div className="landing-page">
@@ -33,10 +29,6 @@ export function HomePage() {
         onClose={() => locationFlow.setPermissionModalOpen(false)}
       />
       <HeroSection />
-      <HomeMenuBrowse
-        coordinates={locationFlow.location}
-        restaurantId={activeRestaurantId}
-      />
       <NearbyRestaurantsSection
         location={locationFlow.location}
         restaurants={nearby.restaurants}
@@ -45,6 +37,18 @@ export function HomePage() {
         onChangeLocation={locationFlow.clearLocation}
         onRetry={nearby.refresh}
       />
+      <HomeMenuBrowse
+        coordinates={locationFlow.location}
+        restaurantId={activeRestaurantId}
+      />
+      {/* <NearbyRestaurantsSection
+        location={locationFlow.location}
+        restaurants={nearby.restaurants}
+        loading={nearby.loading}
+        error={nearby.error}
+        onChangeLocation={locationFlow.clearLocation}
+        onRetry={nearby.refresh}
+      /> */}
       <FeaturesGrid />
       <HowItWorks />
       <Testimonials />
