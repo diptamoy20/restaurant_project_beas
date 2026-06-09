@@ -10,13 +10,17 @@ import { HomeMenuBrowse } from "../components/HomeMenuBrowse.jsx";
 import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
+import { getNearestRestaurantId } from "../lib/restaurantSelection";
 
 export function HomePage() {
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location);
   const { selectedRestaurantId } = useSelectedRestaurant();
-  const fallbackRestaurantId = nearby.restaurants?.[0]?.id ?? null;
-  const activeRestaurantId = selectedRestaurantId ?? fallbackRestaurantId;
+  const nearestRestaurantId = getNearestRestaurantId(
+    nearby.restaurants,
+    locationFlow.location,
+  );
+  const activeRestaurantId = selectedRestaurantId ?? nearestRestaurantId;
 
   return (
     <div className="landing-page">

@@ -34,6 +34,14 @@ export class PaymentsService {
 
   async createRazorpayOrder(orderId: number, userId: number): Promise<RazorpayOrderResponseDto> {
     const order = await this.getOrderForUser(orderId, userId);
+
+    // Prevent Razorpay operations on COD orders
+    if (isCodPaymentMethod(order.paymentMethod)) {
+      throw new BadRequestException(
+        'Cannot create Razorpay order for Cash on Delivery orders. Please complete COD payment directly.',
+      );
+    }
+
     if (order.paymentStatus === 'PAID') {
       throw new BadRequestException('Order payment is already completed');
     }
@@ -97,6 +105,12 @@ export class PaymentsService {
     userId: number,
   ): Promise<VerifyPaymentResponseDto> {
     const order = await this.getOrderForUser(payload.orderId, userId);
+
+    // Safety check: Reject verification if order is COD
+    if (isCodPaymentMethod(order.paymentMethod)) {
+      throw new BadRequestException('Cannot verify Razorpay payment for Cash on Delivery orders');
+    }
+
     if (order.razorpayOrderId !== payload.razorpayOrderId) {
       throw new BadRequestException('Razorpay order id mismatch');
     }
@@ -194,6 +208,11 @@ export class PaymentsService {
     userId: number,
   ): Promise<VerifyPaymentResponseDto> {
     const order = await this.getOrderForUser(payload.orderId, userId);
+
+    // Safety check: Reject if order is COD
+    if (isCodPaymentMethod(order.paymentMethod)) {
+      throw new BadRequestException('Cannot record Razorpay failure for Cash on Delivery orders');
+    }
 
     if (order.paymentStatus === 'PAID') {
       return {

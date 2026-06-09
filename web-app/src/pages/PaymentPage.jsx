@@ -36,10 +36,22 @@ export function PaymentPage() {
     }
   }, []);
   const order = currentOrder?.id === Number(orderId) ? currentOrder : null;
+  const paymentMethod = order?.paymentMethod ?? orderSnapshot?.paymentMethod ?? 'RAZORPAY';
+  const paymentStatus = order?.paymentStatus ?? orderSnapshot?.paymentStatus ?? 'PENDING';
+  
+  // Determine display status based on payment method and status
   const displayStatus =
-    order?.paymentStatus === 'PENDING' && orderSnapshot?.paymentStatus
-      ? orderSnapshot.paymentStatus
-      : order?.paymentStatus ?? orderSnapshot?.paymentStatus ?? 'PENDING';
+    paymentMethod === 'COD'
+      ? 'Awaiting Cash Collection'
+      : paymentStatus === 'PAID'
+      ? 'PAID'
+      : paymentStatus === 'FAILED'
+      ? 'FAILED'
+      : 'PENDING';
+  
+  // Determine if retry should be available (only for Razorpay orders)
+  const canRetryPayment = paymentMethod === 'RAZORPAY' && paymentStatus !== 'PAID';
+  
   const displayAmount = order?.finalAmount ?? orderSnapshot?.totalAmount ?? 0;
 
   useEffect(() => {
@@ -50,6 +62,12 @@ export function PaymentPage() {
 
   const retryPayment = async () => {
     if (!order || !user) {
+      return;
+    }
+
+    // Safety check: Prevent Razorpay retry for COD orders
+    if (paymentMethod === 'COD') {
+      setStatusMessage('Cash on Delivery orders do not require payment retry. Payment will be collected upon delivery.');
       return;
     }
 
@@ -98,7 +116,7 @@ export function PaymentPage() {
           <span>Amount to pay</span>
           <strong>{formatCurrency.format(displayAmount)}</strong>
         </div>
-        {displayStatus !== 'PAID' ? (
+        {canRetryPayment ? (
           <button
             type="button"
             className="place-order-button"

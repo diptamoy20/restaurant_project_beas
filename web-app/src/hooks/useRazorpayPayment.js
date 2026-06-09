@@ -4,6 +4,13 @@ import { loadRazorpayScript, openRazorpayCheckout } from '../utils/razorpay';
 
 export function useRazorpayPayment() {
   const startRazorpayPayment = useCallback(async ({ order, user, onSuccess, onFailure }) => {
+    // Safety check: Reject COD orders to prevent Razorpay operations
+    if (order?.paymentMethod === 'COD') {
+      const error = 'Cash on Delivery orders do not require online payment.';
+      onFailure?.(error);
+      throw new Error(error);
+    }
+
     const razorpayKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
     if (!razorpayKeyId) {
       throw new Error('Payment configuration missing: VITE_RAZORPAY_KEY_ID');
