@@ -243,6 +243,20 @@ export class OrderTableSummaryDto {
   tableNumber!: string;
 }
 
+export class OrderSessionSummaryDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id!: number;
+
+  @ApiProperty({ example: 'sess_xyz789' })
+  @IsString()
+  sessionToken!: string;
+
+  @ApiProperty({ example: 'ACTIVE' })
+  @IsString()
+  status!: string;
+}
+
 export class OrderDeliverySummaryDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -286,6 +300,11 @@ export class OrderResponseDto {
   @IsOptional()
   @IsNumber()
   tableId!: number | null;
+
+  @ApiPropertyOptional({ example: 1, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  sessionId!: number | null;
 
   @ApiPropertyOptional({ example: 1, nullable: true })
   @IsOptional()
@@ -468,6 +487,12 @@ export class OrderResponseDto {
   @ValidateNested()
   @Type(() => OrderTableSummaryDto)
   table?: OrderTableSummaryDto | null;
+
+  @ApiPropertyOptional({ type: () => OrderSessionSummaryDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OrderSessionSummaryDto)
+  session?: OrderSessionSummaryDto | null;
 
   @ApiPropertyOptional({ type: () => OrderDeliverySummaryDto, nullable: true })
   @IsOptional()

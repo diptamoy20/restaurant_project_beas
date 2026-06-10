@@ -122,6 +122,7 @@ model Restaurant {
   createdAt              DateTime                              @default(now()) @map("created_at")
   updatedAt              DateTime                              @updatedAt @map("updated_at")
   tables                 RestaurantTable[]
+  tableSessions          TableSession[]
   categories             Category[]
   menuItems              MenuItem[]
   addonGroups            AddonGroup[]
@@ -149,16 +150,48 @@ model DeliveryZone {
   @@map("delivery_zones")
 }
 
+enum TableSessionStatus {
+  ACTIVE
+  CLOSED
+}
+
 model RestaurantTable {
-  id           Int        @id @default(autoincrement())
-  restaurantId Int        @map("restaurant_id")
-  tableNumber  String     @map("table_number")
-  qrCode       String?    @map("qr_code")
+  id           Int            @id @default(autoincrement())
+  restaurantId Int            @map("restaurant_id")
+  tableNumber  String         @map("table_number")
+  capacity     Int            @default(4)
+  tableToken   String?        @unique @map("table_token")
+  qrCode       String?        @map("qr_code")
+  qrCodeUrl    String?        @map("qr_code_url")
   status       String?
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id])
+  orders       Order[]
+  sessions     TableSession[]
+
+  @@unique([restaurantId, tableNumber])
+  @@map("restaurant_tables")
+}
+
+model TableSession {
+  id           Int                @id @default(autoincrement())
+  restaurantId Int                @map("restaurant_id")
+  tableId      Int                @map("table_id")
+  sessionToken String             @unique @map("session_token")
+  status       TableSessionStatus @default(ACTIVE)
+  startedAt    DateTime           @default(now()) @map("started_at")
+  endedAt      DateTime?          @map("ended_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  restaurant   Restaurant         @relation(fields: [restaurantId], references: [id])
+  table        RestaurantTable    @relation(fields: [tableId], references: [id])
   orders       Order[]
 
-  @@map("restaurant_tables")
+  @@index([tableId, status])
+  @@index([restaurantId, status])
+  @@map("table_sessions")
 }
 
 model Category {
@@ -252,6 +285,7 @@ model Order {
   userId               Int?             @map("user_id")
   restaurantId         Int              @map("restaurant_id")
   tableId              Int?             @map("table_id")
+  sessionId            Int?             @map("session_id")
   addressId            Int?             @map("address_id")
   orderNumber          String           @unique @map("order_number")
   status               String
@@ -292,6 +326,7 @@ model Order {
   user                 User?            @relation(fields: [userId], references: [id])
   restaurant           Restaurant       @relation(fields: [restaurantId], references: [id])
   table                RestaurantTable? @relation(fields: [tableId], references: [id])
+  session              TableSession?    @relation(fields: [sessionId], references: [id])
   address              UserAddress?     @relation(fields: [addressId], references: [id])
   items                OrderItem[]
   statusLogs           OrderStatusLog[]

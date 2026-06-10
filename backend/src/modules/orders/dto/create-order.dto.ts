@@ -87,6 +87,12 @@ export class CreateOrderDto {
   @Type(() => Number)
   @IsOptional()
   @IsInt()
+  sessionId?: number;
+
+  @ApiPropertyOptional({ example: 1 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
   addressId?: number;
 
   @ApiPropertyOptional({ enum: OrderSource, example: OrderSource.WEBSITE })

@@ -39,6 +39,13 @@ const timeOptions = [
   { value: "last_3_hours", label: "Last 3 Hours" },
 ];
 
+const typeOptions = [
+  { value: "", label: "All types" },
+  { value: "DELIVERY", label: "Delivery" },
+  { value: "DINE_IN", label: "Dine-In" },
+  { value: "TAKEAWAY", label: "Pickup" },
+];
+
 const statusOptions = [
   { value: "PLACED", label: "Placed" },
   { value: "PENDING", label: "Pending" },
@@ -425,6 +432,18 @@ function OrderDetailsModal({ orderId, onClose }) {
                     label="Order Type"
                     value={formatLabel(data.orderType)}
                   />
+                  {data.orderType === "DINE_IN" ? (
+                    <>
+                      <DetailRow
+                        label="Table"
+                        value={data.table?.tableNumber || "-"}
+                      />
+                      <DetailRow
+                        label="Session"
+                        value={data.session?.sessionToken || "-"}
+                      />
+                    </>
+                  ) : null}
                   <DetailRow
                     label="Payment"
                     value={formatLabel(data.paymentMethod)}
@@ -607,6 +626,7 @@ function Timeline({ order }) {
 export function OrdersPage() {
   const [filters, setFilters] = useState({
     timeRange: "recent",
+    type: "",
     search: "",
     limit: 10,
     offset: 0,
@@ -690,12 +710,18 @@ export function OrdersPage() {
   return (
     <div className="space-y-6">
       <Card title="Order Management">
-        <div className="mb-6 grid gap-4 lg:grid-cols-[220px_1fr]">
+        <div className="mb-6 grid gap-4 lg:grid-cols-[220px_220px_1fr]">
           <SelectField
             label="Time"
             value={filters.timeRange}
             onChange={(event) => updateFilter("timeRange", event.target.value)}
             options={timeOptions}
+          />
+          <SelectField
+            label="Order Type"
+            value={filters.type}
+            onChange={(event) => updateFilter("type", event.target.value)}
+            options={typeOptions}
           />
           <TextField
             label="Search"
@@ -746,6 +772,22 @@ export function OrdersPage() {
               key: "type",
               header: "Type",
               render: (row) => formatLabel(row.orderType),
+            },
+            {
+              key: "table",
+              header: "Table",
+              render: (row) =>
+                row.orderType === "DINE_IN"
+                  ? row.table?.tableNumber || "-"
+                  : "-",
+            },
+            {
+              key: "session",
+              header: "Session",
+              render: (row) =>
+                row.orderType === "DINE_IN"
+                  ? row.session?.sessionToken?.slice(0, 12) || "-"
+                  : "-",
             },
             {
               key: "payment",

@@ -59,6 +59,8 @@ export function CartProvider({ children }: CartProviderProps) {
       restaurantId: context.restaurantId,
       tableId: context.tableId,
       tableLabel: context.tableLabel,
+      sessionId: context.sessionId ?? current.sessionId,
+      sessionToken: context.sessionToken ?? current.sessionToken,
     }));
   }, []);
 
@@ -139,6 +141,8 @@ export function CartProvider({ children }: CartProviderProps) {
       restaurantId: current.restaurantId,
       tableId: current.tableId,
       tableLabel: current.tableLabel,
+      sessionId: current.sessionId,
+      sessionToken: current.sessionToken,
       items: [],
     }));
   }, []);

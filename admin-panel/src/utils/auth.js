@@ -22,6 +22,7 @@ export const defaultPermissionsByRole = {
     coupons: ['view', 'create', 'edit', 'delete'],
     customers: ['view'],
     payments: ['view', 'filter'],
+    tables: ['view', 'create', 'edit', 'delete', 'generate_qr'],
     staff: ['view', 'create', 'edit', 'delete', 'assign'],
   },
   manager: {
@@ -33,6 +34,7 @@ export const defaultPermissionsByRole = {
     coupons: ['view', 'create', 'edit'],
     customers: ['view'],
     payments: ['view', 'filter'],
+    tables: ['view', 'create', 'edit', 'generate_qr'],
     staff: [],
   },
   delivery_boy: {
@@ -44,6 +46,7 @@ export const defaultPermissionsByRole = {
     coupons: [],
     customers: [],
     payments: [],
+    tables: [],
     staff: [],
   },
 };
