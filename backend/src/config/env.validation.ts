@@ -88,6 +88,19 @@ function parseBoolean(rawValue: string | undefined, key: string, fallback: boole
   throw new Error(`${key} must be either "true" or "false"`);
 }
 
+function isValidUrl(candidate: string | undefined): boolean {
+  if (!candidate) {
+    return false;
+  }
+
+  try {
+    new URL(candidate);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function validateEnv(config: Record<string, unknown>): Record<string, unknown> {
   const env = config as EnvValues;
   const nodeEnv = env.NODE_ENV ?? 'development';
@@ -168,6 +181,14 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     }
   }
 
+  if (env.QR_FRONTEND_URL && !isValidUrl(env.QR_FRONTEND_URL)) {
+    throw new Error('QR_FRONTEND_URL must be a valid URL');
+  }
+
+  if (env.QR_ORDERING_APP_URL && !isValidUrl(env.QR_ORDERING_APP_URL)) {
+    throw new Error('QR_ORDERING_APP_URL must be a valid URL');
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -237,5 +258,7 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID,
     FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL,
     FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY,
+    QR_FRONTEND_URL: env.QR_FRONTEND_URL,
+    QR_ORDERING_APP_URL: env.QR_ORDERING_APP_URL,
   };
 }
