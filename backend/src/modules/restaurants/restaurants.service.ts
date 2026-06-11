@@ -93,28 +93,63 @@ export class RestaurantsService {
     restaurantId: number,
     data: CreateRestaurantTableDto,
   ): Promise<RestaurantTableResponseDto> {
-    await this.ensureRestaurantExists(restaurantId);
+    const logContext = { restaurantId, tableNumber: data.tableNumber };
 
-    // Create table record without trusting incoming qrCode
-    const table = await this.prisma.restaurantTable.create({
-      data: {
-        restaurantId,
-        tableNumber: data.tableNumber.trim(),
-        status: data.status ?? 'ACTIVE',
-        qrCode: null,
-      },
-    });
+    try {
+      this.logger.debug(`[CREATE_TABLE] Starting table creation`, logContext);
 
-    // Generate authoritative QR URL from configured QR frontend origin
-    const qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${table.id}`;
+      // Validate restaurant exists
+      await this.ensureRestaurantExists(restaurantId);
+      this.logger.debug(`[CREATE_TABLE] Restaurant validation passed`, logContext);
 
-    // Persist generated QR URL to the table record
-    const updated = await this.prisma.restaurantTable.update({
-      where: { id: table.id },
-      data: { qrCode: qrUrl },
-    });
+      // Create initial table record with null QR code
+      this.logger.debug(`[CREATE_TABLE] Creating table record`, logContext);
+      const table = await this.prisma.restaurantTable.create({
+        data: {
+          restaurantId,
+          tableNumber: data.tableNumber.trim(),
+          status: data.status ?? 'ACTIVE',
+          qrCode: null,
+        },
+      });
+      this.logger.debug(`[CREATE_TABLE] Table created`, { ...logContext, tableId: table.id });
 
-    return this.mapRestaurantTable(updated);
+      // Generate QR URL
+      this.logger.debug(`[CREATE_TABLE] Generating QR URL`, { ...logContext, tableId: table.id });
+      let qrUrl: string;
+      try {
+        qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${table.id}`;
+        this.logger.debug(`[CREATE_TABLE] QR URL generated`, { ...logContext, tableId: table.id, qrUrl });
+      } catch (error) {
+        this.logger.error(
+          `[CREATE_TABLE] Failed to generate QR URL: ${error instanceof Error ? error.message : String(error)}`,
+          error instanceof Error ? error.stack : undefined,
+          { ...logContext, tableId: table.id },
+        );
+        throw error;
+      }
+
+      // Update table with QR URL
+      this.logger.debug(`[CREATE_TABLE] Updating table with QR URL`, { ...logContext, tableId: table.id });
+      const updated = await this.prisma.restaurantTable.update({
+        where: { id: table.id },
+        data: { qrCode: qrUrl },
+      });
+      this.logger.debug(`[CREATE_TABLE] Table QR URL persisted`, { ...logContext, tableId: table.id });
+
+      const result = this.mapRestaurantTable(updated);
+      this.logger.log(`[CREATE_TABLE] Table created successfully`, { ...logContext, tableId: table.id });
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `[CREATE_TABLE] Failed: ${errorMessage}`,
+        errorStack,
+        logContext,
+      );
+      throw error;
+    }
   }
 
   async updateRestaurantTable(
@@ -195,12 +230,34 @@ export class RestaurantsService {
   }
 
   private async ensureRestaurantExists(restaurantId: number): Promise<void> {
-    const restaurant = await this.prisma.restaurant.findUnique({
-      where: { id: restaurantId },
-    });
+    try {
+      this.logger.debug(`[VALIDATE_RESTAURANT] Checking restaurant existence`, { restaurantId });
+      const restaurant = await this.prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+      });
 
-    if (!restaurant) {
-      throw new NotFoundException('Restaurant not found');
+      if (!restaurant) {
+        this.logger.warn(`[VALIDATE_RESTAURANT] Restaurant not found`, { restaurantId });
+        throw new NotFoundException('Restaurant not found');
+      }
+
+      if (!restaurant.isActive) {
+        this.logger.warn(`[VALIDATE_RESTAURANT] Restaurant is inactive`, { restaurantId });
+        throw new NotFoundException('Restaurant not found or is inactive');
+      }
+
+      this.logger.debug(`[VALIDATE_RESTAURANT] Restaurant validation passed`, { restaurantId, name: restaurant.name });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[VALIDATE_RESTAURANT] Database error: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+        { restaurantId },
+      );
+      throw error;
     }
   }
 
@@ -226,11 +283,37 @@ export class RestaurantsService {
   }
 
   private getQrOrderingAppUrl(): string {
-    return (
-      this.configService.get<string>('QR_FRONTEND_URL')?.replace(/\/$/, '') ||
-      this.configService.get<string>('QR_ORDERING_APP_URL')?.replace(/\/$/, '') ||
-      'http://localhost:5175'
-    );
+    try {
+      const qrFrontendUrl = this.configService.get<string>('QR_FRONTEND_URL');
+      const qrOrderingAppUrl = this.configService.get<string>('QR_ORDERING_APP_URL');
+      
+      this.logger.debug('[GET_QR_URL] Loading QR frontend configuration', {
+        qrFrontendUrl: qrFrontendUrl ? '***' : undefined,
+        qrOrderingAppUrl: qrOrderingAppUrl ? '***' : undefined,
+      });
+
+      if (qrFrontendUrl) {
+        const normalized = qrFrontendUrl.replace(/\/$/, '');
+        this.logger.debug('[GET_QR_URL] Using QR_FRONTEND_URL');
+        return normalized;
+      }
+
+      if (qrOrderingAppUrl) {
+        const normalized = qrOrderingAppUrl.replace(/\/$/, '');
+        this.logger.debug('[GET_QR_URL] Using QR_ORDERING_APP_URL (legacy)');
+        return normalized;
+      }
+
+      this.logger.warn('[GET_QR_URL] Neither QR_FRONTEND_URL nor QR_ORDERING_APP_URL configured, using localhost default');
+      return 'http://localhost:5175';
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[GET_QR_URL] Failed to retrieve QR URL config: ${errorMessage}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
   }
 
   /**
