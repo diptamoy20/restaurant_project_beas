@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Restaurant, Category, Prisma } from '@prisma/client';
+import * as QRCode from 'qrcode';
 
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
 import {
@@ -8,6 +10,7 @@ import {
   RestaurantResponseDto,
   RestaurantTableResponseDto,
 } from './dto/restaurant-response.dto';
+import { CreateRestaurantTableDto, RestaurantTableQrResponseDto, UpdateRestaurantTableDto } from './dto/restaurant-table.dto';
 import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
 import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
@@ -27,6 +30,7 @@ export class RestaurantsService {
     private readonly prisma: PrismaService,
     private readonly locationService: LocationService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -68,6 +72,132 @@ export class RestaurantsService {
       throw new NotFoundException('Restaurant not found');
     }
     return this.mapRestaurant(restaurant);
+  }
+
+  async getRestaurantTables(restaurantId: number): Promise<RestaurantTableResponseDto[]> {
+    await this.ensureRestaurantExists(restaurantId);
+
+    const tables = await this.prisma.restaurantTable.findMany({
+      where: { restaurantId },
+      orderBy: { tableNumber: 'asc' },
+    });
+
+    return tables.map((table) => this.mapRestaurantTable(table));
+  }
+
+  async createRestaurantTable(
+    restaurantId: number,
+    data: CreateRestaurantTableDto,
+  ): Promise<RestaurantTableResponseDto> {
+    await this.ensureRestaurantExists(restaurantId);
+
+    const table = await this.prisma.restaurantTable.create({
+      data: {
+        restaurantId,
+        tableNumber: data.tableNumber.trim(),
+        status: data.status ?? 'ACTIVE',
+        qrCode: data.qrCode?.trim() || null,
+      },
+    });
+
+    return this.mapRestaurantTable(table);
+  }
+
+  async updateRestaurantTable(
+    restaurantId: number,
+    tableId: number,
+    data: UpdateRestaurantTableDto,
+  ): Promise<RestaurantTableResponseDto> {
+    await this.ensureRestaurantExists(restaurantId);
+    const table = await this.findRestaurantTable(restaurantId, tableId);
+
+    const updatedTable = await this.prisma.restaurantTable.update({
+      where: { id: tableId },
+      data: {
+        tableNumber: data.tableNumber?.trim() ?? table.tableNumber,
+        status: data.status ?? table.status,
+        qrCode: data.qrCode?.trim() ?? table.qrCode,
+      },
+    });
+
+    return this.mapRestaurantTable(updatedTable);
+  }
+
+  async deleteRestaurantTable(restaurantId: number, tableId: number): Promise<{ message: string }> {
+    await this.ensureRestaurantExists(restaurantId);
+    await this.findRestaurantTable(restaurantId, tableId);
+
+    await this.prisma.restaurantTable.delete({
+      where: { id: tableId },
+    });
+
+    return { message: 'Table deleted successfully' };
+  }
+
+  async getRestaurantTableQr(restaurantId: number, tableId: number): Promise<RestaurantTableQrResponseDto> {
+    const table = await this.findRestaurantTable(restaurantId, tableId);
+    const qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
+
+    return { qrUrl };
+  }
+
+  async downloadRestaurantTableQrSvg(
+    restaurantId: number,
+    tableId: number,
+  ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
+    const { qrUrl } = await this.getRestaurantTableQr(restaurantId, tableId);
+    const svg = await QRCode.toString(qrUrl, {
+      type: 'svg',
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 280,
+    });
+
+    return {
+      buffer: Buffer.from(svg),
+      fileName: `restaurant-${restaurantId}-table-${tableId}.svg`,
+      contentType: 'image/svg+xml',
+    };
+  }
+
+  private async ensureRestaurantExists(restaurantId: number): Promise<void> {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+  }
+
+  private async findRestaurantTable(
+    restaurantId: number,
+    tableId: number,
+  ): Promise<{
+    id: number;
+    restaurantId: number;
+    tableNumber: string;
+    qrCode: string | null;
+    status: string | null;
+  }> {
+    const table = await this.prisma.restaurantTable.findUnique({
+      where: { id: tableId },
+    });
+
+    if (!table || table.restaurantId !== restaurantId) {
+      throw new NotFoundException('Table not found or does not belong to this restaurant');
+    }
+
+    return table;
+  }
+
+  private getQrOrderingAppUrl(): string {
+    return (
+      this.configService.get<string>('QR_FRONTEND_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('QR_ORDERING_APP_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('WEB_APP_URL')?.replace(/\/$/, '') ||
+      'http://localhost:5175'
+    );
   }
 
   /**
