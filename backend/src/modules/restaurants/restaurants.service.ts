@@ -95,16 +95,26 @@ export class RestaurantsService {
   ): Promise<RestaurantTableResponseDto> {
     await this.ensureRestaurantExists(restaurantId);
 
+    // Create table record without trusting incoming qrCode
     const table = await this.prisma.restaurantTable.create({
       data: {
         restaurantId,
         tableNumber: data.tableNumber.trim(),
         status: data.status ?? 'ACTIVE',
-        qrCode: data.qrCode?.trim() || null,
+        qrCode: null,
       },
     });
 
-    return this.mapRestaurantTable(table);
+    // Generate authoritative QR URL from configured QR frontend origin
+    const qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${table.id}`;
+
+    // Persist generated QR URL to the table record
+    const updated = await this.prisma.restaurantTable.update({
+      where: { id: table.id },
+      data: { qrCode: qrUrl },
+    });
+
+    return this.mapRestaurantTable(updated);
   }
 
   async updateRestaurantTable(
@@ -120,9 +130,18 @@ export class RestaurantsService {
       data: {
         tableNumber: data.tableNumber?.trim() ?? table.tableNumber,
         status: data.status ?? table.status,
-        qrCode: data.qrCode?.trim() ?? table.qrCode,
       },
     });
+
+    // Ensure stored QR uses authoritative QR frontend origin (in case env changed)
+    const expectedQrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
+    if (updatedTable.qrCode !== expectedQrUrl) {
+      const repaired = await this.prisma.restaurantTable.update({
+        where: { id: tableId },
+        data: { qrCode: expectedQrUrl },
+      });
+      return this.mapRestaurantTable(repaired);
+    }
 
     return this.mapRestaurantTable(updatedTable);
   }
@@ -144,6 +163,14 @@ export class RestaurantsService {
   ): Promise<RestaurantTableQrResponseDto> {
     const table = await this.findRestaurantTable(restaurantId, tableId);
     const qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
+
+    // Persist authoritative QR URL if it's missing or differs
+    if (table.qrCode !== qrUrl) {
+      await this.prisma.restaurantTable.update({
+        where: { id: tableId },
+        data: { qrCode: qrUrl },
+      });
+    }
 
     return { qrUrl };
   }
@@ -202,7 +229,6 @@ export class RestaurantsService {
     return (
       this.configService.get<string>('QR_FRONTEND_URL')?.replace(/\/$/, '') ||
       this.configService.get<string>('QR_ORDERING_APP_URL')?.replace(/\/$/, '') ||
-      this.configService.get<string>('WEB_APP_URL')?.replace(/\/$/, '') ||
       'http://localhost:5175'
     );
   }
