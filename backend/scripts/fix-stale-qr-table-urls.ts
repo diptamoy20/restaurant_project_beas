@@ -35,23 +35,28 @@ async function main() {
       continue;
     }
 
-    // If qrCode exists, parse and verify it's the expected menu path
+    // If qrCode exists, parse and verify it's the expected menu path.
+    // Replace invalid, malformed, or stale QR values with the proper QR ordering URL.
     let parsed: URL | null = null;
     try {
       parsed = new URL(record.qrCode);
     } catch {
-      // Non-URL stored — skip (do not overwrite custom values)
-      continue;
-    }
-
-    // If pathname matches expected menu path but origin differs -> update
-    if (parsed.pathname === expectedPath && parsed.origin !== targetUrl) {
       await prisma.restaurantTable.update({
         where: { id: record.id },
         data: { qrCode: expectedFull },
       });
       updatedCount += 1;
-      console.log(`Repaired qrCode for table ${record.id} to ${expectedFull}`);
+      console.log(`Replaced invalid qrCode for table ${record.id} with ${expectedFull}`);
+      continue;
+    }
+
+    if (parsed.pathname !== expectedPath || parsed.origin !== targetUrl) {
+      await prisma.restaurantTable.update({
+        where: { id: record.id },
+        data: { qrCode: expectedFull },
+      });
+      updatedCount += 1;
+      console.log(`Updated qrCode for table ${record.id} to ${expectedFull}`);
     }
   }
 
