@@ -16,7 +16,6 @@ import {
   UseInterceptors,
   Res,
 } from '@nestjs/common';
-import { Response } from 'express';
 import {
   ApiBody,
   ApiConsumes,
@@ -28,15 +27,21 @@ import {
   ApiCreatedResponse,
   ApiProduces,
 } from '@nestjs/swagger';
+import { Response } from 'express';
 
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
-import { CreateRestaurantTableDto, RestaurantTableQrResponseDto, RestaurantTableResponseDto, UpdateRestaurantTableDto } from './dto/restaurant-table.dto';
 import { ListRestaurantsQueryDto } from './dto/list-restaurants-query.dto';
 import { NearbyRestaurantsDto } from './dto/nearby-restaurants.dto';
 import {
   PaginatedRestaurantResponseDto,
   RestaurantResponseDto,
 } from './dto/restaurant-response.dto';
+import {
+  CreateRestaurantTableDto,
+  RestaurantTableQrResponseDto,
+  RestaurantTableResponseDto,
+  UpdateRestaurantTableDto,
+} from './dto/restaurant-table.dto';
 import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ImageFileInterceptor } from '../../common/cloudinary/image-file.interceptor';
@@ -240,7 +245,12 @@ export class RestaurantsController {
   @ApiOperation({ summary: 'Create a new restaurant table' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiCreatedResponse({ type: RestaurantTableResponseDto })
-  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, badRequest: true, notFound: true })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
   async createRestaurantTable(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: CreateRestaurantTableDto,
@@ -255,7 +265,12 @@ export class RestaurantsController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiParam({ name: 'tableId', type: Number, example: 2 })
   @ApiOkResponse({ type: RestaurantTableResponseDto })
-  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, badRequest: true, notFound: true })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
   async updateRestaurantTable(
     @Param('id', ParseIntPipe) id: number,
     @Param('tableId', ParseIntPipe) tableId: number,
@@ -271,7 +286,12 @@ export class RestaurantsController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiParam({ name: 'tableId', type: Number, example: 2 })
   @ApiOkResponse({ schema: { example: { message: 'Table deleted successfully' } } })
-  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, badRequest: true, notFound: true })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
   async deleteRestaurantTable(
     @Param('id', ParseIntPipe) id: number,
     @Param('tableId', ParseIntPipe) tableId: number,
@@ -302,7 +322,12 @@ export class RestaurantsController {
   @ApiParam({ name: 'tableId', type: Number, example: 2 })
   @ApiQuery({ name: 'format', required: false, example: 'svg' })
   @ApiProduces('image/svg+xml')
-  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, badRequest: true, notFound: true })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
   async downloadRestaurantTableQr(
     @Param('id', ParseIntPipe) id: number,
     @Param('tableId', ParseIntPipe) tableId: number,

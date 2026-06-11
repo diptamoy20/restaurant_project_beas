@@ -10,7 +10,11 @@ import {
   RestaurantResponseDto,
   RestaurantTableResponseDto,
 } from './dto/restaurant-response.dto';
-import { CreateRestaurantTableDto, RestaurantTableQrResponseDto, UpdateRestaurantTableDto } from './dto/restaurant-table.dto';
+import {
+  CreateRestaurantTableDto,
+  RestaurantTableQrResponseDto,
+  UpdateRestaurantTableDto,
+} from './dto/restaurant-table.dto';
 import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
 import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
@@ -134,7 +138,10 @@ export class RestaurantsService {
     return { message: 'Table deleted successfully' };
   }
 
-  async getRestaurantTableQr(restaurantId: number, tableId: number): Promise<RestaurantTableQrResponseDto> {
+  async getRestaurantTableQr(
+    restaurantId: number,
+    tableId: number,
+  ): Promise<RestaurantTableQrResponseDto> {
     const table = await this.findRestaurantTable(restaurantId, tableId);
     const qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
 
