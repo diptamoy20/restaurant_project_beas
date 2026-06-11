@@ -3,66 +3,59 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 function getTargetQrFrontendUrl(): string {
-  const url =
-    process.env.QR_FRONTEND_URL ||
-    process.env.QR_ORDERING_APP_URL ||
-    process.env.WEB_APP_URL ||
-    'http://localhost:5175';
-
+  const url = process.env.QR_FRONTEND_URL || process.env.QR_ORDERING_APP_URL || 'http://localhost:5175';
   return url.replace(/\/$/, '');
-}
-
-function isValidMenuUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return parsed.pathname.startsWith('/menu/');
-  } catch {
-    return false;
-  }
 }
 
 async function main() {
   const targetUrl = getTargetQrFrontendUrl();
-  const legacyHost = 'http://localhost:5173';
 
-  const records = await prisma.restaurantTable.findMany({
-    where: {
-      qrCode: {
-        contains: legacyHost,
-      },
-    },
-  });
+  // Find all restaurant tables; we'll selectively update only those that match the expected menu path or have no qrCode
+  const records = await prisma.restaurantTable.findMany();
 
   if (records.length === 0) {
-    console.log('No stale QR table records found.');
+    console.log('No restaurant table records found.');
     return;
   }
 
   let updatedCount = 0;
 
   for (const record of records) {
-    const current = record.qrCode;
-    if (!current) {
+    const expectedPath = `/menu/${record.restaurantId}/${record.id}`;
+    const expectedFull = `${targetUrl}${expectedPath}`;
+
+    if (!record.qrCode) {
+      // No qrCode stored — set authoritative one
+      await prisma.restaurantTable.update({
+        where: { id: record.id },
+        data: { qrCode: expectedFull },
+      });
+      updatedCount += 1;
+      console.log(`Set qrCode for table ${record.id} to ${expectedFull}`);
       continue;
     }
 
-    if (!isValidMenuUrl(current)) {
+    // If qrCode exists, parse and verify it's the expected menu path
+    let parsed: URL | null = null;
+    try {
+      parsed = new URL(record.qrCode);
+    } catch {
+      // Non-URL stored — skip (do not overwrite custom values)
       continue;
     }
 
-    const parsed = new URL(current);
-    const newQrCode = `${targetUrl}${parsed.pathname}`;
-
-    await prisma.restaurantTable.update({
-      where: { id: record.id },
-      data: { qrCode: newQrCode },
-    });
-
-    updatedCount += 1;
-    console.log(`Updated table ${record.id} qrCode to ${newQrCode}`);
+    // If pathname matches expected menu path but origin differs -> update
+    if (parsed.pathname === expectedPath && parsed.origin !== targetUrl) {
+      await prisma.restaurantTable.update({
+        where: { id: record.id },
+        data: { qrCode: expectedFull },
+      });
+      updatedCount += 1;
+      console.log(`Repaired qrCode for table ${record.id} to ${expectedFull}`);
+    }
   }
 
-  console.log(`Fixed ${updatedCount} stale table record(s).`);
+  console.log(`Fixed ${updatedCount} stale or missing table record(s).`);
 }
 
 main()
