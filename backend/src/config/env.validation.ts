@@ -181,6 +181,10 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     }
   }
 
+  if (nodeEnv !== 'development' && !env.QR_FRONTEND_URL) {
+    throw new Error('QR_FRONTEND_URL is required in non-development environments');
+  }
+
   if (env.QR_FRONTEND_URL && !isValidUrl(env.QR_FRONTEND_URL)) {
     throw new Error('QR_FRONTEND_URL must be a valid URL');
   }
