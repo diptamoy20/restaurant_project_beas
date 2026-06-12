@@ -198,6 +198,7 @@ export function TableManagementPage() {
       await navigator.clipboard.writeText(qrUrl);
       setFeedbackMessage('Table QR link copied.');
     } catch (error) {
+      console.error("Copy link error:", error);
       setFeedbackMessage('Unable to copy QR link.');
     }
   };
@@ -295,11 +296,10 @@ export function TableManagementPage() {
                 header: 'Status',
                 render: (row) => (
                   <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                      row.status === 'INACTIVE'
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${row.status === 'INACTIVE'
                         ? 'bg-rose-100 text-rose-700'
                         : 'bg-emerald-100 text-emerald-800'
-                    }`}
+                      }`}
                   >
                     {row.status || 'ACTIVE'}
                   </span>
