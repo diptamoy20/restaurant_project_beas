@@ -7,10 +7,7 @@ import {
   useState,
 } from 'react';
 import { useLocation } from 'react-router-dom';
-import { persistRestaurantId } from '../lib/tableSession';
-import { getRestaurantIdFromUrl } from '../lib/restaurantSelection';
-
-const STORAGE_KEY = 'foodyply_selected_restaurant_id';
+import { persistRestaurantId, resolveRestaurantId } from '../lib/tableSession';
 
 const SelectedRestaurantContext = createContext(null);
 
@@ -21,7 +18,7 @@ export function SelectedRestaurantProvider({ children }) {
       return null;
     }
 
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = resolveRestaurantId(window.location.search);
 
     return raw ? Number(raw) : null;
   });
@@ -31,16 +28,15 @@ export function SelectedRestaurantProvider({ children }) {
 
     if (typeof window !== 'undefined') {
       if (id == null) {
-        window.sessionStorage.removeItem(STORAGE_KEY);
+        window.sessionStorage.removeItem('restaurant-web-active-restaurant');
       } else {
-        window.sessionStorage.setItem(STORAGE_KEY, String(id));
         persistRestaurantId(id);
       }
     }
   }, []);
 
   useEffect(() => {
-    const fromUrl = getRestaurantIdFromUrl(location.search);
+    const fromUrl = resolveRestaurantId(location.search);
 
     if (fromUrl) {
       const parsed = Number(fromUrl);

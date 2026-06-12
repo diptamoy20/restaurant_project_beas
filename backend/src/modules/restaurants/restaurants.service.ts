@@ -93,10 +93,15 @@ export class RestaurantsService {
     restaurantId: number,
     data: CreateRestaurantTableDto,
   ): Promise<RestaurantTableResponseDto> {
-    const logContext = { restaurantId, tableNumber: data.tableNumber };
+    const tableNumber = data.tableNumber.trim();
+    const logContext = { restaurantId, tableNumber };
 
     try {
       this.logger.debug(`[CREATE_TABLE] Starting table creation`, logContext);
+
+      if (!tableNumber) {
+        throw new BadRequestException('Table number is required');
+      }
 
       // Validate restaurant exists
       await this.ensureRestaurantExists(restaurantId);
@@ -107,53 +112,30 @@ export class RestaurantsService {
       const table = await this.prisma.restaurantTable.create({
         data: {
           restaurantId,
-          tableNumber: data.tableNumber.trim(),
+          tableNumber,
           status: data.status ?? 'ACTIVE',
           qrCode: null,
         },
       });
       this.logger.debug(`[CREATE_TABLE] Table created`, { ...logContext, tableId: table.id });
 
-      // Generate QR URL
-      this.logger.debug(`[CREATE_TABLE] Generating QR URL`, { ...logContext, tableId: table.id });
-      let qrUrl: string;
-      try {
-        qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${table.id}`;
-        this.logger.debug(`[CREATE_TABLE] QR URL generated`, {
-          ...logContext,
-          tableId: table.id,
-          qrUrl,
-        });
-      } catch (error) {
-        this.logger.error(
-          `[CREATE_TABLE] Failed to generate QR URL: ${error instanceof Error ? error.message : String(error)}`,
-          error instanceof Error ? error.stack : undefined,
-          { ...logContext, tableId: table.id },
-        );
-        throw error;
-      }
-
-      // Update table with QR URL
-      this.logger.debug(`[CREATE_TABLE] Updating table with QR URL`, {
-        ...logContext,
-        tableId: table.id,
-      });
-      const updated = await this.prisma.restaurantTable.update({
-        where: { id: table.id },
-        data: { qrCode: qrUrl },
-      });
-      this.logger.debug(`[CREATE_TABLE] Table QR URL persisted`, {
+      const qrUrl = this.buildRestaurantTableQrUrl(restaurantId, table.id);
+      await this.tryPersistRestaurantTableQrUrl(table.id, qrUrl, {
         ...logContext,
         tableId: table.id,
       });
 
-      const result = this.mapRestaurantTable(updated);
+      const result = this.mapRestaurantTable({
+        ...table,
+        qrCode: qrUrl,
+      });
       this.logger.log(`[CREATE_TABLE] Table created successfully`, {
         ...logContext,
         tableId: table.id,
       });
       return result;
     } catch (error) {
+      this.rethrowRestaurantTableError('create', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(`[CREATE_TABLE] Failed: ${errorMessage}`, errorStack, logContext);
@@ -168,26 +150,35 @@ export class RestaurantsService {
   ): Promise<RestaurantTableResponseDto> {
     await this.ensureRestaurantExists(restaurantId);
     const table = await this.findRestaurantTable(restaurantId, tableId);
+    const nextTableNumber = data.tableNumber?.trim() ?? table.tableNumber;
 
-    const updatedTable = await this.prisma.restaurantTable.update({
-      where: { id: tableId },
-      data: {
-        tableNumber: data.tableNumber?.trim() ?? table.tableNumber,
-        status: data.status ?? table.status,
-      },
-    });
-
-    // Ensure stored QR uses authoritative QR frontend origin (in case env changed)
-    const expectedQrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
-    if (updatedTable.qrCode !== expectedQrUrl) {
-      const repaired = await this.prisma.restaurantTable.update({
-        where: { id: tableId },
-        data: { qrCode: expectedQrUrl },
-      });
-      return this.mapRestaurantTable(repaired);
+    if (!nextTableNumber) {
+      throw new BadRequestException('Table number is required');
     }
 
-    return this.mapRestaurantTable(updatedTable);
+    try {
+      const updatedTable = await this.prisma.restaurantTable.update({
+        where: { id: tableId },
+        data: {
+          tableNumber: nextTableNumber,
+          status: data.status ?? table.status,
+        },
+      });
+
+      const expectedQrUrl = this.buildRestaurantTableQrUrl(restaurantId, tableId);
+      await this.tryPersistRestaurantTableQrUrl(tableId, expectedQrUrl, {
+        restaurantId,
+        tableId,
+      });
+
+      return this.mapRestaurantTable({
+        ...updatedTable,
+        qrCode: expectedQrUrl,
+      });
+    } catch (error) {
+      this.rethrowRestaurantTableError('update', error);
+      throw error;
+    }
   }
 
   async deleteRestaurantTable(restaurantId: number, tableId: number): Promise<{ message: string }> {
@@ -205,16 +196,12 @@ export class RestaurantsService {
     restaurantId: number,
     tableId: number,
   ): Promise<RestaurantTableQrResponseDto> {
-    const table = await this.findRestaurantTable(restaurantId, tableId);
-    const qrUrl = `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
-
-    // Persist authoritative QR URL if it's missing or differs
-    if (table.qrCode !== qrUrl) {
-      await this.prisma.restaurantTable.update({
-        where: { id: tableId },
-        data: { qrCode: qrUrl },
-      });
-    }
+    await this.findRestaurantTable(restaurantId, tableId);
+    const qrUrl = this.buildRestaurantTableQrUrl(restaurantId, tableId);
+    await this.tryPersistRestaurantTableQrUrl(tableId, qrUrl, {
+      restaurantId,
+      tableId,
+    });
 
     return { qrUrl };
   }
@@ -327,6 +314,48 @@ export class RestaurantsService {
         error instanceof Error ? error.stack : undefined,
       );
       throw error;
+    }
+  }
+
+  private buildRestaurantTableQrUrl(restaurantId: number, tableId: number): string {
+    return `${this.getQrOrderingAppUrl()}/menu/${restaurantId}/${tableId}`;
+  }
+
+  private async tryPersistRestaurantTableQrUrl(
+    tableId: number,
+    qrUrl: string,
+    context: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      this.logger.debug('[TABLE_QR_REPAIR] Persisting QR URL', {
+        ...context,
+        qrUrl,
+      });
+      await this.prisma.restaurantTable.update({
+        where: { id: tableId },
+        data: { qrCode: qrUrl },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`[TABLE_QR_REPAIR] Failed to persist QR URL: ${errorMessage}`, context);
+    }
+  }
+
+  private rethrowRestaurantTableError(action: 'create' | 'update', error: unknown): never | void {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return;
+    }
+
+    switch (error.code) {
+      case 'P2002':
+        throw new BadRequestException('Table number already exists for this restaurant');
+      case 'P2021':
+      case 'P2022':
+        throw new BadRequestException(
+          'Server database schema is outdated for table management. Run prisma migrate deploy on production.',
+        );
+      default:
+        throw new BadRequestException(`Failed to ${action} table: ${error.message}`);
     }
   }
 
@@ -735,7 +764,7 @@ export class RestaurantsService {
       id: table.id,
       restaurantId: table.restaurantId,
       tableNumber: table.tableNumber,
-      qrCode: table.qrCode,
+      qrCode: this.buildRestaurantTableQrUrl(table.restaurantId, table.id),
       status: table.status,
     };
   }

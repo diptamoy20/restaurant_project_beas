@@ -234,7 +234,9 @@ export class RestaurantsController {
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiOkResponse({ type: RestaurantTableResponseDto, isArray: true })
   @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, notFound: true })
-  async getRestaurantTables(@Param('id', ParseIntPipe) id: number) {
+  async getRestaurantTables(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<RestaurantTableResponseDto[]> {
     return this.restaurantsService.getRestaurantTables(id);
   }
 
@@ -254,7 +256,7 @@ export class RestaurantsController {
   async createRestaurantTable(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: CreateRestaurantTableDto,
-  ) {
+  ): Promise<RestaurantTableResponseDto> {
     return this.restaurantsService.createRestaurantTable(id, data);
   }
 
@@ -275,7 +277,7 @@ export class RestaurantsController {
     @Param('id', ParseIntPipe) id: number,
     @Param('tableId', ParseIntPipe) tableId: number,
     @Body() data: UpdateRestaurantTableDto,
-  ) {
+  ): Promise<RestaurantTableResponseDto> {
     return this.restaurantsService.updateRestaurantTable(id, tableId, data);
   }
 
@@ -295,7 +297,7 @@ export class RestaurantsController {
   async deleteRestaurantTable(
     @Param('id', ParseIntPipe) id: number,
     @Param('tableId', ParseIntPipe) tableId: number,
-  ) {
+  ): Promise<{ message: string }> {
     return this.restaurantsService.deleteRestaurantTable(id, tableId);
   }
 
@@ -310,7 +312,7 @@ export class RestaurantsController {
   async getRestaurantTableQr(
     @Param('id', ParseIntPipe) id: number,
     @Param('tableId', ParseIntPipe) tableId: number,
-  ) {
+  ): Promise<RestaurantTableQrResponseDto> {
     return this.restaurantsService.getRestaurantTableQr(id, tableId);
   }
 

@@ -165,11 +165,6 @@ jobs:
             set +a
             export PM2_ENV_FILE="$APP_DIR/shared/backend.env"
 
-            if [ -z "$PUBLIC_API_BASE_URL" ]; then
-              echo "PUBLIC_API_BASE_URL is required"
-              exit 1
-            fi
-
             for REQUIRED_BACKEND_ENV in DATABASE_URL ACCESS_TOKEN_SECRET REFRESH_TOKEN_SECRET RAZORPAY_KEY_ID RAZORPAY_KEY_SECRET PORT CORS_ORIGINS DB_SSL; do
               if [ -z "$(printenv "$REQUIRED_BACKEND_ENV")" ]; then
                 echo "Missing required backend env in $APP_DIR/shared/backend.env: $REQUIRED_BACKEND_ENV"
@@ -199,6 +194,7 @@ jobs:
               echo "Backend build output missing: $APP_DIR/backend/dist/main.js"
               exit 1
             fi
+            npm run fix:qr-frontend-urls
 
             if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
               pm2 startOrReload ecosystem.config.cjs --only "$PM2_APP_NAME" --env production --update-env

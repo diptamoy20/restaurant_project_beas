@@ -105,6 +105,8 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
   const env = config as EnvValues;
   const nodeEnv = env.NODE_ENV ?? 'development';
   const accessTokenSecret = env.ACCESS_TOKEN_SECRET ?? env.JWT_SECRET;
+  const routingEnabled = parseBoolean(env.ROUTING_ENABLED, 'ROUTING_ENABLED', true);
+  const routingProvider = (env.ROUTING_PROVIDER ?? 'osrm').toLowerCase();
   const docsEnabled = parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production');
   const docsAllowInProduction = parseBoolean(
     env.DOCS_ALLOW_IN_PRODUCTION,
@@ -193,6 +195,18 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     throw new Error('QR_ORDERING_APP_URL must be a valid URL');
   }
 
+  if (!['osrm'].includes(routingProvider)) {
+    throw new Error('ROUTING_PROVIDER must currently be "osrm"');
+  }
+
+  if (routingEnabled && env.ROUTING_BASE_URL && !isValidUrl(env.ROUTING_BASE_URL)) {
+    throw new Error('ROUTING_BASE_URL must be a valid URL');
+  }
+
+  if (nodeEnv === 'production' && routingEnabled && !env.ROUTING_BASE_URL) {
+    throw new Error('ROUTING_BASE_URL is required in production when ROUTING_ENABLED=true');
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -264,5 +278,10 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY,
     QR_FRONTEND_URL: env.QR_FRONTEND_URL,
     QR_ORDERING_APP_URL: env.QR_ORDERING_APP_URL,
+    ROUTING_ENABLED: routingEnabled,
+    ROUTING_PROVIDER: routingProvider,
+    ROUTING_BASE_URL: env.ROUTING_BASE_URL ?? 'https://router.project-osrm.org',
+    ROUTING_TIMEOUT_MS: parsePositiveInt(env.ROUTING_TIMEOUT_MS, 'ROUTING_TIMEOUT_MS', 5000),
+    ROUTING_OSRM_PROFILE: env.ROUTING_OSRM_PROFILE ?? 'driving',
   };
 }

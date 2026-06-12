@@ -31,6 +31,9 @@ export function CartPage() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const menuPath = restaurantId && tableId ? `/menu/${restaurantId}/${tableId}` : '/menu/1/1';
+  const gstRate = restaurant?.gstEnabled ? Number(restaurant.gstRate ?? 0) : 0;
+  const estimatedTaxAmount = Number(((subtotal * gstRate) / 100).toFixed(2));
+  const estimatedFinalAmount = Number((subtotal + estimatedTaxAmount).toFixed(2));
 
   const handlePlaceOrder = async () => {
     if (!restaurantId || !tableId) {
@@ -104,18 +107,24 @@ export function CartPage() {
             </div>
             <div className="qr-cart-totals">
               <div>
-                <span>Subtotal</span>
+                <span>Item subtotal</span>
                 <strong>{formatCurrency(subtotal)}</strong>
               </div>
               <div>
-                <span>GST</span>
-                <strong>Included</strong>
+                <span>Estimated GST {gstRate > 0 ? `(${gstRate}%)` : ''}</span>
+                <strong>
+                  {gstRate > 0 ? formatCurrency(estimatedTaxAmount) : 'Included in final bill'}
+                </strong>
               </div>
               <div className="is-total">
-                <span>Total</span>
-                <strong>{formatCurrency(total)}</strong>
+                <span>Estimated payable</span>
+                <strong>{formatCurrency(gstRate > 0 ? estimatedFinalAmount : total)}</strong>
               </div>
             </div>
+            <p className="qr-cart-note">
+              Final dine-in bill is authoritative after order creation. No delivery fee or address
+              checks apply to QR table orders.
+            </p>
             <label className="qr-notes">
               <span>Notes for Restaurant</span>
               <textarea placeholder="Less spicy, no onion, extra cutlery..." />

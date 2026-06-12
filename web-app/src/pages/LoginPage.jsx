@@ -40,6 +40,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const from = location.state?.from;
   const returnPath = from ? `${from.pathname || '/'}${from.search || ''}` : '/';
+  const isAccountLocked = typeof error === "string" && error.includes("Account locked");
 
   if (token) {
     return <Navigate to={returnPath} replace />;
@@ -156,7 +157,17 @@ export function LoginPage() {
               Forgot password?
             </Link>
           </div>
-          {error ? <div className="form-error">{error}</div> : null}
+          {error ? (
+            <div className="form-error">
+              <div>{error}</div>
+              {isAccountLocked ? (
+                <div className="auth-inline-help">
+                  If this was not you, wait for unlock or use{" "}
+                  <Link to="/forgot-password">Forgot password</Link>.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <button type="submit" disabled={loading}>
             {loading ? 'Signing in...' : 'Login'}
           </button>
