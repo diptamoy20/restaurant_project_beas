@@ -93,7 +93,7 @@ export class RestaurantsService {
     restaurantId: number,
     data: CreateRestaurantTableDto,
   ): Promise<RestaurantTableResponseDto> {
-    const tableNumber = data.tableNumber.trim();
+    const tableNumber = data.tableNumber?.trim();
     const logContext = { restaurantId, tableNumber };
 
     try {
