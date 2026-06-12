@@ -157,6 +157,8 @@ model RestaurantTable {
   status       String?
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   orders       Order[]
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   @@map("restaurant_tables")
 }
