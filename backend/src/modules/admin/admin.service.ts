@@ -79,21 +79,21 @@ export class AdminService {
   ) {}
 
   async getDashboard(): Promise<DashboardResponseDto> {
-    const [totalOrders, totalUsers, totalRestaurants, payments] = await Promise.all([
+    const [totalOrders, totalUsers, totalRestaurants, paymentSummary] = await Promise.all([
       this.prisma.order.count(),
       this.prisma.user.count(),
       this.prisma.restaurant.count(),
-      this.prisma.payment.findMany(),
+      this.prisma.payment.aggregate({
+        where: { status: 'SUCCESS' },
+        _sum: { amount: true },
+      }),
     ]);
 
     return {
       totalOrders,
       totalUsers,
       totalRestaurants,
-      totalRevenue: payments.reduce(
-        (sum: number, payment: { amount: number }) => sum + payment.amount,
-        0,
-      ),
+      totalRevenue: this.roundMoney(paymentSummary._sum.amount ?? 0),
     };
   }
 
@@ -180,9 +180,7 @@ export class AdminService {
       }),
     ]);
 
-    const revenueOrders = orders.filter(
-      (order) => !REVENUE_EXCLUDED_STATUSES.includes(order.status),
-    );
+    const revenueOrders = orders.filter((order) => this.isRevenueOrder(order));
     const revenue = this.roundMoney(
       revenueOrders.reduce((sum, order) => sum + order.finalAmount, 0),
     );
@@ -195,7 +193,8 @@ export class AdminService {
       kpis: {
         revenue,
         orders: totalOrders,
-        averageOrderValue: totalOrders > 0 ? this.roundMoney(revenue / totalOrders) : 0,
+        averageOrderValue:
+          revenueOrders.length > 0 ? this.roundMoney(revenue / revenueOrders.length) : 0,
         pendingOrders,
         completedOrders,
         cancelledOrders,
@@ -397,9 +396,7 @@ export class AdminService {
     return restaurants
       .map((restaurant) => {
         const restaurantOrders = orders.filter((order) => order.restaurantId === restaurant.id);
-        const revenueOrders = restaurantOrders.filter(
-          (order) => !REVENUE_EXCLUDED_STATUSES.includes(order.status),
-        );
+        const revenueOrders = restaurantOrders.filter((order) => this.isRevenueOrder(order));
         const revenue = revenueOrders.reduce((sum, order) => sum + order.finalAmount, 0);
         const pending = restaurantOrders.filter((order) =>
           PENDING_ORDER_STATUSES.includes(order.status),
@@ -413,8 +410,9 @@ export class AdminService {
           restaurantName: restaurant.name,
           orders: restaurantOrders.length,
           revenue: this.roundMoney(revenue),
-          averageOrderValue:
-            restaurantOrders.length > 0 ? this.roundMoney(revenue / restaurantOrders.length) : 0,
+          averageOrderValue: revenueOrders.length
+            ? this.roundMoney(revenue / revenueOrders.length)
+            : 0,
           pending,
           cancelled,
           status: restaurant.isActive ? 'Active' : 'Inactive',
@@ -539,6 +537,10 @@ export class AdminService {
 
   private roundMoney(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private isRevenueOrder(order: Pick<DashboardOrderRecord, 'status' | 'paymentStatus'>): boolean {
+    return !REVENUE_EXCLUDED_STATUSES.includes(order.status) && order.paymentStatus === 'PAID';
   }
 
   async createStaff(payload: CreateStaffUserDto): Promise<StaffUserDto> {
@@ -703,25 +705,36 @@ export class AdminService {
       });
 
       if (nextRole === Role.DELIVERY_BOY) {
-        await transaction.deliveryAgent.upsert({
-          where: { userId: id },
-          update: {
-            name: name ?? email ?? phone!,
-            phone: phone!,
-            ...this.normalizeDeliveryAgentProfileForUpdate(payload.deliveryAgent),
-          },
-          create: {
-            userId: id,
-            name: name ?? email ?? phone!,
-            phone: phone!,
-            ...this.normalizeDeliveryAgentProfileForCreate(payload.deliveryAgent),
-          },
-        });
-      } else if (updatedUser.deliveryAgent) {
-        await transaction.deliveryAgent.update({
-          where: { id: updatedUser.deliveryAgent.id },
-          data: { userId: null },
-        });
+        const existingDeliveryAgent =
+          updatedUser.deliveryAgent ??
+          (await transaction.deliveryAgent.findFirst({
+            where: {
+              userId: null,
+              phone: phone!,
+            },
+            orderBy: { id: 'desc' },
+          }));
+
+        if (existingDeliveryAgent) {
+          await transaction.deliveryAgent.update({
+            where: { id: existingDeliveryAgent.id },
+            data: {
+              userId: id,
+              name: name ?? email ?? phone!,
+              phone: phone!,
+              ...this.normalizeDeliveryAgentProfileForUpdate(payload.deliveryAgent),
+            },
+          });
+        } else {
+          await transaction.deliveryAgent.create({
+            data: {
+              userId: id,
+              name: name ?? email ?? phone!,
+              phone: phone!,
+              ...this.normalizeDeliveryAgentProfileForCreate(payload.deliveryAgent),
+            },
+          });
+        }
       }
 
       const refreshed = await transaction.user.findUnique({
@@ -874,7 +887,7 @@ export class AdminService {
 
     this.assertCanMutateStaffUser(user, requester);
     await this.assertCanDeactivateStaffUser(user);
-    await this.assertCanHardDeleteStaffUser(id);
+    await this.assertCanHardDeleteStaffUser(user);
 
     await this.prisma.$transaction(async (transaction) => {
       await transaction.deliveryAgent.deleteMany({ where: { userId: id } });
@@ -902,23 +915,24 @@ export class AdminService {
       isActive: user.isActive,
       role,
       permissions: permissions ?? this.readPermissions(user.permissions, role),
-      deliveryAgent: user.deliveryAgent
-        ? {
-            id: user.deliveryAgent.id,
-            name: user.deliveryAgent.name,
-            phone: user.deliveryAgent.phone,
-            isAvailable: user.deliveryAgent.isAvailable,
-            isVerified: user.deliveryAgent.isVerified,
-            address: user.deliveryAgent.address,
-            dateOfBirth: this.formatDateOnly(user.deliveryAgent.dateOfBirth),
-            gender: user.deliveryAgent.gender,
-            emergencyContact: user.deliveryAgent.emergencyContact,
-            vehicleType: user.deliveryAgent.vehicleType,
-            vehicleNumber: user.deliveryAgent.vehicleNumber,
-            vehicleBrand: user.deliveryAgent.vehicleBrand,
-            vehicleColor: user.deliveryAgent.vehicleColor,
-          }
-        : null,
+      deliveryAgent:
+        role === Role.DELIVERY_BOY && user.deliveryAgent
+          ? {
+              id: user.deliveryAgent.id,
+              name: user.deliveryAgent.name,
+              phone: user.deliveryAgent.phone,
+              isAvailable: user.deliveryAgent.isAvailable,
+              isVerified: user.deliveryAgent.isVerified,
+              address: user.deliveryAgent.address,
+              dateOfBirth: this.formatDateOnly(user.deliveryAgent.dateOfBirth),
+              gender: user.deliveryAgent.gender,
+              emergencyContact: user.deliveryAgent.emergencyContact,
+              vehicleType: user.deliveryAgent.vehicleType,
+              vehicleNumber: user.deliveryAgent.vehicleNumber,
+              vehicleBrand: user.deliveryAgent.vehicleBrand,
+              vehicleColor: user.deliveryAgent.vehicleColor,
+            }
+          : null,
     };
   }
 
@@ -1068,7 +1082,16 @@ export class AdminService {
     }
   }
 
-  private async assertCanHardDeleteStaffUser(id: number): Promise<void> {
+  private async assertCanHardDeleteStaffUser(user: StaffUserRecord): Promise<void> {
+    const candidateAgentIds = (
+      await this.prisma.deliveryAgent.findMany({
+        where: {
+          OR: [{ userId: user.id }, ...(user.phone ? [{ userId: null, phone: user.phone }] : [])],
+        },
+        select: { id: true },
+      })
+    ).map((agent) => agent.id);
+
     const [
       orderCount,
       paymentCount,
@@ -1079,20 +1102,20 @@ export class AdminService {
       loyaltyCount,
       deliveryCount,
     ] = await Promise.all([
-      this.prisma.order.count({ where: { userId: id } }),
-      this.prisma.payment.count({ where: { userId: id } }),
-      this.prisma.couponUsage.count({ where: { userId: id } }),
-      this.prisma.userAddress.count({ where: { userId: id } }),
-      this.prisma.cartItem.count({ where: { userId: id } }),
-      this.prisma.membership.count({ where: { userId: id } }),
-      this.prisma.loyaltyTransaction.count({ where: { userId: id } }),
-      this.prisma.delivery.count({
-        where: {
-          agent: {
-            userId: id,
-          },
-        },
-      }),
+      this.prisma.order.count({ where: { userId: user.id } }),
+      this.prisma.payment.count({ where: { userId: user.id } }),
+      this.prisma.couponUsage.count({ where: { userId: user.id } }),
+      this.prisma.userAddress.count({ where: { userId: user.id } }),
+      this.prisma.cartItem.count({ where: { userId: user.id } }),
+      this.prisma.membership.count({ where: { userId: user.id } }),
+      this.prisma.loyaltyTransaction.count({ where: { userId: user.id } }),
+      candidateAgentIds.length
+        ? this.prisma.delivery.count({
+            where: {
+              agentId: { in: candidateAgentIds },
+            },
+          })
+        : Promise.resolve(0),
     ]);
 
     const hasOperationalHistory =

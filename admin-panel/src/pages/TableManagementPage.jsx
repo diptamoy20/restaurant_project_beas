@@ -29,6 +29,10 @@ function getAuthToken() {
   return auth?.token ?? auth?.accessToken ?? null;
 }
 
+function extractErrorMessage(error, fallback) {
+  return error?.data?.message || error?.error || fallback;
+}
+
 function buildQrDownloadFilename(table) {
   const normalized = table.tableNumber?.replace(/[^a-zA-Z0-9-_]/g, '-') || String(table.id);
   return `table-${normalized}.svg`;
@@ -160,7 +164,7 @@ export function TableManagementPage() {
 
       closeModal();
     } catch (error) {
-      setFeedbackMessage('Failed to save table. Please try again.');
+      setFeedbackMessage(extractErrorMessage(error, 'Failed to save table. Please try again.'));
     }
   };
 
@@ -176,7 +180,7 @@ export function TableManagementPage() {
       }).unwrap();
       setFeedbackMessage('Table deleted successfully.');
     } catch (error) {
-      setFeedbackMessage('Failed to delete table. Please try again.');
+      setFeedbackMessage(extractErrorMessage(error, 'Failed to delete table. Please try again.'));
     }
   };
 

@@ -1,6 +1,10 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+import { createPrismaClientOptions } from '../src/prisma/prisma-client-options';
+
+const { pool, options } = createPrismaClientOptions();
+const prisma = new PrismaClient(options);
 
 function getTargetQrFrontendUrl(): string {
   const url = process.env.QR_FRONTEND_URL || process.env.QR_ORDERING_APP_URL || 'http://localhost:5175';
@@ -70,4 +74,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

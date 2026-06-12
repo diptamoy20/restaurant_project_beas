@@ -384,7 +384,6 @@ The `.github/workflows/deploy.yml` workflow:
    - `WEB_PM2_APP_NAME` - `restaurant-web-app`
    - `ADMIN_PM2_APP_NAME` - `restaurant-admin-panel`
    - `QR_PM2_APP_NAME` - `restaurant-qr-ordering`
-   - `PUBLIC_API_BASE_URL` - public backend API URL, for example `https://dev.beas.in/api`
    - `WEB_APP_PORT` - web app PM2 static server port, default `7002`
    - `ADMIN_PANEL_PORT` - admin panel PM2 static server port, default `7003`
    - `QR_ORDERING_PORT` - QR ordering PM2 static server port, default `7004`
@@ -392,6 +391,8 @@ The `.github/workflows/deploy.yml` workflow:
 3. On your server, ensure:
    - Repo already cloned at deploy root
    - Production env stored at `/var/www/dev.beas.in/public_html/restaurant_project_beas/shared/backend.env`
+   - `QR_FRONTEND_URL` points to public QR ordering site URL, not localhost
+   - `npm run prisma:migrate:deploy` has been run against production database
    - SSH key authentication configured
    - `node`, `npm`, `pm2`, `curl` available for deploy user
 
