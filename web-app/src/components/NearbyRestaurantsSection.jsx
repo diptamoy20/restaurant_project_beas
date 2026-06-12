@@ -7,6 +7,12 @@ const formatRupees = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2,
 });
 
+function getEstimatedDeliveryLabel(restaurant) {
+  return Number(restaurant.deliveryFee ?? 0) === 0
+    ? "Est. delivery: Free"
+    : `Est. delivery from ${formatRupees.format(restaurant.deliveryFee)}`;
+}
+
 export function NearbyRestaurantsSection({
   location,
   restaurants,
@@ -101,11 +107,14 @@ export function NearbyRestaurantsSection({
                   </span>
 
                   <span>
-                    {Number(restaurant.deliveryFee ?? 0) === 0
-                      ? "Free Delivery"
-                      : formatRupees.format(restaurant.deliveryFee)}
+                    {getEstimatedDeliveryLabel(restaurant)}
                   </span>
                 </div>
+
+                <p className="restaurant-card-note">
+                  Final delivery fee, GST, packaging, coupons, and minimum order are confirmed at
+                  checkout for selected address and cart value.
+                </p>
 
                 <div className="restaurant-card-footer">
                   <span className="available-items">

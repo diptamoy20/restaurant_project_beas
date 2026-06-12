@@ -525,6 +525,51 @@ export class DeliveryBoyDeliveryDto {
   @IsNumber()
   distanceKm!: number | null;
 
+  @ApiPropertyOptional({
+    example: 'CUSTOMER',
+    nullable: true,
+    description: 'The next navigation stop for the delivery rider.',
+  })
+  @IsOptional()
+  @IsString()
+  nextStop!: string | null;
+
+  @ApiPropertyOptional({
+    example: 2.8,
+    nullable: true,
+    description: 'Road-route distance from latest rider location to next stop, when available.',
+  })
+  @IsOptional()
+  @IsNumber()
+  routeDistanceKm!: number | null;
+
+  @ApiPropertyOptional({
+    example: 9.5,
+    nullable: true,
+    description: 'Road-route duration in minutes from latest rider location to next stop.',
+  })
+  @IsOptional()
+  @IsNumber()
+  routeDurationMinutes!: number | null;
+
+  @ApiPropertyOptional({
+    example: 2.5,
+    nullable: true,
+    description: 'Straight-line fallback distance when a routed value is unavailable.',
+  })
+  @IsOptional()
+  @IsNumber()
+  airDistanceKm!: number | null;
+
+  @ApiPropertyOptional({
+    example: 'ROUTE',
+    nullable: true,
+    description: 'Indicates whether the displayed distance came from road routing or a fallback.',
+  })
+  @IsOptional()
+  @IsString()
+  distanceSource!: string | null;
+
   @ApiPropertyOptional({ type: () => DeliveryTrackingLogDto, nullable: true })
   @IsOptional()
   @ValidateNested()

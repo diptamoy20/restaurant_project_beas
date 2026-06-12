@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import { AddressValidationResponseDto, DeliveryQuoteDto } from './dto/location-response.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
-import { calculateDeliveryFee } from '../../common/utils/delivery-fee.util';
+import { calculateDeliveryFee, DeliveryFeeBreakdown } from '../../common/utils/delivery-fee.util';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const GEO_CACHE_TTL_SECONDS = 300;
@@ -27,6 +27,9 @@ type NearbyRestaurantRow = {
   packagingCharge: number;
   isLocationEnabled: boolean;
   distanceKm: number;
+  zoneContains: boolean;
+  hasDeliveryZones: boolean;
+  zoneDeliveryFee: number | null;
   deliveryAvailable: boolean;
   deliveryFee: number;
   minimumOrderAmount: number | null;
@@ -48,6 +51,9 @@ type RestaurantDeliveryRow = {
   deliveryFeeCap: number | null;
   freeDeliveryMinAmount: number | null;
   packagingCharge: number;
+  zoneContains: boolean;
+  hasDeliveryZones: boolean;
+  zoneDeliveryFee: number | null;
   deliveryUnavailableReason: string | null;
   deliveryFeeBreakdown: Record<string, unknown>;
   minimumOrderAmount: number | null;
@@ -63,6 +69,9 @@ type RestaurantDeliveryQuoteRow = Omit<
   | 'deliveryPerKmFee'
   | 'deliveryFeeMin'
   | 'deliveryFeeCap'
+  | 'zoneContains'
+  | 'hasDeliveryZones'
+  | 'zoneDeliveryFee'
 >;
 
 type RestaurantExistsRow = {
@@ -90,6 +99,11 @@ export type NearbyRestaurantWithGeo = NearbyRestaurantRow & {
     isAvailable: boolean;
     preparationTime: number | null;
   }[];
+};
+
+type DeliveryQuoteComputationOptions = {
+  subtotalAmount?: number;
+  enforceMinimumOrderAmount?: boolean;
 };
 
 @Injectable()
@@ -201,6 +215,9 @@ export class LocationService {
         "packagingCharge",
         "isLocationEnabled",
         "distanceKm",
+        "zoneContains",
+        "hasDeliveryZones",
+        COALESCE("zoneDeliveryFee", 0)::float AS "zoneDeliveryFee",
         CASE
           WHEN "deliveryEnabled" = false THEN false
           WHEN "hasDeliveryZones" THEN "zoneContains"
@@ -235,13 +252,16 @@ export class LocationService {
         : [[], []];
 
     const result = rows.map((row) => {
-      const delivery = calculateDeliveryFee(row, row.distanceKm, 0);
+      const delivery = this.computeDeliveryQuote(row, {
+        subtotalAmount: 0,
+        enforceMinimumOrderAmount: false,
+      });
 
       return {
         ...row,
         deliveryAvailable: delivery.isDeliveryAvailable,
         deliveryFee: delivery.deliveryCharge,
-        minimumOrderAmount: row.freeDeliveryMinAmount,
+        minimumOrderAmount: row.minimumOrderAmount,
         categories: categories.filter((category) => category.restaurantId === row.id),
         menuItems: menuItems.filter((menuItem) => menuItem.restaurantId === row.id),
       };
@@ -278,15 +298,20 @@ export class LocationService {
     restaurantId: number,
     lat: number,
     lng: number,
+    options: DeliveryQuoteComputationOptions = {},
   ): Promise<DeliveryQuoteDto> {
-    const cacheKey = this.buildCacheKey('delivery', lat, lng, [restaurantId]);
+    const cacheKey = this.buildCacheKey('delivery', lat, lng, [
+      restaurantId,
+      options.subtotalAmount ?? 0,
+      options.enforceMinimumOrderAmount ? 'enforce-min' : 'browse',
+    ]);
     const cached = await this.cache.get<DeliveryQuoteDto>(cacheKey);
 
     if (cached) {
       return cached;
     }
 
-    const row = await this.getRestaurantDeliveryRow(restaurantId, lat, lng);
+    const row = await this.getRestaurantDeliveryRow(restaurantId, lat, lng, options);
     const result: DeliveryQuoteDto = {
       deliveryAvailable: row.deliveryAvailable,
       distanceKm: row.distanceKm,
@@ -298,8 +323,8 @@ export class LocationService {
       estimatedDeliveryTimeMinutes: row.estimatedDeliveryTimeMinutes,
       minimumOrderAmount: row.minimumOrderAmount ?? undefined,
       reason: row.deliveryAvailable
-        ? 'Inside delivery area'
-        : 'Location is outside this restaurant delivery area',
+        ? 'Delivery fee calculated by distance'
+        : 'Delivery is unavailable for this restaurant',
     };
 
     await this.cache.set(cacheKey, result, GEO_CACHE_TTL_SECONDS);
@@ -394,6 +419,7 @@ export class LocationService {
     restaurantId: number,
     lat: number,
     lng: number,
+    options: DeliveryQuoteComputationOptions = {},
   ): Promise<RestaurantDeliveryQuoteRow> {
     const point = Prisma.sql`public.ST_SetSRID(public.ST_MakePoint(${lng}, ${lat}), 4326)`;
     const rows = await this.prisma.$queryRaw<RestaurantDeliveryRow[]>(Prisma.sql`
@@ -465,6 +491,9 @@ export class LocationService {
         "deliveryFeeCap",
         "freeDeliveryMinAmount",
         "packagingCharge",
+        "zoneContains",
+        "hasDeliveryZones",
+        COALESCE("zoneDeliveryFee", 0)::float AS "zoneDeliveryFee",
         COALESCE("zoneDeliveryFee", 0)::float AS "deliveryFee",
         "minimumOrderAmount",
         (20 + CEIL("distanceKm" * 3))::int AS "estimatedDeliveryTimeMinutes"
@@ -477,7 +506,7 @@ export class LocationService {
     }
 
     const row = rows[0];
-    const delivery = calculateDeliveryFee(row, row.distanceKm, 0);
+    const delivery = this.computeDeliveryQuote(row, options);
 
     return {
       restaurantId: row.restaurantId,
@@ -491,6 +520,62 @@ export class LocationService {
       minimumOrderAmount: row.minimumOrderAmount,
       estimatedDeliveryTimeMinutes: row.estimatedDeliveryTimeMinutes,
     };
+  }
+
+  private computeDeliveryQuote(
+    row: Pick<
+      RestaurantDeliveryRow | NearbyRestaurantRow,
+      | 'deliveryEnabled'
+      | 'deliveryRadiusKm'
+      | 'deliveryBaseFee'
+      | 'deliveryBaseDistanceKm'
+      | 'deliveryPerKmFee'
+      | 'deliveryFeeMin'
+      | 'deliveryFeeCap'
+      | 'freeDeliveryMinAmount'
+      | 'packagingCharge'
+      | 'distanceKm'
+      | 'zoneContains'
+      | 'hasDeliveryZones'
+      | 'zoneDeliveryFee'
+      | 'minimumOrderAmount'
+    >,
+    options: DeliveryQuoteComputationOptions,
+  ): {
+    isDeliveryAvailable: boolean;
+    deliveryCharge: number;
+    packagingCharge: number;
+    deliveryDistanceKm: number | null;
+    deliveryUnavailableReason: string | null;
+    deliveryFeeBreakdown: DeliveryFeeBreakdown;
+  } {
+    const subtotalAmount = options.subtotalAmount ?? 0;
+    const baseQuote = calculateDeliveryFee(row, row.distanceKm, subtotalAmount);
+
+    if (!baseQuote.isDeliveryAvailable) {
+      return baseQuote;
+    }
+
+    if (
+      options.enforceMinimumOrderAmount &&
+      row.minimumOrderAmount &&
+      subtotalAmount < row.minimumOrderAmount
+    ) {
+      return {
+        isDeliveryAvailable: false,
+        deliveryCharge: 0,
+        packagingCharge: 0,
+        deliveryDistanceKm: row.distanceKm,
+        deliveryUnavailableReason: `Minimum order amount is Rs. ${row.minimumOrderAmount}`,
+        deliveryFeeBreakdown: {
+          ...baseQuote.deliveryFeeBreakdown,
+          deliveryCharge: 0,
+          packagingCharge: 0,
+        },
+      };
+    }
+
+    return baseQuote;
   }
 
   private buildCacheKey(

@@ -100,6 +100,8 @@ export class QrService {
         description: restaurant.description || undefined,
         tableId: table.id,
         tableName: table.tableNumber, // Use tableNumber instead of name
+        gstRate: restaurant.gstEnabled ? restaurant.gstRate : 0,
+        gstEnabled: restaurant.gstEnabled,
       },
       categories: mappedCategories,
     };
@@ -188,6 +190,8 @@ export class QrService {
       name: string;
       description: string | null;
       isActive: boolean;
+      gstEnabled: boolean;
+      gstRate: number;
     };
     table: {
       id: number;
@@ -203,6 +207,8 @@ export class QrService {
         name: true,
         description: true,
         isActive: true,
+        gstEnabled: true,
+        gstRate: true,
       },
     });
 

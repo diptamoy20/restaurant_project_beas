@@ -4,7 +4,7 @@ import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx"
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
 import { distanceKm } from "../lib/restaurantSelection";
-import { persistRestaurantId } from "../lib/tableSession";
+import { persistRestaurantId, resolveTableId } from "../lib/tableSession";
 import { searchRestaurants } from "../services/locationApi";
 
 export function NavbarRestaurantSearch() {
@@ -152,18 +152,19 @@ export function NavbarRestaurantSearch() {
                   onClick={() => {
                     setSelectedRestaurantId(restaurant.id);
                     persistRestaurantId(restaurant.id);
-
-                    if (location.pathname === "/menu") {
-                      const params = new URLSearchParams(location.search);
-                      params.set("restaurantId", String(restaurant.id));
-                      navigate(
-                        {
-                          pathname: "/menu",
-                          search: params.toString(),
-                        },
-                        { replace: true },
-                      );
+                    const params = new URLSearchParams();
+                    const tableId = resolveTableId(location.search);
+                    if (tableId) {
+                      params.set("table", String(tableId));
                     }
+                    params.set("restaurantId", String(restaurant.id));
+                    navigate(
+                      {
+                        pathname: "/menu",
+                        search: params.toString(),
+                      },
+                      { replace: location.pathname === "/menu" },
+                    );
 
                     setOpen(false);
                     setQuery("");

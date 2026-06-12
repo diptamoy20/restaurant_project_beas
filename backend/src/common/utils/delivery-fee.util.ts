@@ -93,26 +93,17 @@ export function calculateDeliveryFee(
     };
   }
 
-  if (distanceKm > config.deliveryRadiusKm) {
-    return {
-      isDeliveryAvailable: false,
-      deliveryCharge: 0,
-      packagingCharge: 0,
-      deliveryDistanceKm: distanceKm,
-      deliveryUnavailableReason: 'Outside delivery range',
-      deliveryFeeBreakdown: breakdownBase,
-    };
-  }
-
   const freeDeliveryApplied =
     config.freeDeliveryMinAmount !== null &&
     config.freeDeliveryMinAmount !== undefined &&
     subtotalAmount >= config.freeDeliveryMinAmount;
   const extraDistanceKm = Math.max(0, distanceKm - config.deliveryBaseDistanceKm);
-  const extraUnits = Math.ceil(extraDistanceKm);
+  const extraUnits = roundMoney(extraDistanceKm);
   let deliveryCharge = freeDeliveryApplied
     ? 0
-    : config.deliveryBaseFee + extraUnits * config.deliveryPerKmFee;
+    : extraDistanceKm <= 0
+      ? 0
+      : config.deliveryBaseFee + extraDistanceKm * config.deliveryPerKmFee;
 
   if (
     !freeDeliveryApplied &&
