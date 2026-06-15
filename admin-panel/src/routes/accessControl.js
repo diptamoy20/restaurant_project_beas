@@ -10,6 +10,7 @@ export const routeDefinitions = [
   { path: '/coupons', label: 'Coupons', module: 'coupons' },
   { path: '/customers', label: 'Customers', module: 'customers' },
   { path: '/payments', label: 'Payments', module: 'payments' },
+  { path: '/tables', label: 'Table Management', module: 'tables' },
   { path: '/staff', label: 'Staff', module: 'staff' },
 ];
 

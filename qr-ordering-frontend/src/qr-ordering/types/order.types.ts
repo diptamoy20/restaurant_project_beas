@@ -11,6 +11,7 @@ export interface QRCreateOrderItem {
 export interface QRCreateOrderPayload {
   restaurantId: number;
   tableId: number;
+  sessionId?: number;
   items: QRCreateOrderItem[];
   paymentMethod?: 'COD' | 'RAZORPAY';
 }

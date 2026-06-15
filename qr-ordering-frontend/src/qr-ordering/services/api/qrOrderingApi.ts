@@ -15,6 +15,24 @@ function unwrapData<T>(response: { data: T | { data?: T } }): T {
   return response.data as T;
 }
 
+export interface TableResolutionResponse {
+  restaurantId: number;
+  restaurantName: string;
+  restaurantDescription?: string | null;
+  tableId: number;
+  tableNumber: string;
+  sessionId: number;
+  sessionToken: string;
+}
+
+export async function resolveTableToken(token: string): Promise<TableResolutionResponse> {
+  const response = await axiosInstance.get<TableResolutionResponse | { data: TableResolutionResponse }>(
+    `/table/${token}`,
+  );
+
+  return unwrapData<TableResolutionResponse>(response);
+}
+
 export async function getQRMenu(restaurantId: number, tableId: number): Promise<QRMenuResponse> {
   const response = await axiosInstance.get<QRMenuResponse | { data: QRMenuResponse }>(
     `/qr/menu/${restaurantId}/${tableId}`,

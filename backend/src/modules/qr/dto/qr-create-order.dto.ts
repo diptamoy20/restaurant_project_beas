@@ -92,6 +92,17 @@ export class QRCreateOrderDto {
   @Min(1)
   tableId!: number;
 
+  @ApiPropertyOptional({
+    example: 1,
+    minimum: 1,
+    description: 'Active dine-in session ID',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sessionId?: number;
+
   @ApiProperty({
     type: () => QRCreateOrderItemDto,
     isArray: true,

@@ -834,14 +834,14 @@ export function RestaurantsPage() {
             value={form.description}
           />
 
-          <TextField
+          {/* <TextField
             label="Image URL"
             name="imageUrl"
             onChange={handleInputChange}
             placeholder="https://example.com/restaurant-image.jpg"
             type="url"
             value={form.imageUrl}
-          />
+          /> */}
 
           <label className="block text-sm font-medium text-slate-700">
             <span className="mb-2 block">Upload Image</span>
@@ -949,7 +949,7 @@ export function RestaurantsPage() {
                 value={form.packagingCharge}
               />
 
-              <TextField
+              {/* <TextField
                 error={errors.deliveryFeeMin}
                 label="Min delivery fee (₹)"
                 min="0"
@@ -959,9 +959,9 @@ export function RestaurantsPage() {
                 step="0.01"
                 type="number"
                 value={form.deliveryFeeMin}
-              />
+              /> */}
 
-              <TextField
+              {/* <TextField
                 error={errors.deliveryFeeCap}
                 label="Max delivery fee (₹)"
                 min="0"
@@ -971,7 +971,7 @@ export function RestaurantsPage() {
                 step="0.01"
                 type="number"
                 value={form.deliveryFeeCap}
-              />
+              /> */}
             </div>
 
             <div className="mt-4">

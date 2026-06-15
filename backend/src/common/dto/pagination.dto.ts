@@ -1,15 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  DEFAULT_PAGINATION_LIMIT,
+  DEFAULT_PAGINATION_MAX_LIMIT,
+  DEFAULT_PAGINATION_OFFSET,
+} from '../constants/pagination';
 
 export class PaginationQueryDto {
-  @ApiPropertyOptional({ example: 20, default: 20, minimum: 1, maximum: 50 })
+  @ApiPropertyOptional({
+    example: DEFAULT_PAGINATION_LIMIT,
+    default: DEFAULT_PAGINATION_LIMIT,
+    minimum: 1,
+    maximum: DEFAULT_PAGINATION_MAX_LIMIT,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(50)
-  limit?: number = 20;
+  @Max(DEFAULT_PAGINATION_MAX_LIMIT)
+  limit?: number = DEFAULT_PAGINATION_LIMIT;
 
   @ApiPropertyOptional({ example: 0, default: 0, minimum: 0 })
   @Type(() => Number)
@@ -54,9 +64,15 @@ export function normalizePagination(
   query?: { offset?: number; limit?: number },
   defaults: { offset?: number; limit?: number; maxLimit?: number } = {},
 ): NormalizedPagination {
-  const offset = Math.max(0, Math.trunc(query?.offset ?? defaults.offset ?? 0));
-  const maxLimit = defaults.maxLimit ?? 50;
-  const limit = Math.min(maxLimit, Math.max(1, Math.trunc(query?.limit ?? defaults.limit ?? 20)));
+  const offset = Math.max(
+    0,
+    Math.trunc(query?.offset ?? defaults.offset ?? DEFAULT_PAGINATION_OFFSET),
+  );
+  const maxLimit = defaults.maxLimit ?? DEFAULT_PAGINATION_MAX_LIMIT;
+  const limit = Math.min(
+    maxLimit,
+    Math.max(1, Math.trunc(query?.limit ?? defaults.limit ?? DEFAULT_PAGINATION_LIMIT)),
+  );
 
   return {
     limit,

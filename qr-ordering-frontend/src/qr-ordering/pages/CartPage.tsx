@@ -21,6 +21,7 @@ export function CartPage() {
     restaurantId,
     tableId,
     tableLabel,
+    sessionId,
     subtotal,
     total,
     clearCart,
@@ -44,6 +45,7 @@ export function CartPage() {
     const payload: QRCreateOrderPayload = {
       restaurantId,
       tableId,
+      sessionId,
       paymentMethod: 'COD',
       items: items.map((item) => ({
         menuItemId: item.menuItemId,

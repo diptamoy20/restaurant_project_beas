@@ -16,6 +16,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { StaffPage } from './pages/StaffPage';
+import { TablesPage } from './pages/TablesPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { hasBackendRole } from './utils/auth';
 
@@ -68,6 +69,10 @@ export default function App() {
 
           <Route element={<ProtectedRoute module="payments" />}>
             <Route element={<PaymentsPage />} path="/payments" />
+          </Route>
+
+          <Route element={<ProtectedRoute module="tables" />}>
+            <Route element={<TablesPage />} path="/tables" />
           </Route>
 
           <Route element={<ProtectedRoute module="staff" />}>

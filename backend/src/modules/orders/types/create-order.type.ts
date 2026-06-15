@@ -20,6 +20,8 @@ export type CreateOrderType = {
 
   tableId?: number;
 
+  sessionId?: number;
+
   addressId?: number;
 
   source: OrderSource;

@@ -15,6 +15,7 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
     customers: ['view'],
     payments: ['view', 'filter'],
     staff: ['view', 'create', 'edit', 'delete', 'assign'],
+    tables: ['view', 'create', 'edit', 'delete', 'generate_qr'],
   },
   [Role.MANAGER]: {
     dashboard: ['view'],
@@ -25,6 +26,7 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
     customers: ['view'],
     payments: ['view', 'filter'],
     staff: [],
+    tables: ['view', 'create', 'edit', 'generate_qr'],
   },
   [Role.DELIVERY_BOY]: {
     dashboard: ['view'],
@@ -35,6 +37,7 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
     customers: [],
     payments: [],
     staff: [],
+    tables: [],
   },
 };
 
