@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { randomBytes } from 'crypto';
+
 import { OrderSource, PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
 
@@ -51,11 +53,21 @@ async function ensureUser(params: {
   return { id: user.id };
 }
 
+function buildTableToken(): string {
+  return `tbl_${randomBytes(24).toString('base64url')}`;
+}
+
+function buildTableQrUrl(tableToken: string): string {
+  const baseUrl = (process.env.QR_ORDERING_BASE_URL ?? 'http://localhost:5175').replace(/\/$/, '');
+  return `${baseUrl}/table/${tableToken}`;
+}
+
 async function ensureRestaurantTable(params: {
   restaurantId: number;
   tableNumber: string;
   qrCode: string;
   status?: string;
+  capacity?: number;
 }): Promise<{ id: number; tableNumber: string; qrCode: string | null; status: string | null }> {
   const existing = await prisma.restaurantTable.findFirst({
     where: {
@@ -64,12 +76,19 @@ async function ensureRestaurantTable(params: {
     },
   });
 
+  const tableToken = existing?.tableToken ?? buildTableToken();
+  const qrCodeUrl = buildTableQrUrl(tableToken);
+
   if (existing) {
     return prisma.restaurantTable.update({
       where: { id: existing.id },
       data: {
         qrCode: params.qrCode,
+        tableToken,
+        qrCodeUrl,
+        capacity: params.capacity ?? existing.capacity ?? 4,
         status: params.status ?? existing.status ?? 'AVAILABLE',
+        isActive: true,
       },
     });
   }
@@ -79,7 +98,11 @@ async function ensureRestaurantTable(params: {
       restaurantId: params.restaurantId,
       tableNumber: params.tableNumber,
       qrCode: params.qrCode,
+      tableToken,
+      qrCodeUrl,
+      capacity: params.capacity ?? 4,
       status: params.status ?? 'AVAILABLE',
+      isActive: true,
     },
   });
 }

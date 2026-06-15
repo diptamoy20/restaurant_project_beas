@@ -119,6 +119,7 @@ export class QrService {
       userId: undefined, // Guest order - no user
       restaurantId: orderData.restaurantId,
       tableId: orderData.tableId,
+      sessionId: orderData.sessionId,
       addressId: undefined, // No address for dine-in
       source: OrderSource.QR_DINE_IN,
       orderType: 'DINE_IN',

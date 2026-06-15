@@ -37,6 +37,7 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
     user: true;
     address: true;
     table: true;
+    session: true;
     delivery: {
       include: {
         agent: true;
@@ -60,6 +61,7 @@ const ORDER_INCLUDE = {
   user: true,
   address: true,
   table: true,
+  session: true,
   delivery: {
     include: {
       agent: true,
@@ -340,6 +342,32 @@ export class OrdersService {
         if (!table || table.restaurantId !== payload.restaurantId) {
           throw new BadRequestException('Selected table does not belong to this restaurant');
         }
+
+        if (!table.isActive) {
+          throw new BadRequestException('Selected table is not active');
+        }
+      }
+
+      if (payload.sessionId) {
+        const session = await transaction.tableSession.findUnique({
+          where: { id: payload.sessionId },
+        });
+
+        if (!session) {
+          throw new BadRequestException('Selected session was not found');
+        }
+
+        if (session.status !== 'ACTIVE') {
+          throw new BadRequestException('Selected session is no longer active');
+        }
+
+        if (session.restaurantId !== payload.restaurantId) {
+          throw new BadRequestException('Selected session does not belong to this restaurant');
+        }
+
+        if (payload.tableId && session.tableId !== payload.tableId) {
+          throw new BadRequestException('Selected session does not belong to this table');
+        }
       }
 
       if (payload.addressId) {
@@ -456,6 +484,7 @@ export class OrdersService {
         userId: payload.userId ?? null,
         restaurantId: payload.restaurantId,
         tableId: payload.tableId,
+        sessionId: payload.sessionId,
         addressId: payload.addressId,
         status: orderStatus,
         source: payload.source,
@@ -533,6 +562,7 @@ export class OrdersService {
       userId: order.userId,
       restaurantId: order.restaurantId,
       tableId: order.tableId,
+      sessionId: order.sessionId,
       addressId: order.addressId,
       orderNumber: order.orderNumber,
       status: order.status,
@@ -645,6 +675,13 @@ export class OrdersService {
             tableNumber: order.table.tableNumber,
           }
         : null,
+      session: order.session
+        ? {
+            id: order.session.id,
+            sessionToken: order.session.sessionToken,
+            status: order.session.status,
+          }
+        : null,
       delivery: order.delivery
         ? {
             id: order.delivery.id,
@@ -723,7 +760,8 @@ export class OrdersService {
     }
 
     if (query.type) {
-      and.push({ orderType: query.type });
+      const orderType = query.type === 'PICKUP' ? 'TAKEAWAY' : query.type;
+      and.push({ orderType });
     }
 
     if (query.payment) {

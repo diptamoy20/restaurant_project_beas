@@ -1,0 +1,4 @@
+export const TABLES_PAGE_DEFAULT_LIMIT = 20;
+export const TABLES_PAGE_MAX_LIMIT = 100;
+export const TABLES_SESSION_DEFAULT_LIMIT = 20;
+export const TABLES_SESSION_MAX_LIMIT = 100;

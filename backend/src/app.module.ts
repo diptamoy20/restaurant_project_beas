@@ -29,6 +29,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { QrModule } from './modules/qr/qr.module';
 import { RestaurantsModule } from './modules/restaurants/restaurants.module';
+import { TablesModule } from './modules/tables/tables.module';
 import { UserAddressesModule } from './modules/user-addresses/user-addresses.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -56,6 +57,7 @@ import { PrismaModule } from './prisma/prisma.module';
     DeliveriesModule,
     InvoicesModule,
     QrModule,
+    TablesModule,
     UserAddressesModule,
   ],
   controllers: [AppController],

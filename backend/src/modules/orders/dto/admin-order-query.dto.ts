@@ -9,10 +9,10 @@ export class AdminOrderQueryDto {
   @IsIn(['recent', 'last_1_hour', 'last_3_hours'])
   timeRange?: string;
 
-  @ApiPropertyOptional({ enum: ['DINE_IN', 'DELIVERY'] })
+  @ApiPropertyOptional({ enum: ['DINE_IN', 'DELIVERY', 'TAKEAWAY', 'PICKUP'] })
   @IsOptional()
   @IsString()
-  @IsIn(['DINE_IN', 'DELIVERY'])
+  @IsIn(['DINE_IN', 'DELIVERY', 'TAKEAWAY', 'PICKUP'])
   type?: string;
 
   @ApiPropertyOptional({ enum: ['CASH', 'UPI', 'CARD'] })

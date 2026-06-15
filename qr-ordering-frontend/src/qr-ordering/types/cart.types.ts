@@ -21,6 +21,8 @@ export interface CartSnapshot {
   restaurantId?: number;
   tableId?: number;
   tableLabel?: string;
+  sessionId?: number;
+  sessionToken?: string;
 }
 
 export interface CartContextValue extends CartSnapshot {
@@ -44,6 +46,8 @@ export interface CartContextValue extends CartSnapshot {
     restaurantId: number;
     tableId: number;
     tableLabel: string;
+    sessionId?: number;
+    sessionToken?: string;
   }) => void;
   getQuantity: (menuItemId: number, variantId?: number) => number;
 }

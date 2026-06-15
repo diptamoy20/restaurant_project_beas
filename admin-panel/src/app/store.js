@@ -12,6 +12,7 @@ import { orderApi } from '../services/orderApi';
 import { paymentApi } from '../services/paymentApi';
 import { userApi } from '../services/userApi';
 import { restaurantApi } from '../services/restaurantApi';
+import { tableApi } from '../services/tableApi';
 import { persistAuthState } from '../utils/auth';
 
 const listenerMiddleware = createListenerMiddleware();
@@ -29,6 +30,7 @@ listenerMiddleware.startListening({
     listenerApi.dispatch(paymentApi.util.resetApiState());
     listenerApi.dispatch(analyticsApi.util.resetApiState());
     listenerApi.dispatch(restaurantApi.util.resetApiState());
+    listenerApi.dispatch(tableApi.util.resetApiState());
   },
 });
 
@@ -46,6 +48,7 @@ export const store = configureStore({
     [paymentApi.reducerPath]: paymentApi.reducer,
     [analyticsApi.reducerPath]: analyticsApi.reducer,
     [restaurantApi.reducerPath]: restaurantApi.reducer,
+    [tableApi.reducerPath]: tableApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -61,6 +64,7 @@ export const store = configureStore({
         paymentApi.middleware,
         analyticsApi.middleware,
         restaurantApi.middleware,
+        tableApi.middleware,
       ),
 });
 
