@@ -19,6 +19,8 @@ export interface TableResolutionResponse {
   restaurantId: number;
   restaurantName: string;
   restaurantDescription?: string | null;
+  gstEnabled?: boolean;
+  gstRate?: number;
   tableId: number;
   tableNumber: string;
   sessionId: number;

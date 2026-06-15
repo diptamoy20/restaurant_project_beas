@@ -54,6 +54,12 @@ export class TableResolutionResponseDto {
   @ApiPropertyOptional({ example: 'Authentic Indian cuisine', nullable: true })
   restaurantDescription!: string | null;
 
+  @ApiProperty({ example: true })
+  gstEnabled!: boolean;
+
+  @ApiProperty({ example: 5 })
+  gstRate!: number;
+
   @ApiProperty({ example: 1 })
   tableId!: number;
 

@@ -7,7 +7,8 @@ const { pool, options } = createPrismaClientOptions();
 const prisma = new PrismaClient(options);
 
 function getTargetQrFrontendUrl(): string {
-  const url = process.env.QR_FRONTEND_URL || process.env.QR_ORDERING_APP_URL || 'http://localhost:5175';
+  const url =
+    process.env.QR_FRONTEND_URL || process.env.QR_ORDERING_APP_URL || 'http://localhost:5175';
   return url.replace(/\/$/, '');
 }
 
