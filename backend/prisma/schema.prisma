@@ -188,8 +188,6 @@ model TableSession {
   restaurant   Restaurant         @relation(fields: [restaurantId], references: [id])
   table        RestaurantTable    @relation(fields: [tableId], references: [id])
   orders       Order[]
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   @@index([tableId, status])
   @@index([restaurantId, status])
