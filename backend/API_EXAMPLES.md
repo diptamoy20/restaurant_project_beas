@@ -270,6 +270,7 @@ PATCH /api/deliveries/me/availability
 PATCH /api/deliveries/me/orders/:orderId/accept
 PATCH /api/deliveries/me/orders/:orderId/status
 POST /api/deliveries/me/location
+GET /api/deliveries/tracking/socket-docs
 ```
 
 ```json
@@ -292,6 +293,80 @@ POST /api/deliveries/me/location
   "speed": 22,
   "heading": 135
 }
+```
+
+### Delivery Live Tracking Socket
+
+Swagger route for this contract:
+
+```http
+GET /api/deliveries/tracking/socket-docs
+```
+
+Use this socket contract for mobile live tracking.
+
+```text
+http://YOUR_API_HOST:4001/delivery-tracking
+```
+
+Set `DELIVERY_TRACKING_SOCKET_PORT` to change the port. Send the same access token used for REST APIs.
+
+```ts
+io('http://YOUR_API_HOST:4001/delivery-tracking', {
+  transports: ['websocket'],
+  auth: {
+    token: accessToken,
+  },
+});
+```
+
+Events:
+
+```text
+tracking:connected
+track:join
+tracking:snapshot
+delivery:location
+delivery:location:updated
+tracking:error
+```
+
+Join an order room:
+
+```json
+{
+  "orderId": 1025
+}
+```
+
+Send delivery-boy GPS every 5-10 seconds:
+
+```json
+{
+  "orderId": 1025,
+  "latitude": 22.5726,
+  "longitude": 88.3639,
+  "speed": 22,
+  "heading": 135
+}
+```
+
+Mobile flow:
+
+```text
+1. Connect socket with access token.
+2. Wait for tracking:connected.
+3. Emit track:join with orderId.
+4. Delivery-boy app emits delivery:location.
+5. Customer app listens to tracking:snapshot and delivery:location:updated.
+6. Both apps listen to tracking:error.
+```
+
+Local mobile URLs:
+
+```text
+Android emulator: http://10.0.2.2:4001/delivery-tracking
+Physical device: http://YOUR_COMPUTER_LAN_IP:4001/delivery-tracking
 ```
 
 ## Other Protected APIs
@@ -322,6 +397,7 @@ PATCH /api/deliveries/me/orders/:orderId/accept
 PATCH /api/deliveries/me/orders/:orderId/status
 POST /api/deliveries/me/location
 POST /api/deliveries/location
+GET /api/deliveries/tracking/socket-docs
 GET /api/deliveries/order/:orderId/track
 GET /api/notifications/user/:userId
 GET /api/health

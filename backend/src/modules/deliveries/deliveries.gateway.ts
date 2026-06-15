@@ -1,0 +1,236 @@
+import {
+  ForbiddenException,
+  Logger,
+  UnauthorizedException,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+  WsResponse,
+} from '@nestjs/websockets';
+import { Type } from 'class-transformer';
+import { IsDefined, IsInt } from 'class-validator';
+import { config as loadEnv } from 'dotenv';
+import { Server, Socket } from 'socket.io';
+
+import { DeliveriesService } from './deliveries.service';
+import { UpdateMyDeliveryLocationDto } from './dto';
+import { Role } from '../../common/enums/role.enum';
+import { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
+
+loadEnv();
+
+const socketPort = parseSocketPort(process.env.DELIVERY_TRACKING_SOCKET_PORT);
+
+type AuthenticatedSocket = Socket & {
+  data: {
+    user?: AuthenticatedUser;
+  };
+};
+
+class JoinTrackingPayload {
+  @IsDefined()
+  @Type(() => Number)
+  @IsInt()
+  orderId!: number;
+}
+
+@WebSocketGateway(socketPort, {
+  namespace: '/delivery-tracking',
+  cors: {
+    origin: true,
+    credentials: true,
+  },
+})
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+    transformOptions: { enableImplicitConversion: true },
+  }),
+)
+export class DeliveriesGateway implements OnGatewayConnection {
+  @WebSocketServer()
+  private server!: Server;
+
+  private readonly logger = new Logger(DeliveriesGateway.name);
+
+  constructor(
+    private readonly deliveriesService: DeliveriesService,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  async handleConnection(client: AuthenticatedSocket): Promise<void> {
+    try {
+      client.data.user = await this.authenticate(client);
+      client.emit('tracking:connected', { ok: true });
+    } catch (error) {
+      client.emit('tracking:error', {
+        message: this.getErrorMessage(error),
+      });
+      client.disconnect(true);
+    }
+  }
+
+  @SubscribeMessage('track:join')
+  async joinTracking(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: JoinTrackingPayload,
+  ): Promise<WsResponse<unknown>> {
+    try {
+      const user = this.getSocketUser(client);
+      const orderId = this.parseOrderId(payload.orderId);
+      const tracking = await this.deliveriesService.getTrackingByOrder(orderId, user);
+
+      await client.join(this.orderRoom(orderId));
+
+      return {
+        event: 'tracking:snapshot',
+        data: tracking,
+      };
+    } catch (error) {
+      return this.toSocketError(error);
+    }
+  }
+
+  @SubscribeMessage('delivery:location')
+  async updateLocation(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() payload: UpdateMyDeliveryLocationDto,
+  ): Promise<WsResponse<unknown>> {
+    try {
+      const user = this.getSocketUser(client);
+
+      if (user.role !== Role.DELIVERY_BOY) {
+        throw new ForbiddenException('Only delivery boys can update live location');
+      }
+
+      const result = await this.deliveriesService.updateMyLiveLocation(user, payload);
+      const data = {
+        orderId: payload.orderId,
+        ...result,
+      };
+
+      this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
+
+      return {
+        event: 'delivery:location:updated',
+        data,
+      };
+    } catch (error) {
+      return this.toSocketError(error);
+    }
+  }
+
+  private async authenticate(client: Socket): Promise<AuthenticatedUser> {
+    const token = this.getToken(client);
+
+    if (!token) {
+      throw new UnauthorizedException('Missing socket token');
+    }
+
+    const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+
+    if (payload.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    const userId = payload.sub ?? payload.userId;
+
+    if (!Number.isInteger(userId) || userId <= 0 || !payload.role) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    return {
+      id: userId,
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+      profileImageUrl: payload.profileImageUrl ?? null,
+      role: payload.role,
+      permissions: payload.permissions,
+    };
+  }
+
+  private getToken(client: Socket): string | null {
+    const authToken = client.handshake.auth?.token;
+
+    if (typeof authToken === 'string' && authToken.trim()) {
+      return authToken.trim();
+    }
+
+    const header = client.handshake.headers.authorization;
+
+    if (typeof header === 'string' && header.startsWith('Bearer ')) {
+      return header.slice('Bearer '.length).trim();
+    }
+
+    const queryToken = client.handshake.query.token;
+
+    if (typeof queryToken === 'string' && queryToken.trim()) {
+      return queryToken.trim();
+    }
+
+    return null;
+  }
+
+  private getSocketUser(client: AuthenticatedSocket): AuthenticatedUser {
+    const user = client.data.user;
+
+    if (!user) {
+      this.logger.warn(`Unauthenticated socket event from ${client.id}`);
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    return user;
+  }
+
+  private parseOrderId(orderId: number): number {
+    const parsed = Number(orderId);
+
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new ForbiddenException('Invalid order id');
+    }
+
+    return parsed;
+  }
+
+  private orderRoom(orderId: number): string {
+    return `order:${orderId}`;
+  }
+
+  private toSocketError(error: unknown): WsResponse<{ message: string }> {
+    return {
+      event: 'tracking:error',
+      data: {
+        message: this.getErrorMessage(error),
+      },
+    };
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Delivery tracking socket error';
+  }
+}
+
+function parseSocketPort(rawPort: string | undefined): number {
+  const port = Number(rawPort ?? '4001');
+
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    return 4001;
+  }
+
+  return port;
+}
