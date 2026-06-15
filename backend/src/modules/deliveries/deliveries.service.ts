@@ -42,6 +42,11 @@ import {
   toPrismaPagination,
 } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
+import {
+  RouteDistanceResult,
+  RoutingService,
+  RouteStopType,
+} from '../../common/routing/routing.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { NotificationService } from '../notifications/notification.service';
@@ -116,6 +121,7 @@ export class DeliveriesService {
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
+    private readonly routingService: RoutingService,
   ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
@@ -657,7 +663,9 @@ export class DeliveriesService {
     };
   }
 
-  private mapOrderDetails(delivery: DeliveryDetailRecord): DeliveryBoyOrderDetailsDto {
+  private async mapOrderDetails(
+    delivery: DeliveryDetailRecord,
+  ): Promise<DeliveryBoyOrderDetailsDto> {
     const order = delivery.order;
     const itemCount = order.items.length;
     const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -665,6 +673,30 @@ export class DeliveriesService {
     const latestLocation = delivery.trackingLogs[0]
       ? this.mapTrackingLog(delivery.trackingLogs[0])
       : null;
+    const nextStop = this.resolveNextStop(delivery);
+    const routeMetrics = await this.resolveRouteMetrics(delivery, nextStop);
+    const fallbackOrderDistance =
+      order.deliveryDistanceKm ??
+      (order.address && order.restaurant
+        ? this.getDistanceKm(
+            order.restaurant.latitude,
+            order.restaurant.longitude,
+            order.address.latitude,
+            order.address.longitude,
+          )
+        : null);
+    const airDistanceKm = this.resolveAirDistanceKm(delivery, nextStop, fallbackOrderDistance);
+    const routeDistanceKm = routeMetrics?.source === 'ROUTE' ? routeMetrics.distanceKm : null;
+    const routeDurationMinutes =
+      routeMetrics?.source === 'ROUTE' ? routeMetrics.durationMinutes : null;
+    const distanceKm = routeMetrics?.distanceKm ?? airDistanceKm ?? fallbackOrderDistance;
+    const distanceSource = routeMetrics
+      ? routeMetrics.source
+      : airDistanceKm !== null
+        ? 'AIR_DISTANCE'
+        : fallbackOrderDistance !== null
+          ? 'ORDER_QUOTED_DISTANCE'
+          : null;
 
     return {
       deliveryId: delivery.id,
@@ -736,20 +768,111 @@ export class DeliveriesService {
           order.acceptedAt ?? order.createdAt,
           estimatedDeliveryMinutes,
         ),
-        distanceKm:
-          order.deliveryDistanceKm ??
-          (order.address && order.restaurant
-            ? this.getDistanceKm(
-                order.restaurant.latitude,
-                order.restaurant.longitude,
-                order.address.latitude,
-                order.address.longitude,
-              )
-            : null),
+        distanceKm,
+        nextStop: nextStop?.type ?? null,
+        routeDistanceKm,
+        routeDurationMinutes,
+        airDistanceKm,
+        distanceSource,
         latestLocation,
       },
       actions: this.getActions(delivery.status),
     };
+  }
+
+  private resolveNextStop(delivery: DeliveryDetailRecord): {
+    type: RouteStopType;
+    latitude: number;
+    longitude: number;
+  } | null {
+    if (delivery.status === DELIVERY_STATUS.ASSIGNED) {
+      return {
+        type: 'RESTAURANT',
+        latitude: delivery.order.restaurant.latitude,
+        longitude: delivery.order.restaurant.longitude,
+      };
+    }
+
+    if (delivery.status === DELIVERY_STATUS.ON_THE_WAY && delivery.order.address) {
+      return {
+        type: 'CUSTOMER',
+        latitude: delivery.order.address.latitude,
+        longitude: delivery.order.address.longitude,
+      };
+    }
+
+    return null;
+  }
+
+  private async resolveRouteMetrics(
+    delivery: DeliveryDetailRecord,
+    nextStop: {
+      type: RouteStopType;
+      latitude: number;
+      longitude: number;
+    } | null,
+  ): Promise<RouteDistanceResult | null> {
+    if (!nextStop) {
+      return null;
+    }
+
+    const latestLocation = delivery.trackingLogs[0];
+    let originLatitude = latestLocation?.latitude;
+    let originLongitude = latestLocation?.longitude;
+
+    if (!originLatitude || !originLongitude) {
+      if (delivery.status === DELIVERY_STATUS.ON_THE_WAY) {
+        originLatitude = delivery.order.restaurant.latitude;
+        originLongitude = delivery.order.restaurant.longitude;
+      } else {
+        return null;
+      }
+    }
+
+    return this.routingService.getShortestRoute(
+      {
+        latitude: originLatitude,
+        longitude: originLongitude,
+      },
+      {
+        latitude: nextStop.latitude,
+        longitude: nextStop.longitude,
+      },
+    );
+  }
+
+  private resolveAirDistanceKm(
+    delivery: DeliveryDetailRecord,
+    nextStop: {
+      type: RouteStopType;
+      latitude: number;
+      longitude: number;
+    } | null,
+    fallbackOrderDistance: number | null,
+  ): number | null {
+    if (!nextStop) {
+      return fallbackOrderDistance;
+    }
+
+    const latestLocation = delivery.trackingLogs[0];
+    let originLatitude = latestLocation?.latitude;
+    let originLongitude = latestLocation?.longitude;
+
+    if (!originLatitude || !originLongitude) {
+      if (delivery.status === DELIVERY_STATUS.ON_THE_WAY) {
+        originLatitude = delivery.order.restaurant.latitude;
+        originLongitude = delivery.order.restaurant.longitude;
+      } else {
+        return fallbackOrderDistance;
+      }
+    }
+
+    return this.getDistanceKm(
+      originLatitude,
+      originLongitude,
+      nextStop.latitude,
+      nextStop.longitude,
+    );
   }
 
   private mapTrackingLog(log: {

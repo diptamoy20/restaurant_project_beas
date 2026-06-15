@@ -335,8 +335,8 @@ export function RestaurantsPage() {
     }
 
     const deliveryFields = [
-      ["deliveryBaseFee", "Base fee"],
-      ["deliveryBaseDistanceKm", "Base distance"],
+      ["deliveryBaseFee", "Outside-range fee"],
+      ["deliveryBaseDistanceKm", "Free delivery range"],
       ["deliveryPerKmFee", "Per km fee"],
       ["packagingCharge", "Packaging charge"],
     ];
@@ -642,7 +642,7 @@ export function RestaurantsPage() {
                     <span className="text-sm text-slate-700">
                       {row.deliveryEnabled === false
                         ? "Disabled"
-                        : `₹${row.deliveryBaseFee ?? 20} + ₹${row.deliveryPerKmFee ?? 7}/km`}
+                        : `Free within ${row.deliveryBaseDistanceKm ?? 1} km, then ₹${row.deliveryBaseFee ?? 20} + ₹${row.deliveryPerKmFee ?? 7}/km`}
                     </span>
                   ),
                 },
@@ -883,7 +883,8 @@ export function RestaurantsPage() {
                 Delivery pricing
               </h3>
               <p className="text-xs text-slate-500">
-                Distance-based charges used by checkout.
+                Delivery is free within free delivery range. Beyond that, checkout charges
+                outside-range fee plus per-km fee on extra distance.
               </p>
             </div>
 
@@ -903,7 +904,7 @@ export function RestaurantsPage() {
             <div className="grid grid-cols-2 gap-4">
               <TextField
                 error={errors.deliveryBaseFee}
-                label="Base fee (₹)"
+                label="Outside-range fee (₹)"
                 min="0"
                 name="deliveryBaseFee"
                 onChange={handleInputChange}
@@ -915,7 +916,7 @@ export function RestaurantsPage() {
 
               <TextField
                 error={errors.deliveryBaseDistanceKm}
-                label="Base distance (km)"
+                label="Free delivery range (km)"
                 min="0"
                 name="deliveryBaseDistanceKm"
                 onChange={handleInputChange}
@@ -926,7 +927,7 @@ export function RestaurantsPage() {
 
               <TextField
                 error={errors.deliveryPerKmFee}
-                label="Extra fee per km (₹)"
+                label="Extra fee per km outside range (₹)"
                 min="0"
                 name="deliveryPerKmFee"
                 onChange={handleInputChange}

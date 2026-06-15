@@ -1106,7 +1106,7 @@ export class AuthService {
     }
 
     if (user.lockUntil && user.lockUntil > new Date()) {
-      throw new ForbiddenException('Account locked. Try again later.');
+      throw new ForbiddenException(this.buildAccountLockedMessage(user.lockUntil));
     }
 
     if (user.lockUntil && user.lockUntil <= new Date()) {
@@ -1148,6 +1148,22 @@ export class AuthService {
         refreshTokenExpiresAt: null,
       },
     });
+  }
+
+  private buildAccountLockedMessage(lockUntil: Date): string {
+    const remainingMs = Math.max(lockUntil.getTime() - Date.now(), 0);
+    const remainingMinutes = Math.ceil(remainingMs / 60000);
+    const unlockTime = lockUntil.toLocaleTimeString('en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    if (remainingMinutes <= 1) {
+      return `Account locked. Try again in under 1 minute (unlocks around ${unlockTime}).`;
+    }
+
+    return `Account locked. Try again in ${remainingMinutes} minute(s) (unlocks around ${unlockTime}).`;
   }
 
   private toAuthenticatedUser(user: PrismaUserWithRole): AuthenticatedUser {

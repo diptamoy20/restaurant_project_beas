@@ -19,23 +19,7 @@ export class QrService {
    * Get menu for QR ordering - validates restaurant and table, returns menu data
    */
   async getMenuForTable(restaurantId: number, tableId: number): Promise<QRMenuResponseDto> {
-    // Validate restaurant exists and is active
-    const restaurant = await this.prisma.restaurant.findUnique({
-      where: { id: restaurantId },
-    });
-
-    if (!restaurant || !restaurant.isActive) {
-      throw new NotFoundException('Restaurant not found or inactive');
-    }
-
-    // Validate table exists and belongs to the restaurant
-    const table = await this.prisma.restaurantTable.findUnique({
-      where: { id: tableId },
-    });
-
-    if (!table || table.restaurantId !== restaurantId) {
-      throw new NotFoundException('Table not found or does not belong to this restaurant');
-    }
+    const { restaurant, table } = await this.getActiveRestaurantTable(restaurantId, tableId);
 
     // Get categories with menu items for this restaurant
     const categories = await this.prisma.category.findMany({
@@ -116,6 +100,8 @@ export class QrService {
         description: restaurant.description || undefined,
         tableId: table.id,
         tableName: table.tableNumber, // Use tableNumber instead of name
+        gstRate: restaurant.gstEnabled ? restaurant.gstRate : 0,
+        gstEnabled: restaurant.gstEnabled,
       },
       categories: mappedCategories,
     };
@@ -194,5 +180,57 @@ export class QrService {
 
     // Add buffer time for order processing and serving
     return maxPrepTime + 5; // 5 minutes buffer
+  }
+
+  private async getActiveRestaurantTable(
+    restaurantId: number,
+    tableId: number,
+  ): Promise<{
+    restaurant: {
+      id: number;
+      name: string;
+      description: string | null;
+      isActive: boolean;
+      gstEnabled: boolean;
+      gstRate: number;
+    };
+    table: {
+      id: number;
+      restaurantId: number;
+      tableNumber: string;
+      status: string | null;
+    };
+  }> {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        gstEnabled: true,
+        gstRate: true,
+      },
+    });
+
+    if (!restaurant || !restaurant.isActive) {
+      throw new NotFoundException('Restaurant not found or inactive');
+    }
+
+    const table = await this.prisma.restaurantTable.findUnique({
+      where: { id: tableId },
+      select: {
+        id: true,
+        restaurantId: true,
+        tableNumber: true,
+        status: true,
+      },
+    });
+
+    if (!table || table.restaurantId !== restaurantId || table.status === 'INACTIVE') {
+      throw new NotFoundException('Table not found or does not belong to this restaurant');
+    }
+
+    return { restaurant, table };
   }
 }

@@ -23,7 +23,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:dbpush": "prisma db push",
     "prisma:studio": "prisma studio --port 5555 --browser none",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "fix:qr-frontend-urls": "ts-node ./scripts/fix-stale-qr-table-urls.ts"
   },
   "lint-staged": {
     "*.ts": [
@@ -72,8 +73,8 @@
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^6.4.16",
     "@types/passport-jwt": "^4.0.1",
-    "@types/pdfkit": "^0.17.6",
     "@types/qrcode": "^1.5.6",
+    "@types/pdfkit": "^0.17.6",
     "@typescript-eslint/eslint-plugin": "^8.30.1",
     "@typescript-eslint/parser": "^8.30.1",
     "dotenv": "^17.4.2",

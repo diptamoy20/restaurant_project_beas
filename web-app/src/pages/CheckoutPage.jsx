@@ -49,6 +49,8 @@ export function CheckoutPage() {
   );
   const tableId = resolveTableId(location.search);
   const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
+  const orderType = tableId ? "DINE_IN" : "DELIVERY";
+  const needsDeliveryAddress = orderType === "DELIVERY";
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [items],
@@ -63,23 +65,42 @@ export function CheckoutPage() {
   const buildQuotePayload = useCallback(
     (couponCode = appliedCouponCode) => ({
       restaurantId: Number(restaurantId),
-      addressId: selectedAddressId ? Number(selectedAddressId) : undefined,
-      orderType: "DELIVERY",
+      addressId:
+        needsDeliveryAddress && selectedAddressId
+          ? Number(selectedAddressId)
+          : undefined,
+      orderType,
       couponCode: couponCode || undefined,
       tipAmount,
       items: items.map((item) => ({
         menuItemId: item.menuItemId || item.id,
         variantId: item.variantId || undefined,
         quantity: item.quantity,
-        addons: item.addons,
+        addons: (item.addOns ?? item.addons ?? []).map((addon) => ({
+          addonGroupId: addon.addonGroupId,
+          addonOptionId: addon.addonOptionId,
+        })),
       })),
     }),
-    [appliedCouponCode, items, restaurantId, selectedAddressId, tipAmount],
+    [
+      appliedCouponCode,
+      items,
+      needsDeliveryAddress,
+      orderType,
+      restaurantId,
+      selectedAddressId,
+      tipAmount,
+    ],
   );
 
   const refreshQuote = useCallback(
     async (couponCode = appliedCouponCode) => {
-      if (!user || !items.length || !restaurantId || !selectedAddressId) {
+      if (
+        !user ||
+        !items.length ||
+        !restaurantId ||
+        (needsDeliveryAddress && !selectedAddressId)
+      ) {
         setQuote(null);
         return null;
       }
@@ -107,6 +128,7 @@ export function CheckoutPage() {
       buildQuotePayload,
       items.length,
       restaurantId,
+      needsDeliveryAddress,
       selectedAddressId,
       user,
     ],
@@ -275,7 +297,7 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!selectedAddressId) {
+    if (needsDeliveryAddress && !selectedAddressId) {
       setErrorMessage(
         "Please select or add a delivery address before checkout.",
       );
@@ -294,8 +316,11 @@ export function CheckoutPage() {
       userId: user.id,
       restaurantId: Number(restaurantId),
       tableId: tableId ? Number(tableId) : undefined,
-      addressId: Number(selectedAddressId),
-      orderType: "DELIVERY",
+      addressId:
+        needsDeliveryAddress && selectedAddressId
+          ? Number(selectedAddressId)
+          : undefined,
+      orderType,
       couponCode: appliedCouponCode || undefined,
       tipAmount,
       paymentMethod,
@@ -393,7 +418,7 @@ export function CheckoutPage() {
             <div className="checkout-detail-grid">
               <div>
                 <span>Order type</span>
-                <strong>{tableId ? "Dine in" : "Takeaway"}</strong>
+                <strong>{orderType === "DINE_IN" ? "Dine in" : "Delivery"}</strong>
               </div>
               <div>
                 <span>Items</span>
@@ -402,19 +427,31 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          <div className="checkout-panel">
-            <div className="checkout-panel-header">
-              <span className="checkout-step">2</span>
-              <div>
-                <h3>Delivery address</h3>
-                <p>Select a saved address or add a new one.</p>
+          {needsDeliveryAddress ? (
+            <div className="checkout-panel">
+              <div className="checkout-panel-header">
+                <span className="checkout-step">2</span>
+                <div>
+                  <h3>Delivery address</h3>
+                  <p>Select a saved address or add a new one.</p>
+                </div>
+              </div>
+              <CheckoutAddressPicker
+                selectedAddressId={selectedAddressId}
+                onSelectAddress={setSelectedAddressId}
+              />
+            </div>
+          ) : (
+            <div className="checkout-panel">
+              <div className="checkout-panel-header">
+                <span className="checkout-step">2</span>
+                <div>
+                  <h3>Table service</h3>
+                  <p>No delivery fee or address check for dine-in QR/session orders.</p>
+                </div>
               </div>
             </div>
-            <CheckoutAddressPicker
-              selectedAddressId={selectedAddressId}
-              onSelectAddress={setSelectedAddressId}
-            />
-          </div>
+          )}
 
           <div className="checkout-panel">
             <div className="checkout-panel-header">

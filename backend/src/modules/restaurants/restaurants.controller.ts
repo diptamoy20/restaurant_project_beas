@@ -14,6 +14,7 @@ import {
   HttpStatus,
   BadRequestException,
   UseInterceptors,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBody,
@@ -24,7 +25,9 @@ import {
   ApiQuery,
   ApiTags,
   ApiCreatedResponse,
+  ApiProduces,
 } from '@nestjs/swagger';
+import { Response } from 'express';
 
 import { CreateRestaurantDto, UpdateRestaurantDto } from './dto/create-update-restaurant.dto';
 import { ListRestaurantsQueryDto } from './dto/list-restaurants-query.dto';
@@ -33,6 +36,12 @@ import {
   PaginatedRestaurantResponseDto,
   RestaurantResponseDto,
 } from './dto/restaurant-response.dto';
+import {
+  CreateRestaurantTableDto,
+  RestaurantTableQrResponseDto,
+  RestaurantTableResponseDto,
+  UpdateRestaurantTableDto,
+} from './dto/restaurant-table.dto';
 import { SearchRestaurantsQueryDto } from './dto/search-restaurants-query.dto';
 import { RestaurantsService } from './restaurants.service';
 import { ImageFileInterceptor } from '../../common/cloudinary/image-file.interceptor';
@@ -216,6 +225,125 @@ export class RestaurantsController {
   @ApiStandardErrorResponses({ unauthorized: true, badRequest: true, notFound: true })
   async deleteRestaurant(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
     return this.restaurantsService.deleteRestaurant(id);
+  }
+
+  @Get(':id/tables')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'List restaurant tables' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiOkResponse({ type: RestaurantTableResponseDto, isArray: true })
+  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, notFound: true })
+  async getRestaurantTables(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<RestaurantTableResponseDto[]> {
+    return this.restaurantsService.getRestaurantTables(id);
+  }
+
+  @Post(':id/tables')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new restaurant table' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiCreatedResponse({ type: RestaurantTableResponseDto })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
+  async createRestaurantTable(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: CreateRestaurantTableDto,
+  ): Promise<RestaurantTableResponseDto> {
+    return this.restaurantsService.createRestaurantTable(id, data);
+  }
+
+  @Patch(':id/tables/:tableId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Update restaurant table details' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'tableId', type: Number, example: 2 })
+  @ApiOkResponse({ type: RestaurantTableResponseDto })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
+  async updateRestaurantTable(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('tableId', ParseIntPipe) tableId: number,
+    @Body() data: UpdateRestaurantTableDto,
+  ): Promise<RestaurantTableResponseDto> {
+    return this.restaurantsService.updateRestaurantTable(id, tableId, data);
+  }
+
+  @Delete(':id/tables/:tableId')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Delete restaurant table' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'tableId', type: Number, example: 2 })
+  @ApiOkResponse({ schema: { example: { message: 'Table deleted successfully' } } })
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
+  async deleteRestaurantTable(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('tableId', ParseIntPipe) tableId: number,
+  ): Promise<{ message: string }> {
+    return this.restaurantsService.deleteRestaurantTable(id, tableId);
+  }
+
+  @Get(':id/tables/:tableId/qr')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Get restaurant table QR destination URL' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'tableId', type: Number, example: 2 })
+  @ApiOkResponse({ type: RestaurantTableQrResponseDto })
+  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, notFound: true })
+  async getRestaurantTableQr(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('tableId', ParseIntPipe) tableId: number,
+  ): Promise<RestaurantTableQrResponseDto> {
+    return this.restaurantsService.getRestaurantTableQr(id, tableId);
+  }
+
+  @Get(':id/tables/:tableId/qr/download')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Download restaurant table QR code as SVG' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiParam({ name: 'tableId', type: Number, example: 2 })
+  @ApiQuery({ name: 'format', required: false, example: 'svg' })
+  @ApiProduces('image/svg+xml')
+  @ApiStandardErrorResponses({
+    unauthorized: true,
+    forbidden: true,
+    badRequest: true,
+    notFound: true,
+  })
+  async downloadRestaurantTableQr(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('tableId', ParseIntPipe) tableId: number,
+    @Query('format') format = 'svg',
+    @Res() response: Response,
+  ): Promise<void> {
+    if (format !== 'svg') {
+      throw new BadRequestException('Only svg format is supported');
+    }
+
+    const file = await this.restaurantsService.downloadRestaurantTableQrSvg(id, tableId);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    response.send(file.buffer);
   }
 
   /**

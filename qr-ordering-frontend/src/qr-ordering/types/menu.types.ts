@@ -50,6 +50,8 @@ export interface QRRestaurantInfo {
   description?: string | null;
   tableId: number;
   tableName: string;
+  gstEnabled: boolean;
+  gstRate: number;
 }
 
 export interface QRMenuResponse {

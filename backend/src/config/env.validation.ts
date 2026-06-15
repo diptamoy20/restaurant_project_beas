@@ -88,10 +88,25 @@ function parseBoolean(rawValue: string | undefined, key: string, fallback: boole
   throw new Error(`${key} must be either "true" or "false"`);
 }
 
+function isValidUrl(candidate: string | undefined): boolean {
+  if (!candidate) {
+    return false;
+  }
+
+  try {
+    new URL(candidate);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function validateEnv(config: Record<string, unknown>): Record<string, unknown> {
   const env = config as EnvValues;
   const nodeEnv = env.NODE_ENV ?? 'development';
   const accessTokenSecret = env.ACCESS_TOKEN_SECRET ?? env.JWT_SECRET;
+  const routingEnabled = parseBoolean(env.ROUTING_ENABLED, 'ROUTING_ENABLED', true);
+  const routingProvider = (env.ROUTING_PROVIDER ?? 'osrm').toLowerCase();
   const docsEnabled = parseBoolean(env.DOCS_ENABLED, 'DOCS_ENABLED', nodeEnv !== 'production');
   const docsAllowInProduction = parseBoolean(
     env.DOCS_ALLOW_IN_PRODUCTION,
@@ -168,6 +183,30 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     }
   }
 
+  if (nodeEnv !== 'development' && !env.QR_FRONTEND_URL) {
+    throw new Error('QR_FRONTEND_URL is required in non-development environments');
+  }
+
+  if (env.QR_FRONTEND_URL && !isValidUrl(env.QR_FRONTEND_URL)) {
+    throw new Error('QR_FRONTEND_URL must be a valid URL');
+  }
+
+  if (env.QR_ORDERING_APP_URL && !isValidUrl(env.QR_ORDERING_APP_URL)) {
+    throw new Error('QR_ORDERING_APP_URL must be a valid URL');
+  }
+
+  if (!['osrm'].includes(routingProvider)) {
+    throw new Error('ROUTING_PROVIDER must currently be "osrm"');
+  }
+
+  if (routingEnabled && env.ROUTING_BASE_URL && !isValidUrl(env.ROUTING_BASE_URL)) {
+    throw new Error('ROUTING_BASE_URL must be a valid URL');
+  }
+
+  if (nodeEnv === 'production' && routingEnabled && !env.ROUTING_BASE_URL) {
+    throw new Error('ROUTING_BASE_URL is required in production when ROUTING_ENABLED=true');
+  }
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -237,5 +276,12 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID,
     FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL,
     FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY,
+    QR_FRONTEND_URL: env.QR_FRONTEND_URL,
+    QR_ORDERING_APP_URL: env.QR_ORDERING_APP_URL,
+    ROUTING_ENABLED: routingEnabled,
+    ROUTING_PROVIDER: routingProvider,
+    ROUTING_BASE_URL: env.ROUTING_BASE_URL ?? 'https://router.project-osrm.org',
+    ROUTING_TIMEOUT_MS: parsePositiveInt(env.ROUTING_TIMEOUT_MS, 'ROUTING_TIMEOUT_MS', 5000),
+    ROUTING_OSRM_PROFILE: env.ROUTING_OSRM_PROFILE ?? 'driving',
   };
 }

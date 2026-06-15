@@ -266,6 +266,11 @@ export class CheckoutQuoteResponseDto {
   @IsNumber()
   freeDeliveryMinAmount!: number | null;
 
+  @ApiPropertyOptional({ example: 199, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  minimumOrderAmount!: number | null;
+
   @ApiPropertyOptional({ example: null, nullable: true })
   @IsOptional()
   @IsString()

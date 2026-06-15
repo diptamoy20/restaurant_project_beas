@@ -177,6 +177,14 @@ export class QRRestaurantInfoDto {
   @ApiProperty({ example: 'Table 12' })
   @IsString()
   tableName!: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  gstEnabled!: boolean;
+
+  @ApiProperty({ example: 5 })
+  @IsNumber()
+  gstRate!: number;
 }
 
 export class QRMenuResponseDto {
