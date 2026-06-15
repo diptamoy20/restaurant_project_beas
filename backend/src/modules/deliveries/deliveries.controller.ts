@@ -43,6 +43,57 @@ import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { SendOtpResponseDto } from './dto/send-otp-response.dto';
 
+const DELIVERY_TRACKING_SOCKET_DOCS = {
+  socketUrl: 'http://YOUR_API_HOST:4001/delivery-tracking',
+  namespace: '/delivery-tracking',
+  env: {
+    port: 'DELIVERY_TRACKING_SOCKET_PORT',
+    defaultPort: 4001,
+  },
+  auth: {
+    type: 'JWT access token',
+    preferred: {
+      auth: {
+        token: '<accessToken>',
+      },
+    },
+    alternatives: ['Authorization: Bearer <accessToken>', '?token=<accessToken>'],
+  },
+  events: {
+    serverToClient: [
+      'tracking:connected',
+      'tracking:snapshot',
+      'delivery:location:updated',
+      'tracking:error',
+    ],
+    clientToServer: ['track:join', 'delivery:location'],
+  },
+  payloads: {
+    trackJoin: {
+      orderId: 1025,
+    },
+    deliveryLocation: {
+      orderId: 1025,
+      latitude: 22.5726,
+      longitude: 88.3639,
+      speed: 22,
+      heading: 135,
+    },
+  },
+  mobileFlow: [
+    'Connect socket with access token',
+    'Wait for tracking:connected',
+    'Emit track:join with orderId',
+    'Delivery-boy app emits delivery:location every 5-10 seconds',
+    'Customer app listens to tracking:snapshot and delivery:location:updated',
+    'Both apps listen to tracking:error',
+  ],
+  localMobileUrls: {
+    androidEmulator: 'http://10.0.2.2:4001/delivery-tracking',
+    physicalDevice: 'http://YOUR_COMPUTER_LAN_IP:4001/delivery-tracking',
+  },
+} as const;
+
 @Controller('deliveries')
 @ApiTags('Deliveries')
 @ApiBearerAuth('access-token')
@@ -230,5 +281,23 @@ export class DeliveriesController {
     @Req() request: { user: AuthenticatedUser },
   ): Promise<DeliveryTrackingResponseDto> {
     return this.deliveriesService.getTrackingByOrder(orderId, request.user);
+  }
+
+  @Roles(Role.ADMIN, Role.MANAGER, Role.CUSTOMER, Role.DELIVERY_BOY)
+  @Get('tracking/socket-docs')
+  @ApiOperation({
+    summary: 'Get delivery live-tracking socket contract for mobile apps',
+    description:
+      'Swagger cannot execute Socket.IO events, so this HTTP route exposes the socket URL, auth, events, and payload examples.',
+  })
+  @ApiOkResponse({
+    description: 'Delivery live-tracking Socket.IO contract',
+    schema: {
+      type: 'object',
+      example: DELIVERY_TRACKING_SOCKET_DOCS,
+    },
+  })
+  getLiveTrackingSocketDocs(): typeof DELIVERY_TRACKING_SOCKET_DOCS {
+    return DELIVERY_TRACKING_SOCKET_DOCS;
   }
 }

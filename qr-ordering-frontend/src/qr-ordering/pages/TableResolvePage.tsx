@@ -34,6 +34,8 @@ export function TableResolvePage() {
             id: data.restaurantId,
             name: data.restaurantName,
             description: data.restaurantDescription ?? undefined,
+            gstEnabled: data.gstEnabled ?? true,
+            gstRate: data.gstRate ?? 5,
             tableId: data.tableId,
             tableName: data.tableNumber,
           },

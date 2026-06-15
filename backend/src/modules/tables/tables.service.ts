@@ -9,15 +9,15 @@ import { QrCodeService } from './qr-code.service';
 import { TableSessionsService } from './table-sessions.service';
 import { generateSecureToken } from './utils/token.util';
 import {
+  TABLES_PAGINATION_MAX_LIMIT,
+  TABLES_PAGINATION_DEFAULT_LIMIT,
+} from '../../common/constants/pagination';
+import {
   buildPaginationMeta,
   normalizePagination,
   PaginatedResult,
   toPrismaPagination,
 } from '../../common/dto/pagination.dto';
-import {
-  TABLES_PAGINATION_MAX_LIMIT,
-  TABLES_PAGINATION_DEFAULT_LIMIT,
-} from '../../common/constants/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type TableWithRelations = Prisma.RestaurantTableGetPayload<{
@@ -248,7 +248,16 @@ export class TablesService {
     const table = await this.prisma.restaurantTable.findUnique({
       where: { tableToken: token },
       include: {
-        restaurant: { select: { id: true, name: true, description: true, isActive: true } },
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+            gstEnabled: true,
+            gstRate: true,
+          },
+        },
       },
     });
 
@@ -269,6 +278,8 @@ export class TablesService {
       restaurantId: table.restaurantId,
       restaurantName: table.restaurant.name,
       restaurantDescription: table.restaurant.description,
+      gstEnabled: table.restaurant.gstEnabled,
+      gstRate: table.restaurant.gstEnabled ? table.restaurant.gstRate : 0,
       tableId: table.id,
       tableNumber: table.tableNumber,
       sessionId: session.id,

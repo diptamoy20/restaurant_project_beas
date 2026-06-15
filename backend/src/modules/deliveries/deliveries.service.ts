@@ -402,6 +402,13 @@ export class DeliveriesService {
     return this.createTracking(delivery.id, payload);
   }
 
+  async updateMyLiveLocation(
+    requester: AuthenticatedUser,
+    payload: UpdateMyDeliveryLocationDto,
+  ): Promise<DeliveryLocationUpdateResponseDto> {
+    return this.updateMyLocation(requester, payload);
+  }
+
   async updateDeliveryLocation(
     payload: UpdateDeliveryLocationDto,
     requester: AuthenticatedUser,
