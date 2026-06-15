@@ -1,25 +1,25 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { TableSessionStatus } from '@prisma/client';
+import { TableSession, TableSessionStatus } from '@prisma/client';
 
 import { TableSessionResponseDto } from './dto/table-response.dto';
 import { generateSecureToken } from './utils/token.util';
+import {
+  TABLES_PAGINATION_MAX_LIMIT,
+  TABLES_PAGINATION_DEFAULT_LIMIT,
+} from '../../common/constants/pagination';
 import {
   buildPaginationMeta,
   normalizePagination,
   PaginatedResult,
   toPrismaPagination,
 } from '../../common/dto/pagination.dto';
-import {
-  TABLES_PAGINATION_MAX_LIMIT,
-  TABLES_PAGINATION_DEFAULT_LIMIT,
-} from '../../common/constants/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class TableSessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOrCreateActiveSession(tableId: number, restaurantId: number) {
+  async getOrCreateActiveSession(tableId: number, restaurantId: number): Promise<TableSession> {
     const existing = await this.prisma.tableSession.findFirst({
       where: {
         tableId,

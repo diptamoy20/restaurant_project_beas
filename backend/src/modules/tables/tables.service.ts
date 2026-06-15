@@ -9,15 +9,15 @@ import { QrCodeService } from './qr-code.service';
 import { TableSessionsService } from './table-sessions.service';
 import { generateSecureToken } from './utils/token.util';
 import {
+  TABLES_PAGINATION_MAX_LIMIT,
+  TABLES_PAGINATION_DEFAULT_LIMIT,
+} from '../../common/constants/pagination';
+import {
   buildPaginationMeta,
   normalizePagination,
   PaginatedResult,
   toPrismaPagination,
 } from '../../common/dto/pagination.dto';
-import {
-  TABLES_PAGINATION_MAX_LIMIT,
-  TABLES_PAGINATION_DEFAULT_LIMIT,
-} from '../../common/constants/pagination';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type TableWithRelations = Prisma.RestaurantTableGetPayload<{

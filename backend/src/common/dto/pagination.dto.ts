@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
+
 import {
   DEFAULT_PAGINATION_LIMIT,
   DEFAULT_PAGINATION_MAX_LIMIT,
