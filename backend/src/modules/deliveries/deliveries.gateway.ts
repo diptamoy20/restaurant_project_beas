@@ -161,14 +161,10 @@ export class DeliveriesGateway implements OnGatewayConnection {
   }
 
   private getToken(client: Socket): string | null {
-    const authToken = client.handshake.auth?.token;
+    const authToken = this.extractTokenValue(client.handshake.auth);
 
-    if (typeof authToken === 'string') {
-      const normalized = this.normalizeToken(authToken);
-
-      if (normalized) {
-        return normalized;
-      }
+    if (authToken) {
+      return authToken;
     }
 
     const header = client.handshake.headers.authorization;
@@ -183,7 +179,7 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
     const queryToken = client.handshake.query.token;
 
-    if (typeof queryToken === 'string') {
+    if (typeof queryToken === 'string' || Array.isArray(queryToken)) {
       const normalized = this.normalizeToken(queryToken);
 
       if (normalized) {
@@ -194,14 +190,56 @@ export class DeliveriesGateway implements OnGatewayConnection {
     return null;
   }
 
-  private normalizeToken(value: string): string | null {
-    const trimmed = value.trim().replace(/^['"]+|['"]+$/g, '');
+  private extractTokenValue(value: unknown): string | null {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value === 'string' || Array.isArray(value)) {
+      return this.normalizeToken(value);
+    }
+
+    if (typeof value !== 'object') {
+      return null;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    return (
+      this.extractTokenValue(record.token) ??
+      this.extractTokenValue(record.accessToken) ??
+      this.extractTokenValue(record.access_token) ??
+      this.extractTokenValue(record.Authorization) ??
+      this.extractTokenValue(record.authorization)
+    );
+  }
+
+  private normalizeToken(value: string | string[]): string | null {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const trimmed = raw.trim().replace(/^['"]+|['"]+$/g, '');
 
     if (!trimmed) {
       return null;
     }
 
-    return trimmed.replace(/^Bearer\s+/i, '').trim() || null;
+    const bearerStripped = trimmed.replace(/^Bearer\s+/i, '').trim();
+
+    if (!bearerStripped) {
+      return null;
+    }
+
+    if (
+      (bearerStripped.startsWith('{') && bearerStripped.endsWith('}')) ||
+      (bearerStripped.startsWith('[') && bearerStripped.endsWith(']'))
+    ) {
+      try {
+        return this.extractTokenValue(JSON.parse(bearerStripped));
+      } catch {
+        return bearerStripped;
+      }
+    }
+
+    return bearerStripped;
   }
 
   private getSocketUser(client: AuthenticatedSocket): AuthenticatedUser {
