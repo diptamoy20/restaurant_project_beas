@@ -109,10 +109,10 @@ export class DeliveriesGateway implements OnGatewayConnection {
     try {
       const user = this.getSocketUser(client);
 
-      // if (user.role !== Role.DELIVERY_BOY) {
-      //   // throw new ForbiddenException('Only delivery boys can update live location');
-      //   throw new ForbiddenException(user.role);
-      // }
+      if (user.role !== Role.DELIVERY_BOY) {
+        throw new ForbiddenException('Only delivery boys can update live location');
+        // throw new ForbiddenException(user.role);
+      }
 
       const result = await this.deliveriesService.updateMyLiveLocation(user, payload);
       const data = {
@@ -149,9 +149,9 @@ export class DeliveriesGateway implements OnGatewayConnection {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    if (payload.role !== Role.DELIVERY_BOY) {
-      throw new ForbiddenException('Only delivery boys can connect to tracking socket');
-    }
+    // if (payload.role !== Role.DELIVERY_BOY) {
+    //   throw new ForbiddenException('Only delivery boys can connect to tracking socket');
+    // }
 
     const userId = payload.sub ?? payload.userId;
 
