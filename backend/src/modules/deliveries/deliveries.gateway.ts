@@ -163,23 +163,45 @@ export class DeliveriesGateway implements OnGatewayConnection {
   private getToken(client: Socket): string | null {
     const authToken = client.handshake.auth?.token;
 
-    if (typeof authToken === 'string' && authToken.trim()) {
-      return authToken.trim();
+    if (typeof authToken === 'string') {
+      const normalized = this.normalizeToken(authToken);
+
+      if (normalized) {
+        return normalized;
+      }
     }
 
     const header = client.handshake.headers.authorization;
 
-    if (typeof header === 'string' && header.startsWith('Bearer ')) {
-      return header.slice('Bearer '.length).trim();
+    if (typeof header === 'string') {
+      const normalized = this.normalizeToken(header);
+
+      if (normalized) {
+        return normalized;
+      }
     }
 
     const queryToken = client.handshake.query.token;
 
-    if (typeof queryToken === 'string' && queryToken.trim()) {
-      return queryToken.trim();
+    if (typeof queryToken === 'string') {
+      const normalized = this.normalizeToken(queryToken);
+
+      if (normalized) {
+        return normalized;
+      }
     }
 
     return null;
+  }
+
+  private normalizeToken(value: string): string | null {
+    const trimmed = value.trim().replace(/^['"]+|['"]+$/g, '');
+
+    if (!trimmed) {
+      return null;
+    }
+
+    return trimmed.replace(/^Bearer\s+/i, '').trim() || null;
   }
 
   private getSocketUser(client: AuthenticatedSocket): AuthenticatedUser {
