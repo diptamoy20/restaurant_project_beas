@@ -120,6 +120,8 @@ export class DeliveriesGateway implements OnGatewayConnection {
         ...result,
       };
 
+      console.log('EMITTING TO:', this.orderRoom(payload.orderId)); //debug log
+
       this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
 
       return {
