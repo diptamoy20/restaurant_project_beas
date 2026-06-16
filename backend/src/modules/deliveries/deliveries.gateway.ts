@@ -80,9 +80,6 @@ export class DeliveriesGateway implements OnGatewayConnection {
     }
   }
 
-
-
-
   @SubscribeMessage('track:join')
   async joinTracking(
     @ConnectedSocket() client: AuthenticatedSocket,
@@ -111,7 +108,7 @@ export class DeliveriesGateway implements OnGatewayConnection {
   ): Promise<WsResponse<unknown>> {
     try {
       const user = this.getSocketUser(client);
-      console.log('user.role',user.role);
+      console.log('user.role', user.role);
       if (user.role !== Role.DELIVERY_BOY) {
         // throw new ForbiddenException('Only delivery boys can update live location');
         throw new ForbiddenException(user.role);
