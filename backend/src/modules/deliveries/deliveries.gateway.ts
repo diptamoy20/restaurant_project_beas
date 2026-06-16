@@ -120,7 +120,10 @@ export class DeliveriesGateway implements OnGatewayConnection {
         ...result,
       };
 
-      this.logger.warn(`Broadcasting location to room ${this.orderRoom(payload.orderId)}`); //debug log
+      // DEBUG EVENT → frontend can see this
+      this.server.to(this.orderRoom(payload.orderId)).emit('debug:room', {
+        room: this.orderRoom(payload.orderId),
+      });
 
       this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
 
