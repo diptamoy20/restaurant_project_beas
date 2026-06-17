@@ -23,6 +23,7 @@ import { Server, Socket } from 'socket.io';
 
 import { DeliveriesService } from './deliveries.service';
 import { UpdateMyDeliveryLocationDto } from './dto';
+import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
 
 loadEnv();
@@ -113,20 +114,15 @@ export class DeliveriesGateway implements OnGatewayConnection {
     try {
       const user = this.getSocketUser(client);
 
-      // if (user.role !== Role.DELIVERY_BOY) {
-      //   throw new ForbiddenException('Only delivery boys can update live location');
-      // }
+      if (user.role !== Role.DELIVERY_BOY) {
+        throw new ForbiddenException('Only delivery boys can update live location');
+      }
 
       const result = await this.deliveriesService.updateMyLiveLocation(user, payload);
       const data = {
         orderId: payload.orderId,
         ...result,
       };
-
-      // DEBUG EVENT → frontend can see this
-      this.server.to(this.orderRoom(payload.orderId)).emit('debug:room', {
-        room: this.orderRoom(payload.orderId),
-      });
 
       this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
 

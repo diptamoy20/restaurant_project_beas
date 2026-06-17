@@ -390,13 +390,21 @@ export class DeliveriesService {
     payload: UpdateMyDeliveryLocationDto,
   ): Promise<DeliveryLocationUpdateResponseDto> {
     const agent = await this.getCurrentAgentOrThrow(requester);
-    const delivery = await this.prisma.delivery.findFirst({
-      where: { orderId: payload.orderId, agentId: agent.id },
-      select: { id: true },
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { orderId: payload.orderId },
+      select: { id: true, agentId: true },
     });
 
     if (!delivery) {
       throw new NotFoundException('Delivery not found for this order');
+    }
+
+    if (delivery.agentId == null) {
+      throw new BadRequestException('No delivery boy assigned to this order yet');
+    }
+
+    if (delivery.agentId !== agent.id) {
+      throw new ForbiddenException('This order is assigned to another delivery boy');
     }
 
     return this.createTracking(delivery.id, payload);
@@ -491,6 +499,10 @@ export class DeliveriesService {
   }
 
   private async getCurrentAgentOrThrow(requester: AuthenticatedUser): Promise<DeliveryAgentRecord> {
+    if (requester.role !== Role.DELIVERY_BOY) {
+      throw new ForbiddenException('Only delivery boys can access delivery-agent operations');
+    }
+
     const agent =
       (await this.prisma.deliveryAgent.findUnique({
         where: { userId: requester.id },
@@ -510,6 +522,10 @@ export class DeliveriesService {
   private async getCurrentAgentProfileOrThrow(
     requester: AuthenticatedUser,
   ): Promise<DeliveryAgentProfileRecord> {
+    if (requester.role !== Role.DELIVERY_BOY) {
+      throw new ForbiddenException('Only delivery boys can access delivery-agent operations');
+    }
+
     const agent =
       (await this.prisma.deliveryAgent.findUnique({
         where: { userId: requester.id },
