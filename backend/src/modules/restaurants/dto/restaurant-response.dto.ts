@@ -88,6 +88,18 @@ export class RestaurantMenuItemResponseDto {
   @IsOptional()
   @IsNumber()
   preparationTime!: number | null;
+
+  @ApiPropertyOptional({
+    example: [],
+  })
+  @IsOptional()
+  variants?: any[];
+
+  @ApiPropertyOptional({
+    example: [],
+  })
+  @IsOptional()
+  addonGroups?: any[];
 }
 
 export class RestaurantResponseDto {

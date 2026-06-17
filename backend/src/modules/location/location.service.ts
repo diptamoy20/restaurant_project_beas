@@ -89,16 +89,18 @@ export type NearbyRestaurantWithGeo = NearbyRestaurantRow & {
     name: string;
     description: string | null;
   }[];
-  menuItems: {
-    id: number;
-    restaurantId: number;
-    categoryId: number;
-    name: string;
-    description: string | null;
-    price: number;
-    isAvailable: boolean;
-    preparationTime: number | null;
-  }[];
+  // menuItems: {
+  //   id: number;
+  //   restaurantId: number;
+  //   categoryId: number;
+  //   name: string;
+  //   description: string | null;
+  //   price: number;
+  //   isAvailable: boolean;
+  //   preparationTime: number | null;
+  // }[];
+  menuItems: any[];
+
 };
 
 type DeliveryQuoteComputationOptions = {
@@ -241,13 +243,62 @@ export class LocationService {
               where: { restaurantId: { in: restaurantIds } },
               orderBy: { name: 'asc' },
             }),
+            // this.prisma.menuItem.findMany({
+            //   where: {
+            //     restaurantId: { in: restaurantIds },
+            //     isAvailable: true,
+            //   },
+            //   orderBy: [{ restaurantId: 'asc' }, { categoryId: 'asc' }, { name: 'asc' }],
+            // }),
             this.prisma.menuItem.findMany({
-              where: {
-                restaurantId: { in: restaurantIds },
-                isAvailable: true,
-              },
-              orderBy: [{ restaurantId: 'asc' }, { categoryId: 'asc' }, { name: 'asc' }],
-            }),
+  where: {
+    restaurantId: {
+      in: restaurantIds,
+    },
+    isAvailable: true,
+  },
+
+  include: {
+    variants: true,
+
+    addonGroups: {
+      where: {
+        isActive: true,
+      },
+
+      orderBy: {
+        sortOrder: 'asc',
+      },
+
+      include: {
+        options: {
+          where: {
+            isAvailable: true,
+          },
+
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
+      },
+    },
+
+    category: true,
+  },
+
+  orderBy: [
+    {
+      restaurantId: 'asc',
+    },
+    {
+      categoryId: 'asc',
+    },
+    {
+      name: 'asc',
+    },
+  ],
+})
+
           ])
         : [[], []];
 
