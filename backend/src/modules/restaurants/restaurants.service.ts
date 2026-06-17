@@ -769,16 +769,27 @@ export class RestaurantsService {
     };
   }
 
-  private mapRestaurantMenuItem(menuItem: {
-    id: number;
-    restaurantId: number;
-    categoryId: number;
-    name: string;
-    description: string | null;
-    price: number;
-    isAvailable: boolean;
-    preparationTime: number | null;
-  }): RestaurantMenuItemResponseDto {
+  // private mapRestaurantMenuItem(menuItem: {
+  //   id: number;
+  //   restaurantId: number;
+  //   categoryId: number;
+  //   name: string;
+  //   description: string | null;
+  //   price: number;
+  //   isAvailable: boolean;
+  //   preparationTime: number | null;
+  // })
+  private mapRestaurantMenuItem(menuItem: any) : RestaurantMenuItemResponseDto {
+    // return {
+    //   id: menuItem.id,
+    //   restaurantId: menuItem.restaurantId,
+    //   categoryId: menuItem.categoryId,
+    //   name: menuItem.name,
+    //   description: menuItem.description,
+    //   price: menuItem.price,
+    //   isAvailable: menuItem.isAvailable,
+    //   preparationTime: menuItem.preparationTime,
+    // };
     return {
       id: menuItem.id,
       restaurantId: menuItem.restaurantId,
@@ -788,6 +799,16 @@ export class RestaurantsService {
       price: menuItem.price,
       isAvailable: menuItem.isAvailable,
       preparationTime: menuItem.preparationTime,
+      variants: menuItem.variants,
+      addonGroups: menuItem.addonGroups,
+      // discountPrice: menuItem.discountPrice,
+      // imageUrl: menuItem.imageUrl,
+      // foodType: menuItem.foodType,
+      // spicyLevel: menuItem.spicyLevel,
+      // ingredients: menuItem.ingredients,
+      // isBestSelling: menuItem.isBestSelling,
+      // rating: menuItem.rating,
+      // category: menuItem.category,
     };
   }
 
