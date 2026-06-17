@@ -125,7 +125,7 @@ export class DeliveriesService {
   ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
 
     const [assigned, onTheWay, delivered, activeOrders] = await Promise.all([
       this.prisma.delivery.count({
@@ -160,7 +160,7 @@ export class DeliveriesService {
   }
 
   async getMyProfile(requester: AuthenticatedUser): Promise<DeliveryAgentProfileResponseDto> {
-    const agent = await this.getCurrentAgentProfileOrThrow(requester.id);
+    const agent = await this.getCurrentAgentProfileOrThrow(requester);
     const [totalOrders, completedOrders] = await Promise.all([
       this.prisma.delivery.count({
         where: { agentId: agent.id },
@@ -177,7 +177,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     query: DeliveryBoyOrderHistoryQueryDto,
   ): Promise<DeliveryBoyOrderHistoryResponseDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const selectedDate = resolveOrderHistoryCalendarDate(query.date);
     const { start, end } = this.getOrderHistoryDayBoundsOrThrow(selectedDate);
     const pagination = normalizeOrderHistoryPage(query.page);
@@ -221,7 +221,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     query: DeliveryBoyOrdersQueryDto,
   ): Promise<PaginatedResult<DeliveryBoyOrderCardDto>> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
     const where: Prisma.DeliveryWhereInput = {
       agentId: agent.id,
@@ -248,7 +248,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     orderId: number,
   ): Promise<DeliveryBoyOrderDetailsDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
 
     return this.mapOrderDetails(delivery);
@@ -258,7 +258,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     isAvailable: boolean,
   ): Promise<DeliveryBoyDashboardDto['profile']> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const updated = await this.prisma.deliveryAgent.update({
       where: { id: agent.id },
       data: { isAvailable },
@@ -271,7 +271,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     orderId: number,
   ): Promise<DeliveryBoyOrderDetailsDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const existing = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
 
     if (existing.status !== DELIVERY_STATUS.ASSIGNED) {
@@ -301,7 +301,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     orderId: number,
   ): Promise<SendOtpResponseDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
 
     const delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
 
@@ -336,7 +336,7 @@ export class DeliveriesService {
     orderId: number,
     status: string,
   ): Promise<DeliveryBoyOrderDetailsDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const existing = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
     const currentStatus = existing.status as DeliveryStatusValue;
     const nextStatus = status as DeliveryStatusValue;
@@ -389,7 +389,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     payload: UpdateMyDeliveryLocationDto,
   ): Promise<DeliveryLocationUpdateResponseDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const delivery = await this.prisma.delivery.findFirst({
       where: { orderId: payload.orderId, agentId: agent.id },
       select: { id: true },
@@ -423,7 +423,7 @@ export class DeliveriesService {
     }
 
     if (this.hasRole(requester, Role.DELIVERY_BOY)) {
-      const agent = await this.getCurrentAgentOrThrow(requester.id);
+      const agent = await this.getCurrentAgentOrThrow(requester);
 
       if (delivery.agentId !== agent.id) {
         throw new ForbiddenException('You do not have permission to update this delivery');
@@ -458,7 +458,7 @@ export class DeliveriesService {
     }
 
     if (this.hasRole(requester, Role.DELIVERY_BOY)) {
-      const agent = await this.getCurrentAgentOrThrow(requester.id);
+      const agent = await this.getCurrentAgentOrThrow(requester);
 
       if (delivery.agentId !== agent.id) {
         throw new ForbiddenException('You do not have permission to access this delivery tracking');
@@ -490,29 +490,77 @@ export class DeliveriesService {
     };
   }
 
-  private async getCurrentAgentOrThrow(userId: number): Promise<DeliveryAgentRecord> {
-    const agent = await this.prisma.deliveryAgent.findUnique({
-      where: { userId },
-    });
+  private async getCurrentAgentOrThrow(requester: AuthenticatedUser): Promise<DeliveryAgentRecord> {
+    const agent =
+      (await this.prisma.deliveryAgent.findUnique({
+        where: { userId: requester.id },
+      })) ?? (await this.linkLegacyAgentByPhone(requester));
 
     if (!agent) {
-      throw new NotFoundException('Delivery agent profile not found for current user');
+      throw new NotFoundException(
+        'Delivery agent profile not linked to this user. Create or link delivery_agents.user_id first.',
+      );
     }
 
     return agent;
   }
 
-  private async getCurrentAgentProfileOrThrow(userId: number): Promise<DeliveryAgentProfileRecord> {
-    const agent = await this.prisma.deliveryAgent.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
+  private async getCurrentAgentProfileOrThrow(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentProfileRecord> {
+    const agent =
+      (await this.prisma.deliveryAgent.findUnique({
+        where: { userId: requester.id },
+        include: { user: true },
+      })) ?? (await this.linkLegacyAgentProfileByPhone(requester));
 
     if (!agent) {
-      throw new NotFoundException('Delivery agent profile not found for current user');
+      throw new NotFoundException(
+        'Delivery agent profile not linked to this user. Create or link delivery_agents.user_id first.',
+      );
     }
 
     return agent;
+  }
+
+  private async linkLegacyAgentByPhone(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentRecord | null> {
+    if (!requester.phone) {
+      return null;
+    }
+
+    const legacyAgent = await this.prisma.deliveryAgent.findFirst({
+      where: {
+        userId: null,
+        phone: requester.phone,
+      },
+    });
+
+    if (!legacyAgent) {
+      return null;
+    }
+
+    // ponytail: safe legacy recovery path, admin flow should keep userId linked going forward
+    return this.prisma.deliveryAgent.update({
+      where: { id: legacyAgent.id },
+      data: { userId: requester.id },
+    });
+  }
+
+  private async linkLegacyAgentProfileByPhone(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentProfileRecord | null> {
+    const linkedAgent = await this.linkLegacyAgentByPhone(requester);
+
+    if (!linkedAgent) {
+      return null;
+    }
+
+    return this.prisma.deliveryAgent.findUnique({
+      where: { id: linkedAgent.id },
+      include: { user: true },
+    });
   }
 
   private async getMyDeliveryByOrderOrThrow(
