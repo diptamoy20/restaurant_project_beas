@@ -779,7 +779,7 @@ export class RestaurantsService {
   //   isAvailable: boolean;
   //   preparationTime: number | null;
   // })
-  private mapRestaurantMenuItem(menuItem: any) : RestaurantMenuItemResponseDto {
+  private mapRestaurantMenuItem(menuItem: any): RestaurantMenuItemResponseDto {
     // return {
     //   id: menuItem.id,
     //   restaurantId: menuItem.restaurantId,
