@@ -123,6 +123,11 @@ export class DeliveriesGateway implements OnGatewayConnection {
         ...result,
       };
 
+      // DEBUG EVENT → frontend can see this
+      this.server.to(this.orderRoom(payload.orderId)).emit('debug:room', {
+        room: this.orderRoom(payload.orderId),
+      });
+
       this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
 
       return {
@@ -163,6 +168,10 @@ export class DeliveriesGateway implements OnGatewayConnection {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');
     }
+
+    // if (payload.role !== Role.DELIVERY_BOY) {
+    //   throw new ForbiddenException('Only delivery boys can connect to tracking socket');
+    // }
 
     const userId = payload.sub ?? payload.userId;
 
