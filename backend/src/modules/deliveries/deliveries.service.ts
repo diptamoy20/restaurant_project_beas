@@ -494,7 +494,9 @@ export class DeliveriesService {
     const agent =
       (await this.prisma.deliveryAgent.findUnique({
         where: { userId: requester.id },
-      })) ?? (await this.linkLegacyAgentByPhone(requester));
+      })) ??
+      (await this.linkLegacyAgentByPhone(requester)) ??
+      (await this.createMissingAgentForDeliveryBoy(requester));
 
     if (!agent) {
       throw new NotFoundException(
@@ -512,7 +514,9 @@ export class DeliveriesService {
       (await this.prisma.deliveryAgent.findUnique({
         where: { userId: requester.id },
         include: { user: true },
-      })) ?? (await this.linkLegacyAgentProfileByPhone(requester));
+      })) ??
+      (await this.linkLegacyAgentProfileByPhone(requester)) ??
+      (await this.createMissingAgentProfileForDeliveryBoy(requester));
 
     if (!agent) {
       throw new NotFoundException(
@@ -559,6 +563,52 @@ export class DeliveriesService {
 
     return this.prisma.deliveryAgent.findUnique({
       where: { id: linkedAgent.id },
+      include: { user: true },
+    });
+  }
+
+  private async createMissingAgentForDeliveryBoy(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentRecord | null> {
+    if (requester.role !== Role.DELIVERY_BOY || !requester.phone) {
+      return null;
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: requester.id },
+      include: {
+        role: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive || user.role?.role.name !== Role.DELIVERY_BOY) {
+      return null;
+    }
+
+    return this.prisma.deliveryAgent.create({
+      data: {
+        userId: requester.id,
+        name: requester.name ?? requester.email ?? requester.phone,
+        phone: requester.phone,
+      },
+    });
+  }
+
+  private async createMissingAgentProfileForDeliveryBoy(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentProfileRecord | null> {
+    const createdAgent = await this.createMissingAgentForDeliveryBoy(requester);
+
+    if (!createdAgent) {
+      return null;
+    }
+
+    return this.prisma.deliveryAgent.findUnique({
+      where: { id: createdAgent.id },
       include: { user: true },
     });
   }
