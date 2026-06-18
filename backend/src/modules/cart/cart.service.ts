@@ -23,25 +23,154 @@ type CartItemWithMenu = Prisma.CartItemGetPayload<{
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCart(userId: number): Promise<CartItemResponseDto[]> {
-    const cartItems = await this.prisma.cartItem.findMany({
-      where: { userId },
-      include: {
-        menuItem: {
-          include: {
-            category: true,
-          },
-        },
-        variant: true,
-        restaurant: true,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-    });
+  // async getCart(userId: number) {
+  //   const cartItems = await this.prisma.cartItem.findMany({
+  //     where: { userId },
+  //     include: {
+  //       menuItem: {
+  //         include: {
+  //           category: true,
+  //         },
+  //       },
+  //       variant: true,
+  //       restaurant: true,
+  //     },
+  //     orderBy: {
+  //       updatedAt: 'desc',
+  //     },
+  //   });
 
-    return cartItems.map((item) => this.mapCartItem(item));
+  //   // return cartItems.map((item) => this.mapCartItem(item));
+
+  //   const items = cartItems.map((item) => ({
+  //     menuItemId: item.menuItemId,
+
+  //     quantity: item.quantity,
+
+  //     price: item.price,
+
+  //     discount: item.menuItem.discountPrice,
+
+  //     addOns: item.addOns ?? [],
+
+  //     name: item.menuItem.name,
+
+  //     description: item.menuItem.description,
+
+  //     image: item.menuItem.imageUrl,
+
+  //     ingredients: item.menuItem.ingredients,
+
+  //     rating: item.menuItem.rating,
+
+  //     bestSeller: item.menuItem.isBestSelling,
+  //   }));
+
+  //   return {
+  //     userId,
+
+  //     totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
+
+  //     subtotal: items.reduce((sum, item) => sum + item.price, 0),
+
+  //     cartItems: items,
+  //   };
+  // }
+
+  async getCart(userId: number) {
+  const cartItems = await this.prisma.cartItem.findMany({
+    where: {
+      userId,
+    },
+
+    include: {
+      menuItem: {
+        include: {
+          category: true,
+        },
+      },
+
+      variant: true,
+
+      restaurant: true,
+    },
+
+    orderBy: {
+      updatedAt: 'desc',
+    },
+  });
+
+  if (!cartItems.length) {
+    return {
+      userId,
+
+      cartId: null,
+
+      totalItems: 0,
+
+      subtotal: 0,
+
+      cartItems: [],
+    };
   }
+
+  const items = cartItems.map((item) => ({
+    cartItemId: item.id,
+
+    menuItemId: item.menuItemId,
+
+    quantity: item.quantity,
+
+    price: item.price,
+
+    discount:
+      item.menuItem.discountPrice,
+
+    addOns:
+      item.addOns ?? [],
+
+    description:
+      item.menuItem.description,
+
+    image:
+      item.menuItem.imageUrl,
+
+    ingredients:
+      item.menuItem.ingredients,
+
+    rating:
+      item.menuItem.rating,
+
+    bestSeller:
+      item.menuItem.isBestSelling,
+
+    name:
+      item.menuItem.name,
+  }));
+
+  return {
+    userId,
+
+    cartId:
+      cartItems[0].id,
+
+    totalItems:
+      items.reduce(
+        (sum, item) =>
+          sum + item.quantity,
+        0,
+      ),
+
+    subtotal:
+      items.reduce(
+        (sum, item) =>
+          sum + item.price,
+        0,
+      ),
+
+    cartItems: items,
+  };
+}
 
   async addToCart(userId: number, payload: CreateCartItemDto): Promise<CartItemResponseDto> {
     const menuItem = await this.prisma.menuItem.findUnique({
