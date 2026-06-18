@@ -1,14 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-
-import {
-  IsArray,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+import { IsArray, IsInt, IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
 
 class CartAddonDto {
   @ApiProperty({
@@ -71,8 +63,7 @@ export class CreateCartItemDto {
 
   @ApiPropertyOptional({
     example: 189,
-    description:
-      'Accepted for backward compatibility. Server menu pricing is authoritative.',
+    description: 'Accepted for backward compatibility. Server menu pricing is authoritative.',
   })
   @Type(() => Number)
   @IsOptional()
