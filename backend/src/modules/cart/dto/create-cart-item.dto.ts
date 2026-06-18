@@ -1,24 +1,65 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsArray, IsInt, IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
+
+class CartAddonDto {
+  @ApiProperty({
+    example: 5,
+  })
+  @Type(() => Number)
+  @IsInt()
+  addonOptionId!: number;
+
+  @ApiProperty({
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  quantity!: number;
+}
 
 export class CreateCartItemDto {
-  @ApiProperty({ example: 1 })
+  @ApiProperty({
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt()
+  restaurantId!: number;
+
+  @ApiProperty({
+    example: 1,
+  })
   @Type(() => Number)
   @IsInt()
   menuItemId!: number;
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional({
+    example: 1,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
   variantId?: number;
 
-  @ApiProperty({ example: 2 })
+  @ApiProperty({
+    example: 2,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   quantity!: number;
+
+  @ApiPropertyOptional({
+    type: [CartAddonDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({
+    each: true,
+  })
+  @Type(() => CartAddonDto)
+  addOns?: CartAddonDto[];
 
   @ApiPropertyOptional({
     example: 189,
