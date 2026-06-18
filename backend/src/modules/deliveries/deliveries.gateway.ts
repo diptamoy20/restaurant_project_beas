@@ -232,9 +232,11 @@ export class DeliveriesGateway implements OnGatewayConnection {
     const record = value as Record<string, unknown>;
 
     return (
-      this.extractTokenValue(record.token) ??
       this.extractTokenValue(record.accessToken) ??
       this.extractTokenValue(record.access_token) ??
+      this.extractTokenValue(record.token) ??
+      this.extractTokenValue(record.data) ??
+      this.extractTokenValue(record.auth) ??
       this.extractTokenValue(record.Authorization) ??
       this.extractTokenValue(record.authorization)
     );
@@ -242,7 +244,8 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
   private normalizeToken(value: string | string[]): string | null {
     const raw = Array.isArray(value) ? value[0] : value;
-    const trimmed = raw.trim().replace(/^['"]+|['"]+$/g, '');
+    const decoded = this.decodeTokenCandidate(raw);
+    const trimmed = decoded.trim().replace(/^['"]+|['"]+$/g, '');
 
     if (!trimmed) {
       return null;
@@ -266,6 +269,14 @@ export class DeliveriesGateway implements OnGatewayConnection {
     }
 
     return bearerStripped;
+  }
+
+  private decodeTokenCandidate(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
   }
 
   private isValidJwtFormat(token: string | null | undefined): boolean {
