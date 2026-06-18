@@ -31,17 +31,14 @@ export class CartController {
   @Get()
   @ApiOperation({ summary: 'Get all cart items for authenticated user' })
   // @ApiOkResponse({ type: CartItemResponseDto, isArray: true })
-//   @ApiOkResponse({
-//   description:
-//     'Returns grouped cart response',
-// })
-
-@ApiOkResponse({
-  type: CartResponseDto,
-})
-  async getCart(
-  @Req() request: { user: AuthenticatedUser },
-) {
+  //   @ApiOkResponse({
+  //   description:
+  //     'Returns grouped cart response',
+  // })
+  @ApiOkResponse({
+    type: CartResponseDto,
+  })
+  async getCart(@Req() request: { user: AuthenticatedUser }) {
     return this.cartService.getCart(request.user.id);
   }
 
