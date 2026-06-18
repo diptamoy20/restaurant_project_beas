@@ -64,7 +64,9 @@ export class CartService {
       throw new BadRequestException('Selected variant is not available for this menu item');
     }
 
-    const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
+    // const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
+
+    const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const cartItem = await this.prisma.$transaction(async (transaction) => {
       // const existingItem = await transaction.cartItem.findFirst({
@@ -102,7 +104,9 @@ export class CartService {
 
           data: {
             quantity: existingItem.quantity + payload.quantity,
-            price: authoritativePrice,
+
+            price: unitPrice * (existingItem.quantity + payload.quantity),
+
             addOns: payload.addOns
               ? (payload.addOns as unknown as Prisma.InputJsonArray)
               : (existingItem.addOns ?? Prisma.JsonNull),
@@ -133,7 +137,8 @@ export class CartService {
           menuItemId: payload.menuItemId,
           variantId: payload.variantId ?? null,
           quantity: payload.quantity,
-          price: authoritativePrice,
+          // price: authoritativePrice,
+          price: unitPrice * payload.quantity,
           addOns: payload.addOns
             ? (payload.addOns as unknown as Prisma.InputJsonArray)
             : Prisma.JsonNull,
@@ -183,7 +188,8 @@ export class CartService {
     const selectedVariant = cartItem.variantId
       ? menuItem.variants.find((variant) => variant.id === cartItem.variantId)
       : null;
-    const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
+    // const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
+    const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const updatedItem: CartItemWithMenu = await this.prisma.cartItem.update({
       where: { id: cartItem.id },
@@ -194,7 +200,7 @@ export class CartService {
 
       data: {
         quantity: payload.quantity,
-        price: authoritativePrice,
+        price: unitPrice * payload.quantity,
         addOns:
           payload.addOns === undefined
             ? Prisma.JsonNull
