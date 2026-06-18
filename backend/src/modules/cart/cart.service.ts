@@ -68,6 +68,14 @@ export class CartService {
 
     const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
+    // const addOnsPrice = this.getAddOnsPrice(payload.addOns);
+
+    // const finalUnitPrice = unitPrice + addOnsPrice;
+
+    const addOnsPrice = await this.calculateAddOnsTotal(payload.addOns);
+
+    const finalUnitPrice = unitPrice + addOnsPrice;
+
     const cartItem = await this.prisma.$transaction(async (transaction) => {
       // const existingItem = await transaction.cartItem.findFirst({
       //   where: {
@@ -105,7 +113,7 @@ export class CartService {
           data: {
             quantity: existingItem.quantity + payload.quantity,
 
-            price: unitPrice * (existingItem.quantity + payload.quantity),
+            price: finalUnitPrice * (existingItem.quantity + payload.quantity),
 
             addOns: payload.addOns
               ? (payload.addOns as unknown as Prisma.InputJsonArray)
@@ -138,7 +146,7 @@ export class CartService {
           variantId: payload.variantId ?? null,
           quantity: payload.quantity,
           // price: authoritativePrice,
-          price: unitPrice * payload.quantity,
+          price: finalUnitPrice * payload.quantity,
           addOns: payload.addOns
             ? (payload.addOns as unknown as Prisma.InputJsonArray)
             : Prisma.JsonNull,
@@ -191,6 +199,15 @@ export class CartService {
     // const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
     const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
+    const addOnsPrice = await this.calculateAddOnsTotal(
+      (payload.addOns ?? cartItem.addOns ?? []) as {
+        addonOptionId: number;
+        quantity: number;
+      }[],
+    );
+
+    const finalUnitPrice = unitPrice + addOnsPrice;
+
     const updatedItem: CartItemWithMenu = await this.prisma.cartItem.update({
       where: { id: cartItem.id },
       // data: {
@@ -200,11 +217,10 @@ export class CartService {
 
       data: {
         quantity: payload.quantity,
-        price: unitPrice * payload.quantity,
-        addOns:
-          payload.addOns === undefined
-            ? Prisma.JsonNull
-            : (payload.addOns as unknown as Prisma.InputJsonValue),
+        price: finalUnitPrice * payload.quantity,
+        addOns: payload.addOns
+          ? (payload.addOns as unknown as Prisma.InputJsonArray)
+          : (cartItem.addOns ?? Prisma.JsonNull),
       },
 
       include: {
@@ -270,6 +286,42 @@ export class CartService {
 
       variant: item.variant,
     };
+  }
+
+  // private getAddOnsPrice(addOns?: { price: number }[] | null): number {
+  //   if (!addOns?.length) {
+  //     return 0;
+  //   }
+
+  //   return addOns.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
+  // }
+
+  private async calculateAddOnsTotal(
+    addOns?: { addonOptionId: number; quantity: number }[],
+  ): Promise<number> {
+    if (!addOns?.length) {
+      return 0;
+    }
+
+    const optionIds = addOns.map((addon) => addon.addonOptionId);
+
+    const addonOptions = await this.prisma.addonOption.findMany({
+      where: {
+        id: {
+          in: optionIds,
+        },
+      },
+      select: {
+        id: true,
+        price: true,
+      },
+    });
+
+    return addOns.reduce((total, addon) => {
+      const option = addonOptions.find((option) => option.id === addon.addonOptionId);
+
+      return total + (option?.price ?? 0) * addon.quantity;
+    }, 0);
   }
 
   private getMenuItemPrice(menuItem: { price: number; discountPrice: number | null }): number {
