@@ -8,11 +8,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 type CartItemWithMenu = Prisma.CartItemGetPayload<{
   include: {
+    restaurant: true;
     menuItem: {
       include: {
         category: true;
       };
     };
+
     variant: true;
   };
 }>;
@@ -31,6 +33,7 @@ export class CartService {
           },
         },
         variant: true,
+        restaurant: true,
       },
       orderBy: {
         updatedAt: 'desc',
@@ -64,22 +67,48 @@ export class CartService {
     const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const cartItem = await this.prisma.$transaction(async (transaction) => {
+      // const existingItem = await transaction.cartItem.findFirst({
+      //   where: {
+      //     userId,
+      //     menuItemId: payload.menuItemId,
+      //     variantId: payload.variantId ?? null,
+      //   },
+      // });
+
       const existingItem = await transaction.cartItem.findFirst({
         where: {
           userId,
           menuItemId: payload.menuItemId,
           variantId: payload.variantId ?? null,
         },
+        include: {
+          restaurant: true,
+          menuItem: {
+            include: {
+              category: true,
+            },
+          },
+          variant: true,
+        },
       });
 
       if (existingItem) {
         return transaction.cartItem.update({
           where: { id: existingItem.id },
+          // data: {
+          //   quantity: existingItem.quantity + payload.quantity,
+          //   price: authoritativePrice,
+          // },
+
           data: {
             quantity: existingItem.quantity + payload.quantity,
             price: authoritativePrice,
+            addOns: payload.addOns
+              ? (payload.addOns as unknown as Prisma.InputJsonArray)
+              : (existingItem.addOns ?? Prisma.JsonNull),
           },
           include: {
+            restaurant: true,
             menuItem: {
               include: {
                 category: true,
@@ -91,14 +120,26 @@ export class CartService {
       }
 
       return transaction.cartItem.create({
+        // data: {
+        //   userId,
+        //   menuItemId: payload.menuItemId,
+        //   variantId: payload.variantId,
+        //   quantity: payload.quantity,
+        //   price: authoritativePrice,
+        // },
         data: {
           userId,
+          restaurantId: menuItem.restaurantId,
           menuItemId: payload.menuItemId,
-          variantId: payload.variantId,
+          variantId: payload.variantId ?? null,
           quantity: payload.quantity,
           price: authoritativePrice,
+          addOns: payload.addOns
+            ? (payload.addOns as unknown as Prisma.InputJsonArray)
+            : Prisma.JsonNull,
         },
         include: {
+          restaurant: true,
           menuItem: {
             include: {
               category: true,
@@ -144,13 +185,24 @@ export class CartService {
       : null;
     const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
-    const updatedItem = await this.prisma.cartItem.update({
+    const updatedItem: CartItemWithMenu = await this.prisma.cartItem.update({
       where: { id: cartItem.id },
+      // data: {
+      //   quantity: payload.quantity,
+      //   price: authoritativePrice,
+      // },
+
       data: {
         quantity: payload.quantity,
         price: authoritativePrice,
+        addOns:
+          payload.addOns === undefined
+            ? Prisma.JsonNull
+            : (payload.addOns as unknown as Prisma.InputJsonValue),
       },
+
       include: {
+        restaurant: true,
         menuItem: {
           include: {
             category: true,
@@ -189,14 +241,27 @@ export class CartService {
   private mapCartItem(item: CartItemWithMenu): CartItemResponseDto {
     return {
       id: item.id,
+
       userId: item.userId,
+
+      restaurantId: item.restaurantId,
+
       menuItemId: item.menuItemId,
+
       variantId: item.variantId,
+
       quantity: item.quantity,
+
       price: item.price,
+
+      addOns: (item.addOns as CartItemResponseDto['addOns']) ?? null,
+
       createdAt: item.createdAt,
+
       updatedAt: item.updatedAt,
+
       menuItem: item.menuItem,
+
       variant: item.variant,
     };
   }

@@ -4,8 +4,8 @@ class MenuItemDto {
   @ApiProperty()
   id!: number;
 
-  @ApiProperty()
-  restaurantId!: number;
+  @ApiPropertyOptional()
+  restaurantId!: number | null;
 
   @ApiProperty()
   name!: string;
@@ -31,12 +31,32 @@ class MenuItemVariantDto {
   price!: number;
 }
 
+class CartAddonResponseDto {
+  @ApiProperty()
+  addonOptionId!: number;
+
+  @ApiProperty()
+  quantity!: number;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  price!: number;
+
+  @ApiProperty()
+  totalPrice!: number;
+}
+
 export class CartItemResponseDto {
   @ApiProperty()
   id!: number;
 
   @ApiProperty()
   userId!: number;
+
+  @ApiPropertyOptional()
+  restaurantId!: number | null;
 
   @ApiProperty()
   menuItemId!: number;
@@ -49,6 +69,11 @@ export class CartItemResponseDto {
 
   @ApiProperty()
   price!: number;
+
+  @ApiPropertyOptional({
+    type: [CartAddonResponseDto],
+  })
+  addOns?: CartAddonResponseDto[] | null;
 
   @ApiProperty()
   createdAt!: Date;
