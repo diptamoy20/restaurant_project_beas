@@ -78,99 +78,80 @@ export class CartService {
   // }
 
   async getCart(userId: number) {
-  const cartItems = await this.prisma.cartItem.findMany({
-    where: {
-      userId,
-    },
-
-    include: {
-      menuItem: {
-        include: {
-          category: true,
-        },
+    const cartItems = await this.prisma.cartItem.findMany({
+      where: {
+        userId,
       },
 
-      variant: true,
+      include: {
+        menuItem: {
+          include: {
+            category: true,
+          },
+        },
 
-      restaurant: true,
-    },
+        variant: true,
 
-    orderBy: {
-      updatedAt: 'desc',
-    },
-  });
+        restaurant: true,
+      },
 
-  if (!cartItems.length) {
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    if (!cartItems.length) {
+      return {
+        userId,
+
+        cartId: null,
+
+        totalItems: 0,
+
+        subtotal: 0,
+
+        cartItems: [],
+      };
+    }
+
+    const items = cartItems.map((item) => ({
+      cartItemId: item.id,
+
+      menuItemId: item.menuItemId,
+
+      quantity: item.quantity,
+
+      price: item.price,
+
+      discount: item.menuItem.discountPrice,
+
+      addOns: item.addOns ?? [],
+
+      description: item.menuItem.description,
+
+      image: item.menuItem.imageUrl,
+
+      ingredients: item.menuItem.ingredients,
+
+      rating: item.menuItem.rating,
+
+      bestSeller: item.menuItem.isBestSelling,
+
+      name: item.menuItem.name,
+    }));
+
     return {
       userId,
 
-      cartId: null,
+      cartId: cartItems[0].id,
 
-      totalItems: 0,
+      totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
 
-      subtotal: 0,
+      subtotal: items.reduce((sum, item) => sum + item.price, 0),
 
-      cartItems: [],
+      cartItems: items,
     };
   }
-
-  const items = cartItems.map((item) => ({
-    cartItemId: item.id,
-
-    menuItemId: item.menuItemId,
-
-    quantity: item.quantity,
-
-    price: item.price,
-
-    discount:
-      item.menuItem.discountPrice,
-
-    addOns:
-      item.addOns ?? [],
-
-    description:
-      item.menuItem.description,
-
-    image:
-      item.menuItem.imageUrl,
-
-    ingredients:
-      item.menuItem.ingredients,
-
-    rating:
-      item.menuItem.rating,
-
-    bestSeller:
-      item.menuItem.isBestSelling,
-
-    name:
-      item.menuItem.name,
-  }));
-
-  return {
-    userId,
-
-    cartId:
-      cartItems[0].id,
-
-    totalItems:
-      items.reduce(
-        (sum, item) =>
-          sum + item.quantity,
-        0,
-      ),
-
-    subtotal:
-      items.reduce(
-        (sum, item) =>
-          sum + item.price,
-        0,
-      ),
-
-    cartItems: items,
-  };
-}
 
   async addToCart(userId: number, payload: CreateCartItemDto): Promise<CartItemResponseDto> {
     const menuItem = await this.prisma.menuItem.findUnique({
