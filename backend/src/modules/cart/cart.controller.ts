@@ -18,6 +18,7 @@ import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
+import { CartResponseDto } from './dto/cart-response.dto';
 
 @Controller('carts')
 @ApiTags('Cart')
@@ -29,8 +30,18 @@ export class CartController {
   @Roles(Role.CUSTOMER)
   @Get()
   @ApiOperation({ summary: 'Get all cart items for authenticated user' })
-  @ApiOkResponse({ type: CartItemResponseDto, isArray: true })
-  getCart(@Req() request: { user: AuthenticatedUser }): Promise<CartItemResponseDto[]> {
+  // @ApiOkResponse({ type: CartItemResponseDto, isArray: true })
+//   @ApiOkResponse({
+//   description:
+//     'Returns grouped cart response',
+// })
+
+@ApiOkResponse({
+  type: CartResponseDto,
+})
+  async getCart(
+  @Req() request: { user: AuthenticatedUser },
+) {
     return this.cartService.getCart(request.user.id);
   }
 
