@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 
 import { CartItemResponseDto } from './dto/cart-item-response.dto';
+import { CartResponseDto } from './dto/cart-response.dto';
 import { CreateCartItemDto } from './dto/create-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -77,7 +78,7 @@ export class CartService {
   //   };
   // }
 
-  async getCart(userId: number) {
+  async getCart(userId: number) : Promise<CartResponseDto>  {
     const cartItems = await this.prisma.cartItem.findMany({
       where: {
         userId,
@@ -125,7 +126,9 @@ export class CartService {
 
       discount: item.menuItem.discountPrice,
 
-      addOns: item.addOns ?? [],
+       addOns: Array.isArray(item.addOns)
+    ? (item.addOns as unknown[])
+    : [],
 
       description: item.menuItem.description,
 
@@ -153,7 +156,7 @@ export class CartService {
     };
   }
 
-  async addToCart(userId: number, payload: CreateCartItemDto): Promise<CartItemResponseDto> {
+  async addToCart(userId: number, payload: CreateCartItemDto): Promise<CartResponseDto> {
     const menuItem = await this.prisma.menuItem.findUnique({
       where: { id: payload.menuItemId },
       include: {
@@ -273,18 +276,15 @@ export class CartService {
       });
     });
 
-    return this.mapCartItem(cartItem);
+    return this.getCart(userId);
   }
 
-  async updateCartItem(
-    userId: number,
-    menuItemId: number,
-    payload: UpdateCartItemDto,
-  ): Promise<CartItemResponseDto> {
+
+  async updateCartItem(userId: number, cartItemId: number, payload: UpdateCartItemDto) : Promise<CartResponseDto> {
     const cartItem = await this.prisma.cartItem.findFirst({
       where: {
+        id: cartItemId,
         userId,
-        menuItemId,
       },
     });
 
@@ -293,20 +293,23 @@ export class CartService {
     }
 
     const menuItem = await this.prisma.menuItem.findUnique({
-      where: { id: cartItem.menuItemId },
+      where: {
+        id: cartItem.menuItemId,
+      },
+
       include: {
         variants: true,
       },
     });
 
-    if (!menuItem || !menuItem.isAvailable) {
-      throw new BadRequestException('Menu item is not available');
+    if (!menuItem) {
+      throw new BadRequestException('Menu item not found');
     }
 
     const selectedVariant = cartItem.variantId
-      ? menuItem.variants.find((variant) => variant.id === cartItem.variantId)
+      ? menuItem.variants.find((v) => v.id === cartItem.variantId)
       : null;
-    // const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
+
     const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const addOnsPrice = await this.calculateAddOnsTotal(
@@ -316,42 +319,55 @@ export class CartService {
       }[],
     );
 
-    const finalUnitPrice = unitPrice + addOnsPrice;
+    const finalPrice = unitPrice + addOnsPrice;
 
-    const updatedItem: CartItemWithMenu = await this.prisma.cartItem.update({
-      where: { id: cartItem.id },
-      // data: {
-      //   quantity: payload.quantity,
-      //   price: authoritativePrice,
-      // },
+    await this.prisma.cartItem.update({
+      where: {
+        id: cartItemId,
+      },
 
       data: {
         quantity: payload.quantity,
-        price: finalUnitPrice * payload.quantity,
-        addOns: payload.addOns
-          ? (payload.addOns as unknown as Prisma.InputJsonArray)
-          : (cartItem.addOns ?? Prisma.JsonNull),
-      },
 
-      include: {
-        restaurant: true,
-        menuItem: {
-          include: {
-            category: true,
-          },
-        },
-        variant: true,
+        price: finalPrice * payload.quantity,
+
+        addOns: payload.addOns
+  ? (payload.addOns as unknown as Prisma.InputJsonArray)
+  : (cartItem.addOns ?? Prisma.JsonNull),
       },
     });
 
-    return this.mapCartItem(updatedItem);
+    return this.getCart(userId);
   }
 
-  async removeFromCart(userId: number, menuItemId: number): Promise<void> {
+  // async removeFromCart(userId: number, menuItemId: number): Promise<void> {
+  //   const cartItem = await this.prisma.cartItem.findFirst({
+  //     where: {
+  //       userId,
+  //       menuItemId,
+  //     },
+  //   });
+
+  //   if (!cartItem) {
+  //     throw new NotFoundException('Cart item not found');
+  //   }
+
+  //   await this.prisma.cartItem.delete({
+  //     where: { id: cartItem.id },
+  //   });
+  // }
+
+  async clearCart(userId: number): Promise<void> {
+    await this.prisma.cartItem.deleteMany({
+      where: { userId },
+    });
+  }
+
+  async removeFromCart(userId: number, cartItemId: number) : Promise<CartResponseDto> {
     const cartItem = await this.prisma.cartItem.findFirst({
       where: {
+        id: cartItemId,
         userId,
-        menuItemId,
       },
     });
 
@@ -360,14 +376,12 @@ export class CartService {
     }
 
     await this.prisma.cartItem.delete({
-      where: { id: cartItem.id },
+      where: {
+        id: cartItemId,
+      },
     });
-  }
 
-  async clearCart(userId: number): Promise<void> {
-    await this.prisma.cartItem.deleteMany({
-      where: { userId },
-    });
+    return this.getCart(userId);
   }
 
   private mapCartItem(item: CartItemWithMenu): CartItemResponseDto {

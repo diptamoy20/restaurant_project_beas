@@ -41,8 +41,13 @@ class CartSummaryItemDto {
   })
   ingredients!: string | null;
 
-  @ApiProperty()
-  rating!: number;
+  // @ApiProperty()
+  // rating!: number;
+
+  @ApiProperty({
+  nullable: true,
+})
+rating!: number | null;
 
   @ApiProperty()
   bestSeller!: boolean;
