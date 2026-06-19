@@ -78,7 +78,7 @@ export class CartService {
   //   };
   // }
 
-  async getCart(userId: number) : Promise<CartResponseDto>  {
+  async getCart(userId: number): Promise<CartResponseDto> {
     const cartItems = await this.prisma.cartItem.findMany({
       where: {
         userId,
@@ -126,9 +126,7 @@ export class CartService {
 
       discount: item.menuItem.discountPrice,
 
-       addOns: Array.isArray(item.addOns)
-    ? (item.addOns as unknown[])
-    : [],
+      addOns: Array.isArray(item.addOns) ? (item.addOns as unknown[]) : [],
 
       description: item.menuItem.description,
 
@@ -279,8 +277,11 @@ export class CartService {
     return this.getCart(userId);
   }
 
-
-  async updateCartItem(userId: number, cartItemId: number, payload: UpdateCartItemDto) : Promise<CartResponseDto> {
+  async updateCartItem(
+    userId: number,
+    cartItemId: number,
+    payload: UpdateCartItemDto,
+  ): Promise<CartResponseDto> {
     const cartItem = await this.prisma.cartItem.findFirst({
       where: {
         id: cartItemId,
@@ -332,8 +333,8 @@ export class CartService {
         price: finalPrice * payload.quantity,
 
         addOns: payload.addOns
-  ? (payload.addOns as unknown as Prisma.InputJsonArray)
-  : (cartItem.addOns ?? Prisma.JsonNull),
+          ? (payload.addOns as unknown as Prisma.InputJsonArray)
+          : (cartItem.addOns ?? Prisma.JsonNull),
       },
     });
 
@@ -363,7 +364,7 @@ export class CartService {
     });
   }
 
-  async removeFromCart(userId: number, cartItemId: number) : Promise<CartResponseDto> {
+  async removeFromCart(userId: number, cartItemId: number): Promise<CartResponseDto> {
     const cartItem = await this.prisma.cartItem.findFirst({
       where: {
         id: cartItemId,

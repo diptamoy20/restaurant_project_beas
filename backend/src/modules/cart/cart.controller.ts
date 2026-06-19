@@ -11,7 +11,6 @@ import {
 } from '@nestjs/swagger';
 
 import { CartService } from './cart.service';
-import { CartItemResponseDto } from './dto/cart-item-response.dto';
 import { CreateCartItemDto } from './dto/create-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
@@ -51,12 +50,12 @@ export class CartController {
     type: CartResponseDto,
   })
   @ApiStandardErrorResponses({ badRequest: true })
-addToCart(
-  @Body() payload: CreateCartItemDto,
-  @Req() request: { user: AuthenticatedUser },
-): Promise<CartResponseDto> {
-  return this.cartService.addToCart(request.user.id, payload);
-}
+  addToCart(
+    @Body() payload: CreateCartItemDto,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<CartResponseDto> {
+    return this.cartService.addToCart(request.user.id, payload);
+  }
 
   // @Roles(Role.CUSTOMER)
   // @Put(':menuItemId')

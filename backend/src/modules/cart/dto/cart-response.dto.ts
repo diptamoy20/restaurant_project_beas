@@ -45,9 +45,9 @@ class CartSummaryItemDto {
   // rating!: number;
 
   @ApiProperty({
-  nullable: true,
-})
-rating!: number | null;
+    nullable: true,
+  })
+  rating!: number | null;
 
   @ApiProperty()
   bestSeller!: boolean;
