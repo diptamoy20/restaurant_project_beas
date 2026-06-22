@@ -5,6 +5,11 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+<<<<<<< HEAD
+=======
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+>>>>>>> fd7bc30193f0c1f6da496a964b9be99819d02e5f
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -80,6 +85,9 @@ export class DeliveriesGateway implements OnGatewayConnection {
       client.data.user = await this.authenticate(client);
       client.emit('tracking:connected', { ok: true });
     } catch (error) {
+      this.logger.warn(
+        `Socket auth failed client=${client.id} ${this.describeHandshake(client)} message=${this.getErrorMessage(error)}`,
+      );
       client.emit('tracking:error', {
         message: this.getErrorMessage(error),
       });
@@ -118,7 +126,6 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
       if (user.role !== Role.DELIVERY_BOY) {
         throw new ForbiddenException('Only delivery boys can update live location');
-        // throw new ForbiddenException(user.role);
       }
 
       const result = await this.deliveriesService.updateMyLiveLocation(user, payload);
@@ -126,11 +133,6 @@ export class DeliveriesGateway implements OnGatewayConnection {
         orderId: payload.orderId,
         ...result,
       };
-
-      // DEBUG EVENT → frontend can see this
-      this.server.to(this.orderRoom(payload.orderId)).emit('debug:room', {
-        room: this.orderRoom(payload.orderId),
-      });
 
       this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
 
@@ -144,7 +146,18 @@ export class DeliveriesGateway implements OnGatewayConnection {
   }
 
   private async authenticate(client: Socket): Promise<AuthenticatedUser> {
+    if (this.isAuthDebugEnabled()) {
+      this.logger.debug(`Socket handshake client=${client.id} ${this.describeHandshake(client)}`);
+    }
+
     const token = this.getToken(client);
+    const tokenFormatValid = this.isValidJwtFormat(token);
+
+    if (this.isAuthDebugEnabled()) {
+      this.logger.debug(
+        `Socket token extracted client=${client.id} token=${this.previewToken(token)} length=${token?.length ?? 0} jwtFormatValid=${tokenFormatValid}`,
+      );
+    }
 
     if (!token) {
       throw new UnauthorizedException('Missing socket token');
@@ -188,25 +201,141 @@ export class DeliveriesGateway implements OnGatewayConnection {
   }
 
   private getToken(client: Socket): string | null {
-    const authToken = client.handshake.auth?.token;
+    const authToken = this.extractTokenValue(client.handshake.auth);
 
-    if (typeof authToken === 'string' && authToken.trim()) {
-      return authToken.trim();
+    if (authToken) {
+      return authToken;
     }
 
     const header = client.handshake.headers.authorization;
 
-    if (typeof header === 'string' && header.startsWith('Bearer ')) {
-      return header.slice('Bearer '.length).trim();
+    if (typeof header === 'string') {
+      const normalized = this.normalizeToken(header);
+
+      if (normalized) {
+        return normalized;
+      }
     }
 
     const queryToken = client.handshake.query.token;
 
-    if (typeof queryToken === 'string' && queryToken.trim()) {
-      return queryToken.trim();
+    if (typeof queryToken === 'string' || Array.isArray(queryToken)) {
+      const normalized = this.normalizeToken(queryToken);
+
+      if (normalized) {
+        return normalized;
+      }
     }
 
     return null;
+  }
+
+  private extractTokenValue(value: unknown): string | null {
+    if (value == null) {
+      return null;
+    }
+
+    if (typeof value === 'string' || Array.isArray(value)) {
+      return this.normalizeToken(value);
+    }
+
+    if (typeof value !== 'object') {
+      return null;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    return (
+      this.extractTokenValue(record.accessToken) ??
+      this.extractTokenValue(record.access_token) ??
+      this.extractTokenValue(record.token) ??
+      this.extractTokenValue(record.data) ??
+      this.extractTokenValue(record.auth) ??
+      this.extractTokenValue(record.Authorization) ??
+      this.extractTokenValue(record.authorization)
+    );
+  }
+
+  private normalizeToken(value: string | string[]): string | null {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const decoded = this.decodeTokenCandidate(raw);
+    const trimmed = decoded.trim().replace(/^['"]+|['"]+$/g, '');
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const bearerStripped = trimmed.replace(/^Bearer\s+/i, '').trim();
+
+    if (!bearerStripped) {
+      return null;
+    }
+
+    if (
+      (bearerStripped.startsWith('{') && bearerStripped.endsWith('}')) ||
+      (bearerStripped.startsWith('[') && bearerStripped.endsWith(']'))
+    ) {
+      try {
+        return this.extractTokenValue(JSON.parse(bearerStripped));
+      } catch {
+        return bearerStripped;
+      }
+    }
+
+    return bearerStripped;
+  }
+
+  private decodeTokenCandidate(value: string): string {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
+  private isValidJwtFormat(token: string | null | undefined): boolean {
+    const parts = token?.split('.');
+    return parts?.length === 3;
+  }
+
+  private isAuthDebugEnabled(): boolean {
+    return this.configService.get<string>('AUTH_DEBUG') === 'true';
+  }
+
+  private describeHandshake(client: Socket): string {
+    const auth = this.stringifyForLog(client.handshake.auth);
+    const authorizationHeader = this.stringifyForLog(client.handshake.headers.authorization);
+    const queryToken = this.stringifyForLog(client.handshake.query.token);
+
+    return `auth=${auth} authorizationHeader=${authorizationHeader} queryToken=${queryToken}`;
+  }
+
+  private stringifyForLog(value: unknown): string {
+    if (value == null) {
+      return 'null';
+    }
+
+    if (typeof value === 'string') {
+      return JSON.stringify(value);
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable]';
+    }
+  }
+
+  private previewToken(token: string | null | undefined): string {
+    if (!token) {
+      return 'null';
+    }
+
+    if (token.length <= 24) {
+      return token;
+    }
+
+    return `${token.slice(0, 12)}...${token.slice(-12)}`;
   }
 
   private getSocketUser(client: AuthenticatedSocket): AuthenticatedUser {
