@@ -52,7 +52,7 @@ export function CheckoutPage() {
   const orderType = tableId ? "DINE_IN" : "DELIVERY";
   const needsDeliveryAddress = orderType === "DELIVERY";
   const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () => items.reduce((sum, item) => sum + item.price, 0),
     [items],
   );
   const totalAmount = quote?.finalAmount ?? subtotal;
@@ -484,11 +484,11 @@ export function CheckoutPage() {
                   <div>
                     <strong>{item.name}</strong>
                     <span>
-                      {item.quantity} x {formatCurrency.format(item.price)}
+                      {item.quantity} x {formatCurrency.format(item.unitPrice)}
                     </span>
                   </div>
                   <strong>
-                    {formatCurrency.format(item.price * item.quantity)}
+                    {formatCurrency.format(item.price)}
                   </strong>
                 </div>
               ))

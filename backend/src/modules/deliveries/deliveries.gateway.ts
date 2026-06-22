@@ -64,6 +64,11 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
   private readonly logger = new Logger(DeliveriesGateway.name);
 
+  // constructor(
+  //   private readonly deliveriesService: DeliveriesService,
+  //   private readonly jwtService: JwtService,
+  // ) {}
+
   constructor(
     private readonly deliveriesService: DeliveriesService,
     private readonly jwtService: JwtService,
@@ -153,13 +158,17 @@ export class DeliveriesGateway implements OnGatewayConnection {
       throw new UnauthorizedException('Missing socket token');
     }
 
-    if (!tokenFormatValid) {
+    // const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+
+    let payload: JwtPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+        secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
+      });
+    } catch {
       throw new UnauthorizedException('Malformed socket token');
     }
-
-    const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-      secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
-    });
 
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');

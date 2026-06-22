@@ -50,17 +50,15 @@ class CartSummaryItemDto {
   rating!: number | null;
 
   @ApiProperty()
+  unitPrice!: number;
+
+  @ApiProperty()
   bestSeller!: boolean;
 }
 
 export class CartResponseDto {
   @ApiProperty()
   userId!: number;
-
-  @ApiProperty({
-    nullable: true,
-  })
-  cartId!: number | null;
 
   @ApiProperty()
   totalItems!: number;

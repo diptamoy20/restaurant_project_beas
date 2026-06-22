@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  decreaseQuantity as decreaseQuantityAction,
-  increaseQuantity as increaseQuantityAction,
-  removeItem as removeItemAction,
-} from '../store/slices/cartSlice';
+  fetchCart,
+  updateCartItemAsync,
+  removeFromCartAsync,
+} from "../store/slices/cartSlice";
 import {
   createSessionAwarePath,
   persistRestaurantId,
@@ -57,21 +57,40 @@ export function CartPage() {
     }
   }, [restaurantId]);
 
+  useEffect(() => {
+  dispatch(fetchCart());
+}, [dispatch]);
+
   const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () => items.reduce((sum, item) => sum + item.price, 0),
     [items],
   );
 
   const increaseQuantity = (item) => {
-    dispatch(increaseQuantityAction(item.cartKey));
+    // dispatch(increaseQuantityAction(item.cartKey));
+    dispatch(
+ updateCartItemAsync({
+   cartItemId:item.cartItemId,
+   quantity:item.quantity+1,
+ })
+);
   };
 
   const decreaseQuantity = (item) => {
-    dispatch(decreaseQuantityAction(item.cartKey));
+    // dispatch(decreaseQuantityAction(item.cartKey));
+    dispatch(
+ updateCartItemAsync({
+   cartItemId:item.cartItemId,
+   quantity:item.quantity-1,
+ })
+);
   };
 
   const removeItem = (item) => {
-    dispatch(removeItemAction(item.cartKey));
+    // dispatch(removeItemAction(item.cartKey));
+    dispatch(
+      removeFromCartAsync(item.cartItemId)
+    );
   };
 
   const proceedToCheckout = () => {
@@ -128,7 +147,7 @@ export function CartPage() {
             <div className="empty-state">Your cart is empty.</div>
           ) : (
             items.map((item) => {
-              const itemSubtotal = item.price * item.quantity;
+              const itemSubtotal = item.price;
 
               return (
                 <article key={item.cartKey} className="cart-item-card">
@@ -136,7 +155,7 @@ export function CartPage() {
                     <div>
                       <span className="pill">{item.category?.name}</span>
                       <h3>{item.name}</h3>
-                      <p className="line-item-meta">{formatCurrency.format(item.price)} per item</p>
+                      <p className="line-item-meta">{formatCurrency.format(item.unitPrice)} per item</p>
                       {(item.variant || (item.addOns && item.addOns.length > 0)) && (
                         <div className="cart-item-customizations">
                           {item.variant && (
