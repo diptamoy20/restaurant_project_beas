@@ -28,6 +28,6 @@ console.log('Sample access token for socket test:\n');
 console.log(token);
 console.log('\nConnect with:');
 console.log(`io('http://localhost:${process.env.PORT ?? 4000}/delivery-tracking', {`);
-console.log("  transports: ['websocket'],");
+console.log("  transports: ['polling', 'websocket'],");
 console.log('  auth: { token },');
 console.log('});');

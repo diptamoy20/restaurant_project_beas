@@ -313,7 +313,7 @@ The socket shares the same HTTP port as the REST API (`PORT`, default `4000`). S
 
 ```ts
 io('http://YOUR_API_HOST:4000/delivery-tracking', {
-  transports: ['websocket'],
+  transports: ['polling', 'websocket'],
   auth: {
     token: accessToken,
   },

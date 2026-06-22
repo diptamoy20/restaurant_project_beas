@@ -48,7 +48,7 @@ import { SendOtpResponseDto } from './dto/send-otp-response.dto';
 const DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE = {
   socketUrl: 'http://YOUR_API_HOST:4000/delivery-tracking',
   namespace: '/delivery-tracking',
-  transport: 'websocket',
+  transports: ['polling', 'websocket'],
   env: {
     httpPort: 'PORT',
     defaultHttpPort: 4000,
@@ -68,7 +68,7 @@ const DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE = {
     ],
   },
   clientExample: `io('http://YOUR_API_HOST:4000/delivery-tracking', {
-  transports: ['websocket'],
+  transports: ['polling', 'websocket'],
   auth: { token: accessToken },
 });`,
   events: {
@@ -326,7 +326,7 @@ export class DeliveriesController {
         physicalDevice: `http://YOUR_COMPUTER_LAN_IP:${httpPort}/delivery-tracking`,
       },
       clientExample: `io('${baseUrl}/delivery-tracking', {
-  transports: ['websocket'],
+  transports: ['polling', 'websocket'],
   auth: { token: accessToken },
 });`,
     };

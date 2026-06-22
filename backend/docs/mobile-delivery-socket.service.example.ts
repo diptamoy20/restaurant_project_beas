@@ -4,7 +4,7 @@
  * Copy into your app and wire GlobalApi / GlobalLoginAuth to your project.
  *
  * Critical rules:
- * 1. socket URL = `${API_BASE_URL}/delivery-tracking` (same host/port as REST API)
+ * 1. socket URL = DELIVERY_TRACKING_SOCKET_URL from backend dashboard
  * 2. Use transports: ['polling', 'websocket'] — websocket-only fails on many RN devices
  * 3. Do not connect at module load — refresh auth token in connectSocket()
  * 4. Prefer trackingSocketUrl from GET /api/deliveries/me/dashboard when available
