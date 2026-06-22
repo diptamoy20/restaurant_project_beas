@@ -5,8 +5,8 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
   MessageBody,
@@ -70,10 +70,10 @@ export class DeliveriesGateway implements OnGatewayConnection {
   // ) {}
 
   constructor(
-  private readonly deliveriesService: DeliveriesService,
-  private readonly jwtService: JwtService,
-  private readonly configService: ConfigService,
-) {}
+    private readonly deliveriesService: DeliveriesService,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
@@ -154,13 +154,13 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
     let payload: JwtPayload;
 
-try {
-  payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-    secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
-  });
-} catch {
-  throw new UnauthorizedException('Malformed socket token');
-}
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+        secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Malformed socket token');
+    }
 
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');

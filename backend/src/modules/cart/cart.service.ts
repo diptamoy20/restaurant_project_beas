@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { CartItemResponseDto } from './dto/cart-item-response.dto';
 import { CartResponseDto } from './dto/cart-response.dto';
 import { CreateCartItemDto } from './dto/create-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
@@ -365,8 +364,6 @@ export class CartService {
 
     return this.getCart(userId);
   }
-
-
 
   // private getAddOnsPrice(addOns?: { price: number }[] | null): number {
   //   if (!addOns?.length) {
