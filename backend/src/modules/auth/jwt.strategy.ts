@@ -1,10 +1,10 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
-import { JwtPayload, AuthenticatedUser } from './auth.types';
-import { getDefaultPermissionsForRoles } from '../../common/constants/default-permissions';
+import { mapAccessTokenPayload } from './access-token.mapper';
+import { AuthenticatedUser, JwtPayload } from './auth.types';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -25,28 +25,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
     }
 
-    if (payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid token type');
-    }
-
-    const userId = payload.sub ?? payload.userId;
-
-    if (!Number.isInteger(userId) || userId <= 0) {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-
-    if (!payload.role) {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-
-    return {
-      id: userId,
-      name: payload.name,
-      email: payload.email,
-      phone: payload.phone,
-      profileImageUrl: payload.profileImageUrl ?? null,
-      role: payload.role,
-      permissions: payload.permissions ?? getDefaultPermissionsForRoles([payload.role]),
-    };
+    return mapAccessTokenPayload(payload);
   }
 }

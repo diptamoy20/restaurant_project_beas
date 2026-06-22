@@ -9,6 +9,7 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -18,6 +19,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 
 import { DeliveriesService } from './deliveries.service';
 import {
@@ -43,12 +45,13 @@ import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { SendOtpResponseDto } from './dto/send-otp-response.dto';
 
-const DELIVERY_TRACKING_SOCKET_DOCS = {
-  socketUrl: 'http://YOUR_API_HOST:4001/delivery-tracking',
+const DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE = {
+  socketUrl: 'http://YOUR_API_HOST:4000/delivery-tracking',
   namespace: '/delivery-tracking',
+  transport: 'websocket',
   env: {
-    port: 'DELIVERY_TRACKING_SOCKET_PORT',
-    defaultPort: 4001,
+    httpPort: 'PORT',
+    defaultHttpPort: 4000,
   },
   auth: {
     type: 'JWT access token',
@@ -58,7 +61,16 @@ const DELIVERY_TRACKING_SOCKET_DOCS = {
       },
     },
     alternatives: ['Authorization: Bearer <accessToken>', '?token=<accessToken>'],
+    notes: [
+      'Use the same accessToken returned by /api/auth/login or /api/auth/login/role.',
+      'Do not send refreshToken.',
+      'Include /delivery-tracking in the socket URL path.',
+    ],
   },
+  clientExample: `io('http://YOUR_API_HOST:4000/delivery-tracking', {
+  transports: ['websocket'],
+  auth: { token: accessToken },
+});`,
   events: {
     serverToClient: [
       'tracking:connected',
@@ -89,8 +101,8 @@ const DELIVERY_TRACKING_SOCKET_DOCS = {
     'Both apps listen to tracking:error',
   ],
   localMobileUrls: {
-    androidEmulator: 'http://10.0.2.2:4001/delivery-tracking',
-    physicalDevice: 'http://YOUR_COMPUTER_LAN_IP:4001/delivery-tracking',
+    androidEmulator: 'http://10.0.2.2:4000/delivery-tracking',
+    physicalDevice: 'http://YOUR_COMPUTER_LAN_IP:4000/delivery-tracking',
   },
 } as const;
 
@@ -99,7 +111,10 @@ const DELIVERY_TRACKING_SOCKET_DOCS = {
 @ApiBearerAuth('access-token')
 @ApiStandardErrorResponses({ unauthorized: true, forbidden: true })
 export class DeliveriesController {
-  constructor(private readonly deliveriesService: DeliveriesService) {}
+  constructor(
+    private readonly deliveriesService: DeliveriesService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Roles(Role.DELIVERY_BOY)
   @Get('me/dashboard')
@@ -294,10 +309,26 @@ export class DeliveriesController {
     description: 'Delivery live-tracking Socket.IO contract',
     schema: {
       type: 'object',
-      example: DELIVERY_TRACKING_SOCKET_DOCS,
+      example: DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE,
     },
   })
-  getLiveTrackingSocketDocs(): typeof DELIVERY_TRACKING_SOCKET_DOCS {
-    return DELIVERY_TRACKING_SOCKET_DOCS;
+  getLiveTrackingSocketDocs(@Req() request: Request): Record<string, unknown> {
+    const httpPort = this.configService.get<number>('PORT') ?? 4000;
+    const host = request.get('host') ?? `localhost:${httpPort}`;
+    const protocol = request.protocol === 'https' ? 'https' : 'http';
+    const baseUrl = `${protocol}://${host}`;
+
+    return {
+      ...DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE,
+      socketUrl: `${baseUrl}/delivery-tracking`,
+      localMobileUrls: {
+        androidEmulator: `http://10.0.2.2:${httpPort}/delivery-tracking`,
+        physicalDevice: `http://YOUR_COMPUTER_LAN_IP:${httpPort}/delivery-tracking`,
+      },
+      clientExample: `io('${baseUrl}/delivery-tracking', {
+  transports: ['websocket'],
+  auth: { token: accessToken },
+});`,
+    };
   }
 }
