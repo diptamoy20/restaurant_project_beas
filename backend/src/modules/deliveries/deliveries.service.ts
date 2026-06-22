@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 
 import {
@@ -47,6 +48,7 @@ import {
   RoutingService,
   RouteStopType,
 } from '../../common/routing/routing.service';
+import { buildDeliveryTrackingSocketUrl } from '../../common/utils/tracking-socket-url.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { NotificationService } from '../notifications/notification.service';
@@ -122,6 +124,7 @@ export class DeliveriesService {
     private readonly notificationService: NotificationService,
     private readonly paymentsService: PaymentsService,
     private readonly routingService: RoutingService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
@@ -156,6 +159,7 @@ export class DeliveriesService {
         delivered,
       },
       assignedOrders: activeOrders.map((delivery) => this.mapOrderCard(delivery)),
+      trackingSocketUrl: buildDeliveryTrackingSocketUrl(this.configService),
     };
   }
 
