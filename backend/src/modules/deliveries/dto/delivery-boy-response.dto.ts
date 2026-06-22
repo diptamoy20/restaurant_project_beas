@@ -285,6 +285,13 @@ export class DeliveryBoyDashboardDto {
   @ValidateNested({ each: true })
   @Type(() => DeliveryBoyOrderCardDto)
   assignedOrders!: DeliveryBoyOrderCardDto[];
+
+  @ApiProperty({
+    example: 'http://192.168.1.18:7005/delivery-tracking',
+    description: 'Socket.IO namespace URL for live delivery tracking (same host/port as REST API).',
+  })
+  @IsString()
+  trackingSocketUrl!: string;
 }
 
 export class PaginatedDeliveryBoyOrderCardsDto extends PaginationMetaDto {

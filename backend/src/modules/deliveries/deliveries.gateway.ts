@@ -46,6 +46,11 @@ class JoinTrackingPayload {
     origin: true,
     credentials: true,
   },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
+  pingInterval: 25_000,
+  pingTimeout: 20_000,
+  connectTimeout: 45_000,
 })
 @UsePipes(
   new ValidationPipe({

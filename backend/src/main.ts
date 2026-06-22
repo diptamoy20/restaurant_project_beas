@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
+import { SocketIoAdapter } from './common/adapters/socket-io.adapter';
 
 function parseCsvEnv(value: string | undefined): string[] {
   return (value ?? '')
@@ -63,6 +64,7 @@ async function bootstrap(): Promise<void> {
     logger: resolveLogLevels(nodeEnv),
     bufferLogs: false,
   });
+  app.useWebSocketAdapter(new SocketIoAdapter(app));
   const httpAdapter = app.getHttpAdapter();
   const httpServer = httpAdapter.getInstance();
 
@@ -199,6 +201,7 @@ async function bootstrap(): Promise<void> {
   const port = process.env.PORT || 4000;
   await app.listen(port);
   logger.log(`Server started on port ${port} (${nodeEnv})`);
+  logger.log(`Delivery tracking socket: http://localhost:${port}/delivery-tracking`);
 }
 
 bootstrap();
