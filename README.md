@@ -45,8 +45,9 @@ Default backend environment:
 ```env
 NODE_ENV=development
 DATABASE_URL="postgresql://postgres:root@localhost:5432/restaurant_db?schema=restaurant_management"
-PORT=4000
-DELIVERY_TRACKING_SOCKET_URL=http://localhost:4000/delivery-tracking
+PORT=7001
+DELIVERY_TRACKING_SOCKET_PORT=7005
+DELIVERY_TRACKING_SOCKET_URL=http://localhost:7005/delivery-tracking
 WEB_APP_URL="http://localhost:5173"
 ADMIN_PANEL_URL="http://localhost:5174"
 QR_FRONTEND_URL="http://localhost:5175"
@@ -287,7 +288,8 @@ cd ../admin-panel && npm run build
 
 ```env
 NODE_ENV=production
-PORT=4000
+PORT=7001
+DELIVERY_TRACKING_SOCKET_PORT=7005
 DELIVERY_TRACKING_SOCKET_URL=https://api.example.com/delivery-tracking
 DATABASE_URL="postgresql://<user>:<password>@<host>:5432/restaurant_db?schema=restaurant_management"
 CORS_ORIGINS="https://app.example.com,https://admin.example.com,https://qr.example.com"
@@ -474,7 +476,7 @@ cd backend && npm ci && npm run lint && npm run typecheck && npm run build
 - Production env secrets set and validated
 - `DOCS_ENABLED=false`
 - `CORS_ORIGINS` only includes trusted domains
-- Backend `PORT` exposed/proxied for REST API and `/delivery-tracking` socket
+- Backend `PORT` exposed/proxied for REST API, `DELIVERY_TRACKING_SOCKET_PORT` exposed/proxied for `/delivery-tracking`
 - Prisma migration deploy successful
 - `GET /api/health` returns `200` and includes `database: "up"`
 - PM2 process running and persisted

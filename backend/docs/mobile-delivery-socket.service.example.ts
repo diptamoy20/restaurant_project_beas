@@ -31,13 +31,18 @@ function resolveSocketUrl(overrideUrl?: string | null): string {
     return overrideUrl.replace(/\/$/, '');
   }
 
-  const base = String(GlobalApi.socket_url ?? GlobalApi.base_url ?? '').replace(/\/$/, '');
+  const socketUrl = String(
+    GlobalApi.delivery_tracking_socket_url ??
+      GlobalApi.trackingSocketUrl ??
+      GlobalApi.socket_url ??
+      '',
+  ).replace(/\/$/, '');
 
-  if (!base) {
-    throw new Error('[tracking] Missing API base URL in GlobalApi');
+  if (!socketUrl) {
+    throw new Error('[tracking] Missing delivery tracking socket URL');
   }
 
-  return `${base}/delivery-tracking`;
+  return socketUrl;
 }
 
 export function connectSocket(options?: { socketUrl?: string }): Socket {

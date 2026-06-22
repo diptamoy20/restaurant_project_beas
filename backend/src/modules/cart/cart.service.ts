@@ -6,19 +6,6 @@ import { CreateCartItemDto } from './dto/create-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
-type CartItemWithMenu = Prisma.CartItemGetPayload<{
-  include: {
-    restaurant: true;
-    menuItem: {
-      include: {
-        category: true;
-      };
-    };
-
-    variant: true;
-  };
-}>;
-
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}

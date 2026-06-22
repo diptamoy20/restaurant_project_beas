@@ -211,6 +211,11 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     ...config,
     NODE_ENV: nodeEnv,
     PORT: parsePort(env.PORT),
+    DELIVERY_TRACKING_SOCKET_PORT: parsePort(
+      env.DELIVERY_TRACKING_SOCKET_PORT,
+      'DELIVERY_TRACKING_SOCKET_PORT',
+      7005,
+    ),
     ACCESS_TOKEN_SECRET: accessTokenSecret,
     REFRESH_TOKEN_SECRET: env.REFRESH_TOKEN_SECRET,
     ACCESS_TOKEN_EXPIRES_IN: env.ACCESS_TOKEN_EXPIRES_IN ?? env.JWT_EXPIRES_IN ?? '7d',

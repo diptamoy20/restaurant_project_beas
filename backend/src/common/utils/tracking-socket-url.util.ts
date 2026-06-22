@@ -3,7 +3,7 @@ export function buildDeliveryTrackingSocketUrl(config: {
 }): string {
   const configured =
     config.get('DELIVERY_TRACKING_SOCKET_URL') ??
-    `http://localhost:${config.get('PORT') ?? 4000}/delivery-tracking`;
+    `http://localhost:${config.get('DELIVERY_TRACKING_SOCKET_PORT') ?? 7005}/delivery-tracking`;
 
   return String(configured).trim().replace(/\/+$/, '');
 }

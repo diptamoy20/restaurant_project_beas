@@ -82,6 +82,18 @@ type CountRow = {
   count: bigint | number;
 };
 
+type NearbyMenuItem = Prisma.MenuItemGetPayload<{
+  include: {
+    variants: true;
+    addonGroups: {
+      include: {
+        options: true;
+      };
+    };
+    category: true;
+  };
+}>;
+
 export type NearbyRestaurantWithGeo = NearbyRestaurantRow & {
   categories: {
     id: number;
@@ -89,17 +101,7 @@ export type NearbyRestaurantWithGeo = NearbyRestaurantRow & {
     name: string;
     description: string | null;
   }[];
-  // menuItems: {
-  //   id: number;
-  //   restaurantId: number;
-  //   categoryId: number;
-  //   name: string;
-  //   description: string | null;
-  //   price: number;
-  //   isAvailable: boolean;
-  //   preparationTime: number | null;
-  // }[];
-  menuItems: any[];
+  menuItems: NearbyMenuItem[];
 };
 
 type DeliveryQuoteComputationOptions = {

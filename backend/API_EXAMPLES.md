@@ -306,13 +306,13 @@ GET /api/deliveries/tracking/socket-docs
 Use this socket contract for mobile live tracking.
 
 ```text
-http://YOUR_API_HOST:4000/delivery-tracking
+http://YOUR_API_HOST:7005/delivery-tracking
 ```
 
-The socket shares the same HTTP port as the REST API (`PORT`, default `4000`). Send the same **access** token used for REST APIs (not refresh token).
+The socket uses `DELIVERY_TRACKING_SOCKET_PORT` / `DELIVERY_TRACKING_SOCKET_URL`. Send the same **access** token used for REST APIs (not refresh token).
 
 ```ts
-io('http://YOUR_API_HOST:4000/delivery-tracking', {
+io('http://YOUR_API_HOST:7005/delivery-tracking', {
   transports: ['polling', 'websocket'],
   auth: {
     token: accessToken,
@@ -365,8 +365,8 @@ Mobile flow:
 Local mobile URLs:
 
 ```text
-Android emulator: http://10.0.2.2:4000/delivery-tracking
-Physical device: http://YOUR_COMPUTER_LAN_IP:4000/delivery-tracking
+Android emulator: http://10.0.2.2:7005/delivery-tracking
+Physical device: http://YOUR_COMPUTER_LAN_IP:7005/delivery-tracking
 ```
 
 ## Other Protected APIs

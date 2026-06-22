@@ -93,13 +93,13 @@ export class RestaurantMenuItemResponseDto {
     example: [],
   })
   @IsOptional()
-  variants?: any[];
+  variants?: unknown[];
 
   @ApiPropertyOptional({
     example: [],
   })
   @IsOptional()
-  addonGroups?: any[];
+  addonGroups?: unknown[];
 }
 
 export class RestaurantResponseDto {

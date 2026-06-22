@@ -37,7 +37,7 @@ export class CartController {
   @ApiOkResponse({
     type: CartResponseDto,
   })
-  async getCart(@Req() request: { user: AuthenticatedUser }) {
+  async getCart(@Req() request: { user: AuthenticatedUser }): Promise<CartResponseDto> {
     return this.cartService.getCart(request.user.id);
   }
 
@@ -103,7 +103,7 @@ export class CartController {
     request: {
       user: AuthenticatedUser;
     },
-  ) {
+  ): Promise<CartResponseDto> {
     return this.cartService.updateCartItem(request.user.id, cartItemId, payload);
   }
 
@@ -131,7 +131,7 @@ export class CartController {
     request: {
       user: AuthenticatedUser;
     },
-  ) {
+  ): Promise<CartResponseDto> {
     return this.cartService.removeFromCart(request.user.id, cartItemId);
   }
 

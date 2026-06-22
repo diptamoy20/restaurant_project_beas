@@ -40,7 +40,9 @@ class JoinTrackingPayload {
   orderId!: number;
 }
 
-@WebSocketGateway({
+const DELIVERY_TRACKING_SOCKET_PORT = Number(process.env.DELIVERY_TRACKING_SOCKET_PORT ?? 7005);
+
+@WebSocketGateway(DELIVERY_TRACKING_SOCKET_PORT, {
   namespace: '/delivery-tracking',
   cors: {
     origin: true,
@@ -73,9 +75,9 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
   ) {}
 
   afterInit(): void {
-    const httpPort = this.configService.get<number>('PORT') ?? 4000;
+    const socketPort = this.configService.get<number>('DELIVERY_TRACKING_SOCKET_PORT') ?? 7005;
     this.logger.log(
-      `Delivery tracking socket ready namespace=/delivery-tracking httpPort=${httpPort} url=http://localhost:${httpPort}/delivery-tracking`,
+      `Delivery tracking socket ready namespace=/delivery-tracking socketPort=${socketPort} url=http://localhost:${socketPort}/delivery-tracking`,
     );
   }
 

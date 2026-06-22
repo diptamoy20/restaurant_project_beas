@@ -19,7 +19,6 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { Request } from 'express';
 
 import { DeliveriesService } from './deliveries.service';
 import {
@@ -46,12 +45,12 @@ import { AuthenticatedUser } from '../auth/auth.types';
 import { SendOtpResponseDto } from './dto/send-otp-response.dto';
 
 const DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE = {
-  socketUrl: 'http://YOUR_API_HOST:4000/delivery-tracking',
+  socketUrl: 'http://YOUR_API_HOST:7005/delivery-tracking',
   namespace: '/delivery-tracking',
   transports: ['polling', 'websocket'],
   env: {
-    httpPort: 'PORT',
-    defaultHttpPort: 4000,
+    socketPort: 'DELIVERY_TRACKING_SOCKET_PORT',
+    defaultSocketPort: 7005,
   },
   auth: {
     type: 'JWT access token',
@@ -67,7 +66,7 @@ const DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE = {
       'Include /delivery-tracking in the socket URL path.',
     ],
   },
-  clientExample: `io('http://YOUR_API_HOST:4000/delivery-tracking', {
+  clientExample: `io('http://YOUR_API_HOST:7005/delivery-tracking', {
   transports: ['polling', 'websocket'],
   auth: { token: accessToken },
 });`,
@@ -101,8 +100,8 @@ const DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE = {
     'Both apps listen to tracking:error',
   ],
   localMobileUrls: {
-    androidEmulator: 'http://10.0.2.2:4000/delivery-tracking',
-    physicalDevice: 'http://YOUR_COMPUTER_LAN_IP:4000/delivery-tracking',
+    androidEmulator: 'http://10.0.2.2:7005/delivery-tracking',
+    physicalDevice: 'http://YOUR_COMPUTER_LAN_IP:7005/delivery-tracking',
   },
 } as const;
 
@@ -312,20 +311,21 @@ export class DeliveriesController {
       example: DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE,
     },
   })
-  getLiveTrackingSocketDocs(@Req() request: Request): Record<string, unknown> {
-    const httpPort = this.configService.get<number>('PORT') ?? 4000;
-    const host = request.get('host') ?? `localhost:${httpPort}`;
-    const protocol = request.protocol === 'https' ? 'https' : 'http';
-    const baseUrl = `${protocol}://${host}`;
+  getLiveTrackingSocketDocs(): Record<string, unknown> {
+    const socketUrl = String(
+      this.configService.get<string>('DELIVERY_TRACKING_SOCKET_URL') ??
+        'http://localhost:7005/delivery-tracking',
+    ).replace(/\/+$/, '');
+    const socketPort = this.configService.get<number>('DELIVERY_TRACKING_SOCKET_PORT') ?? 7005;
 
     return {
       ...DELIVERY_TRACKING_SOCKET_DOCS_EXAMPLE,
-      socketUrl: `${baseUrl}/delivery-tracking`,
+      socketUrl,
       localMobileUrls: {
-        androidEmulator: `http://10.0.2.2:${httpPort}/delivery-tracking`,
-        physicalDevice: `http://YOUR_COMPUTER_LAN_IP:${httpPort}/delivery-tracking`,
+        androidEmulator: `http://10.0.2.2:${socketPort}/delivery-tracking`,
+        physicalDevice: `http://YOUR_COMPUTER_LAN_IP:${socketPort}/delivery-tracking`,
       },
-      clientExample: `io('${baseUrl}/delivery-tracking', {
+      clientExample: `io('${socketUrl}', {
   transports: ['polling', 'websocket'],
   auth: { token: accessToken },
 });`,

@@ -26,6 +26,19 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
 
+type RestaurantMenuItemWithOptions = {
+  id: number;
+  restaurantId: number;
+  categoryId: number;
+  name: string;
+  description: string | null;
+  price: number;
+  isAvailable: boolean;
+  preparationTime: number | null;
+  variants?: unknown[];
+  addonGroups?: unknown[];
+};
+
 @Injectable()
 export class RestaurantsService {
   private readonly logger = new Logger(RestaurantsService.name);
@@ -769,27 +782,9 @@ export class RestaurantsService {
     };
   }
 
-  // private mapRestaurantMenuItem(menuItem: {
-  //   id: number;
-  //   restaurantId: number;
-  //   categoryId: number;
-  //   name: string;
-  //   description: string | null;
-  //   price: number;
-  //   isAvailable: boolean;
-  //   preparationTime: number | null;
-  // })
-  private mapRestaurantMenuItem(menuItem: any): RestaurantMenuItemResponseDto {
-    // return {
-    //   id: menuItem.id,
-    //   restaurantId: menuItem.restaurantId,
-    //   categoryId: menuItem.categoryId,
-    //   name: menuItem.name,
-    //   description: menuItem.description,
-    //   price: menuItem.price,
-    //   isAvailable: menuItem.isAvailable,
-    //   preparationTime: menuItem.preparationTime,
-    // };
+  private mapRestaurantMenuItem(
+    menuItem: RestaurantMenuItemWithOptions,
+  ): RestaurantMenuItemResponseDto {
     return {
       id: menuItem.id,
       restaurantId: menuItem.restaurantId,
