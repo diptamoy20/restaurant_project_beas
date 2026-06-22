@@ -12,8 +12,10 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { DecodedIdToken, UserRecord } from 'firebase-admin/auth';
+import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 
+import { mapAccessTokenPayload } from './access-token.mapper';
 import { AuthSuccessResponse, AuthenticatedUser, JwtPayload } from './auth.types';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from './dto/auth.dto';
@@ -22,6 +24,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto, SocialLoginProvider } from './dto/social-login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { FirebaseAuthService } from './firebase-auth.service';
+import { isJwtFormat } from './socket-token.util';
 import { CloudinaryService } from '../../common/cloudinary/cloudinary.service';
 import { CloudinaryImageUploadResult } from '../../common/cloudinary/cloudinary.types';
 import {
@@ -585,6 +588,47 @@ export class AuthService {
       refreshTokenExpiresAt: refreshTokenExpiresAt.toISOString(),
       user: this.toAuthUserDto(user, options.preferredRole),
     });
+  }
+
+  async verifySocketAccessToken(token: string): Promise<AuthenticatedUser> {
+    const normalized = token.trim();
+
+    if (!normalized) {
+      throw new UnauthorizedException('Missing socket token');
+    }
+
+    if (!isJwtFormat(normalized)) {
+      throw new UnauthorizedException('Invalid socket token format');
+    }
+
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(normalized, {
+        secret: this.getAccessTokenSecret(),
+      });
+
+      if (this.configService.get<string>('AUTH_DEBUG') === 'true') {
+        this.logger.debug(
+          `Socket JWT verified userId=${payload.sub ?? payload.userId} role=${payload.role ?? 'null'} type=${payload.type ?? 'null'}`,
+        );
+      }
+
+      return mapAccessTokenPayload(payload);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Socket token expired');
+      }
+
+      if (error instanceof JsonWebTokenError) {
+        this.logger.warn(`Socket JWT verification failed: ${error.message}`);
+        throw new UnauthorizedException('Invalid socket token signature');
+      }
+
+      throw error;
+    }
   }
 
   private buildStandardResponse<TData>(message: string, data: TData): AuthSuccessResponse<TData> {

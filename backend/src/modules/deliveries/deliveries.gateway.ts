@@ -6,11 +6,11 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -18,17 +18,14 @@ import {
 } from '@nestjs/websockets';
 import { Type } from 'class-transformer';
 import { IsDefined, IsInt } from 'class-validator';
-import { config as loadEnv } from 'dotenv';
 import { Server, Socket } from 'socket.io';
 
 import { DeliveriesService } from './deliveries.service';
 import { UpdateMyDeliveryLocationDto } from './dto';
 import { Role } from '../../common/enums/role.enum';
-import { AuthenticatedUser, JwtPayload } from '../auth/auth.types';
-
-loadEnv();
-
-const socketPort = parseSocketPort(process.env.DELIVERY_TRACKING_SOCKET_PORT);
+import { AuthService } from '../auth/auth.service';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { extractSocketToken, isJwtFormat, previewSocketToken } from '../auth/socket-token.util';
 
 type AuthenticatedSocket = Socket & {
   data: {
@@ -43,7 +40,7 @@ class JoinTrackingPayload {
   orderId!: number;
 }
 
-@WebSocketGateway(socketPort, {
+@WebSocketGateway({
   namespace: '/delivery-tracking',
   cors: {
     origin: true,
@@ -58,30 +55,45 @@ class JoinTrackingPayload {
     transformOptions: { enableImplicitConversion: true },
   }),
 )
-export class DeliveriesGateway implements OnGatewayConnection {
+export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
   @WebSocketServer()
   private server!: Server;
 
   private readonly logger = new Logger(DeliveriesGateway.name);
 
-  // constructor(
-  //   private readonly deliveriesService: DeliveriesService,
-  //   private readonly jwtService: JwtService,
-  // ) {}
-
   constructor(
     private readonly deliveriesService: DeliveriesService,
-    private readonly jwtService: JwtService,
+    private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
 
+  afterInit(): void {
+    const httpPort = this.configService.get<number>('PORT') ?? 4000;
+    this.logger.log(
+      `Delivery tracking socket ready namespace=/delivery-tracking httpPort=${httpPort} url=http://localhost:${httpPort}/delivery-tracking`,
+    );
+  }
+
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
+    this.logger.log(
+      `Socket handshake received client=${client.id} namespace=${client.nsp.name} transport=${client.conn.transport.name}`,
+    );
+
+    if (this.isAuthDebugEnabled()) {
+      this.logger.debug(
+        `Socket handshake details client=${client.id} ${this.describeHandshake(client)}`,
+      );
+    }
+
     try {
       client.data.user = await this.authenticate(client);
+      this.logger.log(
+        `Socket connection accepted client=${client.id} userId=${client.data.user.id} role=${client.data.user.role}`,
+      );
       client.emit('tracking:connected', { ok: true });
     } catch (error) {
       this.logger.warn(
-        `Socket auth failed client=${client.id} ${this.describeHandshake(client)} message=${this.getErrorMessage(error)}`,
+        `Socket connection rejected client=${client.id} ${this.describeHandshake(client)} message=${this.getErrorMessage(error)}`,
       );
       client.emit('tracking:error', {
         message: this.getErrorMessage(error),
@@ -141,16 +153,15 @@ export class DeliveriesGateway implements OnGatewayConnection {
   }
 
   private async authenticate(client: Socket): Promise<AuthenticatedUser> {
-    if (this.isAuthDebugEnabled()) {
-      this.logger.debug(`Socket handshake client=${client.id} ${this.describeHandshake(client)}`);
-    }
-
-    const token = this.getToken(client);
-    const tokenFormatValid = this.isValidJwtFormat(token);
+    const token = extractSocketToken({
+      auth: client.handshake.auth,
+      headers: { authorization: client.handshake.headers.authorization },
+      query: { token: client.handshake.query.token },
+    });
 
     if (this.isAuthDebugEnabled()) {
       this.logger.debug(
-        `Socket token extracted client=${client.id} token=${this.previewToken(token)} length=${token?.length ?? 0} jwtFormatValid=${tokenFormatValid}`,
+        `Socket token extracted client=${client.id} token=${previewSocketToken(token)} length=${token?.length ?? 0} jwtFormatValid=${isJwtFormat(token)}`,
       );
     }
 
@@ -158,139 +169,7 @@ export class DeliveriesGateway implements OnGatewayConnection {
       throw new UnauthorizedException('Missing socket token');
     }
 
-    // const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-
-    let payload: JwtPayload;
-
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException('Malformed socket token');
-    }
-
-    if (payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid token type');
-    }
-
-    // if (payload.role !== Role.DELIVERY_BOY) {
-    //   throw new ForbiddenException('Only delivery boys can connect to tracking socket');
-    // }
-
-    const userId = payload.sub ?? payload.userId;
-
-    if (!Number.isInteger(userId) || userId <= 0 || !payload.role) {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-
-    return {
-      id: userId,
-      name: payload.name,
-      email: payload.email,
-      phone: payload.phone,
-      profileImageUrl: payload.profileImageUrl ?? null,
-      role: payload.role,
-      permissions: payload.permissions,
-    };
-  }
-
-  private getToken(client: Socket): string | null {
-    const authToken = this.extractTokenValue(client.handshake.auth);
-
-    if (authToken) {
-      return authToken;
-    }
-
-    const header = client.handshake.headers.authorization;
-
-    if (typeof header === 'string') {
-      const normalized = this.normalizeToken(header);
-
-      if (normalized) {
-        return normalized;
-      }
-    }
-
-    const queryToken = client.handshake.query.token;
-
-    if (typeof queryToken === 'string' || Array.isArray(queryToken)) {
-      const normalized = this.normalizeToken(queryToken);
-
-      if (normalized) {
-        return normalized;
-      }
-    }
-
-    return null;
-  }
-
-  private extractTokenValue(value: unknown): string | null {
-    if (value == null) {
-      return null;
-    }
-
-    if (typeof value === 'string' || Array.isArray(value)) {
-      return this.normalizeToken(value);
-    }
-
-    if (typeof value !== 'object') {
-      return null;
-    }
-
-    const record = value as Record<string, unknown>;
-
-    return (
-      this.extractTokenValue(record.accessToken) ??
-      this.extractTokenValue(record.access_token) ??
-      this.extractTokenValue(record.token) ??
-      this.extractTokenValue(record.data) ??
-      this.extractTokenValue(record.auth) ??
-      this.extractTokenValue(record.Authorization) ??
-      this.extractTokenValue(record.authorization)
-    );
-  }
-
-  private normalizeToken(value: string | string[]): string | null {
-    const raw = Array.isArray(value) ? value[0] : value;
-    const decoded = this.decodeTokenCandidate(raw);
-    const trimmed = decoded.trim().replace(/^['"]+|['"]+$/g, '');
-
-    if (!trimmed) {
-      return null;
-    }
-
-    const bearerStripped = trimmed.replace(/^Bearer\s+/i, '').trim();
-
-    if (!bearerStripped) {
-      return null;
-    }
-
-    if (
-      (bearerStripped.startsWith('{') && bearerStripped.endsWith('}')) ||
-      (bearerStripped.startsWith('[') && bearerStripped.endsWith(']'))
-    ) {
-      try {
-        return this.extractTokenValue(JSON.parse(bearerStripped));
-      } catch {
-        return bearerStripped;
-      }
-    }
-
-    return bearerStripped;
-  }
-
-  private decodeTokenCandidate(value: string): string {
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return value;
-    }
-  }
-
-  private isValidJwtFormat(token: string | null | undefined): boolean {
-    const parts = token?.split('.');
-    return parts?.length === 3;
+    return this.authService.verifySocketAccessToken(token);
   }
 
   private isAuthDebugEnabled(): boolean {
@@ -319,18 +198,6 @@ export class DeliveriesGateway implements OnGatewayConnection {
     } catch {
       return '[unserializable]';
     }
-  }
-
-  private previewToken(token: string | null | undefined): string {
-    if (!token) {
-      return 'null';
-    }
-
-    if (token.length <= 24) {
-      return token;
-    }
-
-    return `${token.slice(0, 12)}...${token.slice(-12)}`;
   }
 
   private getSocketUser(client: AuthenticatedSocket): AuthenticatedUser {
@@ -374,14 +241,4 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
     return 'Delivery tracking socket error';
   }
-}
-
-function parseSocketPort(rawPort: string | undefined): number {
-  const port = Number(rawPort ?? '4001');
-
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    return 4001;
-  }
-
-  return port;
 }
