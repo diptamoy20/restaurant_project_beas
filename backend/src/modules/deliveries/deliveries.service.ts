@@ -125,7 +125,7 @@ export class DeliveriesService {
   ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
 
     const [assigned, onTheWay, delivered, activeOrders] = await Promise.all([
       this.prisma.delivery.count({
@@ -160,7 +160,7 @@ export class DeliveriesService {
   }
 
   async getMyProfile(requester: AuthenticatedUser): Promise<DeliveryAgentProfileResponseDto> {
-    const agent = await this.getCurrentAgentProfileOrThrow(requester.id);
+    const agent = await this.getCurrentAgentProfileOrThrow(requester);
     const [totalOrders, completedOrders] = await Promise.all([
       this.prisma.delivery.count({
         where: { agentId: agent.id },
@@ -177,7 +177,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     query: DeliveryBoyOrderHistoryQueryDto,
   ): Promise<DeliveryBoyOrderHistoryResponseDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const selectedDate = resolveOrderHistoryCalendarDate(query.date);
     const { start, end } = this.getOrderHistoryDayBoundsOrThrow(selectedDate);
     const pagination = normalizeOrderHistoryPage(query.page);
@@ -221,7 +221,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     query: DeliveryBoyOrdersQueryDto,
   ): Promise<PaginatedResult<DeliveryBoyOrderCardDto>> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
     const where: Prisma.DeliveryWhereInput = {
       agentId: agent.id,
@@ -248,7 +248,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     orderId: number,
   ): Promise<DeliveryBoyOrderDetailsDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
 
     return this.mapOrderDetails(delivery);
@@ -258,7 +258,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     isAvailable: boolean,
   ): Promise<DeliveryBoyDashboardDto['profile']> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const updated = await this.prisma.deliveryAgent.update({
       where: { id: agent.id },
       data: { isAvailable },
@@ -271,7 +271,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     orderId: number,
   ): Promise<DeliveryBoyOrderDetailsDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const existing = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
 
     if (existing.status !== DELIVERY_STATUS.ASSIGNED) {
@@ -301,7 +301,7 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     orderId: number,
   ): Promise<SendOtpResponseDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
 
     const delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
 
@@ -336,7 +336,7 @@ export class DeliveriesService {
     orderId: number,
     status: string,
   ): Promise<DeliveryBoyOrderDetailsDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
+    const agent = await this.getCurrentAgentOrThrow(requester);
     const existing = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
     const currentStatus = existing.status as DeliveryStatusValue;
     const nextStatus = status as DeliveryStatusValue;
@@ -389,14 +389,22 @@ export class DeliveriesService {
     requester: AuthenticatedUser,
     payload: UpdateMyDeliveryLocationDto,
   ): Promise<DeliveryLocationUpdateResponseDto> {
-    const agent = await this.getCurrentAgentOrThrow(requester.id);
-    const delivery = await this.prisma.delivery.findFirst({
-      where: { orderId: payload.orderId, agentId: agent.id },
-      select: { id: true },
+    const agent = await this.getCurrentAgentOrThrow(requester);
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { orderId: payload.orderId },
+      select: { id: true, agentId: true },
     });
 
     if (!delivery) {
       throw new NotFoundException('Delivery not found for this order');
+    }
+
+    if (delivery.agentId == null) {
+      throw new BadRequestException('No delivery boy assigned to this order yet');
+    }
+
+    if (delivery.agentId !== agent.id) {
+      throw new ForbiddenException('This order is assigned to another delivery boy');
     }
 
     return this.createTracking(delivery.id, payload);
@@ -423,7 +431,7 @@ export class DeliveriesService {
     }
 
     if (this.hasRole(requester, Role.DELIVERY_BOY)) {
-      const agent = await this.getCurrentAgentOrThrow(requester.id);
+      const agent = await this.getCurrentAgentOrThrow(requester);
 
       if (delivery.agentId !== agent.id) {
         throw new ForbiddenException('You do not have permission to update this delivery');
@@ -458,7 +466,7 @@ export class DeliveriesService {
     }
 
     if (this.hasRole(requester, Role.DELIVERY_BOY)) {
-      const agent = await this.getCurrentAgentOrThrow(requester.id);
+      const agent = await this.getCurrentAgentOrThrow(requester);
 
       if (delivery.agentId !== agent.id) {
         throw new ForbiddenException('You do not have permission to access this delivery tracking');
@@ -490,29 +498,135 @@ export class DeliveriesService {
     };
   }
 
-  private async getCurrentAgentOrThrow(userId: number): Promise<DeliveryAgentRecord> {
-    const agent = await this.prisma.deliveryAgent.findUnique({
-      where: { userId },
-    });
+  private async getCurrentAgentOrThrow(requester: AuthenticatedUser): Promise<DeliveryAgentRecord> {
+    if (requester.role !== Role.DELIVERY_BOY) {
+      throw new ForbiddenException('Only delivery boys can access delivery-agent operations');
+    }
+
+    const agent =
+      (await this.prisma.deliveryAgent.findUnique({
+        where: { userId: requester.id },
+      })) ??
+      (await this.linkLegacyAgentByPhone(requester)) ??
+      (await this.createMissingAgentForDeliveryBoy(requester));
 
     if (!agent) {
-      throw new NotFoundException('Delivery agent profile not found for current user');
+      throw new NotFoundException(
+        'Delivery agent profile not linked to this user. Create or link delivery_agents.user_id first.',
+      );
     }
 
     return agent;
   }
 
-  private async getCurrentAgentProfileOrThrow(userId: number): Promise<DeliveryAgentProfileRecord> {
-    const agent = await this.prisma.deliveryAgent.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
+  private async getCurrentAgentProfileOrThrow(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentProfileRecord> {
+    if (requester.role !== Role.DELIVERY_BOY) {
+      throw new ForbiddenException('Only delivery boys can access delivery-agent operations');
+    }
+
+    const agent =
+      (await this.prisma.deliveryAgent.findUnique({
+        where: { userId: requester.id },
+        include: { user: true },
+      })) ??
+      (await this.linkLegacyAgentProfileByPhone(requester)) ??
+      (await this.createMissingAgentProfileForDeliveryBoy(requester));
 
     if (!agent) {
-      throw new NotFoundException('Delivery agent profile not found for current user');
+      throw new NotFoundException(
+        'Delivery agent profile not linked to this user. Create or link delivery_agents.user_id first.',
+      );
     }
 
     return agent;
+  }
+
+  private async linkLegacyAgentByPhone(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentRecord | null> {
+    if (!requester.phone) {
+      return null;
+    }
+
+    const legacyAgent = await this.prisma.deliveryAgent.findFirst({
+      where: {
+        userId: null,
+        phone: requester.phone,
+      },
+    });
+
+    if (!legacyAgent) {
+      return null;
+    }
+
+    // ponytail: safe legacy recovery path, admin flow should keep userId linked going forward
+    return this.prisma.deliveryAgent.update({
+      where: { id: legacyAgent.id },
+      data: { userId: requester.id },
+    });
+  }
+
+  private async linkLegacyAgentProfileByPhone(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentProfileRecord | null> {
+    const linkedAgent = await this.linkLegacyAgentByPhone(requester);
+
+    if (!linkedAgent) {
+      return null;
+    }
+
+    return this.prisma.deliveryAgent.findUnique({
+      where: { id: linkedAgent.id },
+      include: { user: true },
+    });
+  }
+
+  private async createMissingAgentForDeliveryBoy(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentRecord | null> {
+    if (requester.role !== Role.DELIVERY_BOY || !requester.phone) {
+      return null;
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: requester.id },
+      include: {
+        role: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive || user.role?.role.name !== Role.DELIVERY_BOY) {
+      return null;
+    }
+
+    return this.prisma.deliveryAgent.create({
+      data: {
+        userId: requester.id,
+        name: requester.name ?? requester.email ?? requester.phone,
+        phone: requester.phone,
+      },
+    });
+  }
+
+  private async createMissingAgentProfileForDeliveryBoy(
+    requester: AuthenticatedUser,
+  ): Promise<DeliveryAgentProfileRecord | null> {
+    const createdAgent = await this.createMissingAgentForDeliveryBoy(requester);
+
+    if (!createdAgent) {
+      return null;
+    }
+
+    return this.prisma.deliveryAgent.findUnique({
+      where: { id: createdAgent.id },
+      include: { user: true },
+    });
   }
 
   private async getMyDeliveryByOrderOrThrow(
