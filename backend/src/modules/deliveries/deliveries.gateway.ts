@@ -117,6 +117,7 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
     try {
       const user = this.getSocketUser(client);
       const orderId = this.parseOrderId(payload.orderId);
+      this.logger.log(`track:join client=${client.id} userId=${user.id} orderId=${orderId}`);
       const tracking = await this.deliveriesService.getTrackingByOrder(orderId, user);
 
       await client.join(this.orderRoom(orderId));
@@ -137,6 +138,9 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
   ): Promise<WsResponse<unknown>> {
     try {
       const user = this.getSocketUser(client);
+      this.logger.log(
+        `delivery:location client=${client.id} userId=${user.id} orderId=${payload.orderId}`,
+      );
 
       if (user.role !== Role.DELIVERY_BOY) {
         throw new ForbiddenException('Only delivery boys can update live location');
