@@ -6,6 +6,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
   MessageBody,
@@ -63,10 +64,16 @@ export class DeliveriesGateway implements OnGatewayConnection {
 
   private readonly logger = new Logger(DeliveriesGateway.name);
 
+  // constructor(
+  //   private readonly deliveriesService: DeliveriesService,
+  //   private readonly jwtService: JwtService,
+  // ) {}
+
   constructor(
-    private readonly deliveriesService: DeliveriesService,
-    private readonly jwtService: JwtService,
-  ) {}
+  private readonly deliveriesService: DeliveriesService,
+  private readonly jwtService: JwtService,
+  private readonly configService: ConfigService,
+) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
@@ -143,7 +150,17 @@ export class DeliveriesGateway implements OnGatewayConnection {
       throw new UnauthorizedException('Missing socket token');
     }
 
-    const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+    // const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+
+    let payload: JwtPayload;
+
+try {
+  payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+    secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
+  });
+} catch {
+  throw new UnauthorizedException('Malformed socket token');
+}
 
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');

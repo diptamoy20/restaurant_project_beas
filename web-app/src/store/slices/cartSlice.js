@@ -1,6 +1,7 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { cartApi } from "../../services/cartApi";
 
-const CART_STORAGE_KEY = 'cart_items';
+const CART_STORAGE_KEY = "cart_items";
 
 /** Matches backend CartService.getMenuItemPrice — discount applies only without a variant. */
 export function getEffectiveMenuPrice(menuItem, variant = null) {
@@ -12,11 +13,7 @@ export function getEffectiveMenuPrice(menuItem, variant = null) {
   const price = Number(source.price ?? menuItem?.price ?? 0);
   const discountPrice = source.discountPrice ?? menuItem?.discountPrice;
 
-  if (
-    discountPrice != null &&
-    discountPrice > 0 &&
-    discountPrice < price
-  ) {
+  if (discountPrice != null && discountPrice > 0 && discountPrice < price) {
     return Number(discountPrice);
   }
 
@@ -27,14 +24,14 @@ function getAddOnKey(addOns = []) {
   return addOns
     .map((addOn) => `${addOn.addonGroupId}:${addOn.addonOptionId}`)
     .sort()
-    .join(',');
+    .join(",");
 }
 
 function getCartKey(item) {
   const menuItemId = item.menuItemId ?? item.id;
-  const variantId = item.variantId ?? item.variant?.id ?? 'base';
+  const variantId = item.variantId ?? item.variant?.id ?? "base";
   const addOnsKey = getAddOnKey(item.addOns ?? item.addons ?? []);
-  return `${menuItemId}:${variantId}:${addOnsKey || 'no-addons'}`;
+  return `${menuItemId}:${variantId}:${addOnsKey || "no-addons"}`;
 }
 
 function normalizeCartItem(item) {
@@ -64,12 +61,13 @@ function normalizeCartItem(item) {
     cartItemId: item.cartItemId ?? cartKey,
     menuItemId,
     variantId,
-    name: menuItem.name ?? item.name ?? 'Menu item',
+    name: menuItem.name ?? item.name ?? "Menu item",
     category: menuItem.category ?? item.category,
     restaurantId:
       menuItem.restaurantId ?? item.restaurantId ?? menuItem.restaurant?.id,
     basePrice: baseItemPrice,
-    price: unitPrice,
+    price: unitPrice * Math.max(1, Number(item.quantity ?? 1)),
+    unitPrice: unitPrice,
     quantity: Math.max(1, Number(item.quantity ?? 1)),
     menuItem,
     variant,
@@ -92,7 +90,7 @@ function mergeCartItems(items) {
       if (
         !existing.menuItem?.name ||
         existing.price === 0 ||
-        existing.name === 'Menu item'
+        existing.name === "Menu item"
       ) {
         existing.menuItem = normalized.menuItem;
         existing.name = normalized.name;
@@ -142,66 +140,173 @@ const saveCartToStorage = (items) => {
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
   } catch (error) {
-    console.error('Failed to save cart to storage:', error);
+    console.error("Failed to save cart to storage:", error);
   }
 };
 
+function mapServerCart(cart) {
+  return (cart?.cartItems || []).map((item) => ({
+    cartItemId: item.cartItemId,
+    menuItemId: item.menuItemId,
+    name: item.name,
+    quantity: item.quantity,
+    price: item.price,
+    unitPrice: item.unitPrice,
+    addOns: item.addOns || [],
+    cartKey: String(item.cartItemId),
+
+    restaurantId: item.restaurantId,
+    image: item.image,
+    description: item.description,
+    rating: item.rating,
+    ingredients: item.ingredients,
+    bestSeller: item.bestSeller,
+  }));
+}
+
 // Async thunks redefined to run locally for zero latency and addon differentiation
+// export const fetchCart = createAsyncThunk(
+//   "cart/fetchCart",
+//   async (_, { rejectWithValue }) => {
+//     try {
+//       // return loadCartFromStorage();
+//       const response = await cartApi.getCart();
+
+//       return response;
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   },
+// );
+
 export const fetchCart = createAsyncThunk(
-  'cart/fetchCart',
+  "cart/fetchCart",
   async (_, { rejectWithValue }) => {
     try {
-      return loadCartFromStorage();
+      return await cartApi.getCart();
     } catch (error) {
       return rejectWithValue(error.message);
     }
   },
 );
+
+// export const addToCartAsync = createAsyncThunk(
+//   "cart/addToCartAsync",
+//   async (payload, { rejectWithValue, dispatch }) => {
+//     try {
+//       // dispatch(addToCart(payload));
+//       const response = await cartApi.addToCart(payload);
+
+// return response;
+//       return payload;
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   },
+// );
 
 export const addToCartAsync = createAsyncThunk(
-  'cart/addToCartAsync',
-  async (payload, { rejectWithValue, dispatch }) => {
+  "cart/addToCartAsync",
+  async (payload, { rejectWithValue }) => {
     try {
-      dispatch(addToCart(payload));
-      return payload;
+      const serverPayload = {
+        restaurantId: Number(payload.item?.restaurantId ?? payload.restaurantId),
+        menuItemId: Number(payload.item?.id ?? payload.menuItemId),
+        variantId: payload.variant?.id ?? payload.variantId ?? null,
+        quantity: Number(payload.quantity),
+        addOns: (payload.addOns ?? []).map((addon) => ({
+          addonOptionId: Number(addon.addonOptionId),
+          quantity: Number(addon.quantity ?? 1),
+        })),
+      };
+      return await cartApi.addToCart(serverPayload);
     } catch (error) {
       return rejectWithValue(error.message);
     }
   },
 );
+
+// export const updateCartItemAsync = createAsyncThunk(
+//   "cart/updateCartItemAsync",
+//   async (payload, { rejectWithValue, dispatch }) => {
+//     try {
+//       const cartKey = payload.cartKey ?? payload.menuItemId;
+//       const quantity = payload.quantity ?? payload.payload?.quantity;
+//       // dispatch(updateQuantityLocal({ cartKey, quantity }));
+//       const response =
+//  await cartApi.updateCartItem(
+//    payload.cartItemId,
+//    {
+//      quantity: payload.quantity,
+//      addOns: payload.addOns,
+//    },
+//  );
+
+// return response;
+//       return { cartKey, quantity };
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   },
+// );
 
 export const updateCartItemAsync = createAsyncThunk(
-  'cart/updateCartItemAsync',
-  async (payload, { rejectWithValue, dispatch }) => {
+  "cart/updateCartItemAsync",
+  async (payload, { rejectWithValue }) => {
     try {
-      const cartKey = payload.cartKey ?? payload.menuItemId;
-      const quantity = payload.quantity ?? payload.payload?.quantity;
-      dispatch(updateQuantityLocal({ cartKey, quantity }));
-      return { cartKey, quantity };
+      return await cartApi.updateCartItem(payload.cartItemId, {
+        quantity: payload.quantity,
+        addOns: payload.addOns,
+      });
     } catch (error) {
       return rejectWithValue(error.message);
     }
   },
 );
+
+// export const removeFromCartAsync = createAsyncThunk(
+//   "cart/removeFromCartAsync",
+//   async (cartKey, { rejectWithValue, dispatch }) => {
+//     try {
+//       const response =
+//  await cartApi.removeFromCart(cartItemId);
+
+// return response;
+//       return cartKey;
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   },
+// );
 
 export const removeFromCartAsync = createAsyncThunk(
-  'cart/removeFromCartAsync',
-  async (cartKey, { rejectWithValue, dispatch }) => {
+  "cart/removeFromCartAsync",
+  async (cartItemId, { rejectWithValue }) => {
     try {
-      dispatch(removeItem(cartKey));
-      return cartKey;
+      return await cartApi.removeFromCart(cartItemId);
     } catch (error) {
       return rejectWithValue(error.message);
     }
   },
 );
 
+// export const clearCartAsync = createAsyncThunk(
+//   "cart/clearCartAsync",
+//   async (_, { rejectWithValue, dispatch }) => {
+//     try {
+//       dispatch(clearCart());
+//       return null;
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   },
+// );
+
 export const clearCartAsync = createAsyncThunk(
-  'cart/clearCartAsync',
-  async (_, { rejectWithValue, dispatch }) => {
+  "cart/clearCartAsync",
+  async (_, { rejectWithValue }) => {
     try {
-      dispatch(clearCart());
-      return null;
+      return await cartApi.clearCart();
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -209,7 +314,7 @@ export const clearCartAsync = createAsyncThunk(
 );
 
 const cartSlice = createSlice({
-  name: 'cart',
+  name: "cart",
   initialState: {
     items: loadCartFromStorage(),
     lastOrderId: null,
@@ -225,7 +330,12 @@ const cartSlice = createSlice({
         return;
       }
 
-      const normalizedItem = normalizeCartItem({ ...item, variant, addOns, quantity });
+      const normalizedItem = normalizeCartItem({
+        ...item,
+        variant,
+        addOns,
+        quantity,
+      });
 
       if (!normalizedItem) {
         return;
@@ -244,7 +354,9 @@ const cartSlice = createSlice({
     },
     increaseQuantity(state, action) {
       const cartKey = action.payload;
-      const item = state.items.find((cartItem) => matchesCartItem(cartItem, cartKey));
+      const item = state.items.find((cartItem) =>
+        matchesCartItem(cartItem, cartKey),
+      );
 
       if (item) {
         item.quantity += 1;
@@ -253,7 +365,9 @@ const cartSlice = createSlice({
     },
     decreaseQuantity(state, action) {
       const cartKey = action.payload;
-      const item = state.items.find((cartItem) => matchesCartItem(cartItem, cartKey));
+      const item = state.items.find((cartItem) =>
+        matchesCartItem(cartItem, cartKey),
+      );
 
       if (!item) {
         return;
@@ -265,12 +379,16 @@ const cartSlice = createSlice({
     },
     removeItem(state, action) {
       const cartKey = action.payload;
-      state.items = state.items.filter((cartItem) => !matchesCartItem(cartItem, cartKey));
+      state.items = state.items.filter(
+        (cartItem) => !matchesCartItem(cartItem, cartKey),
+      );
       saveCartToStorage(state.items);
     },
     updateQuantityLocal(state, action) {
       const { cartKey, quantity } = action.payload;
-      const item = state.items.find((cartItem) => matchesCartItem(cartItem, cartKey));
+      const item = state.items.find((cartItem) =>
+        matchesCartItem(cartItem, cartKey),
+      );
       if (item) {
         item.quantity = quantity;
         state.items = state.items.filter((cartItem) => cartItem.quantity > 0);
@@ -294,18 +412,26 @@ const cartSlice = createSlice({
       .addCase(fetchCart.pending, (state) => {
         state.syncing = true;
       })
+      //       .addCase(fetchCart.fulfilled, (state, action) => {
+      //         state.syncing = false;
+      //         const serverItems = Array.isArray(action.payload)
+      //           ? mergeCartItems(action.payload)
+      //           : [];
+
+      //         if (serverItems.length === 0 && state.items.length > 0) {
+      //           saveCartToStorage(state.items);
+      //           return;
+      //         }
+
+      //         // state.items = serverItems;
+      //         state.items =
+      //  mapServerCart(action.payload);
+      //         saveCartToStorage(state.items);
+      //       })
+
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.syncing = false;
-        const serverItems = Array.isArray(action.payload)
-          ? mergeCartItems(action.payload)
-          : [];
-
-        if (serverItems.length === 0 && state.items.length > 0) {
-          saveCartToStorage(state.items);
-          return;
-        }
-
-        state.items = serverItems;
+        state.items = mapServerCart(action.payload);
         saveCartToStorage(state.items);
       })
       .addCase(fetchCart.rejected, (state, action) => {
@@ -316,9 +442,18 @@ const cartSlice = createSlice({
       .addCase(addToCartAsync.pending, (state) => {
         state.loading = true;
       })
+      // .addCase(addToCartAsync.fulfilled, (state, action) => {
+      //   state.loading = false;
+      //   state.error = null;
+      // })
+
       .addCase(addToCartAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
+
+        state.items = mapServerCart(action.payload);
+
+        saveCartToStorage(state.items);
       })
       .addCase(addToCartAsync.rejected, (state, action) => {
         state.loading = false;
@@ -331,34 +466,57 @@ const cartSlice = createSlice({
       .addCase(updateCartItemAsync.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
+
+        state.items = mapServerCart(action.payload);
+
+        saveCartToStorage(state.items);
       })
       .addCase(updateCartItemAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
       // Remove from Cart Async
       .addCase(removeFromCartAsync.pending, (state) => {
         state.loading = true;
       })
-      .addCase(removeFromCartAsync.fulfilled, (state, action) => {
-        state.loading = false;
-        state.error = null;
-      })
+      // .addCase(removeFromCartAsync.fulfilled, (state, action) => {
+      //   state.loading = false;
+      //   state.error = null;
+      // })
       .addCase(removeFromCartAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
+      .addCase(removeFromCartAsync.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
+
+        state.items = mapServerCart(action.payload);
+
+        saveCartToStorage(state.items);
+      })
+
       // Clear Cart Async
       .addCase(clearCartAsync.pending, (state) => {
         state.loading = true;
       })
-      .addCase(clearCartAsync.fulfilled, (state) => {
-        state.loading = false;
-        state.error = null;
-      })
+      // .addCase(clearCartAsync.fulfilled, (state) => {
+      //   state.loading = false;
+      //   state.error = null;
+      // })
       .addCase(clearCartAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      .addCase(clearCartAsync.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+
+        state.items = [];
+
+        saveCartToStorage([]);
       });
   },
 });

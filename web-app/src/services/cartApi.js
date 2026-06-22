@@ -9,19 +9,15 @@ export const cartApi = {
     return api.post('/carts', payload);
   },
 
-  async updateCartItem(menuItemId, payload) {
-    return api.put(`/carts/${menuItemId}`, payload);
-  },
+async updateCartItem(cartItemId, payload) {
+  return api.put(`/carts/${cartItemId}`, payload);
+},
 
-  async removeFromCart(menuItemId) {
-    return api.request(`/carts/${menuItemId}`, {
-      method: 'DELETE',
-    });
+  async removeFromCart(cartItemId) {
+    return api.delete(`/carts/${cartItemId}`);
   },
 
   async clearCart() {
-    return api.request('/carts', {
-      method: 'DELETE',
-    });
+    return api.delete('/carts');
   },
 };

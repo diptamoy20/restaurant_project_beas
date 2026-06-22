@@ -28,13 +28,14 @@ export class UpdateCartItemDto {
   @IsInt()
   restaurantId?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 2,
   })
   @Type(() => Number)
+  @IsOptional()
   @IsInt()
   @Min(1)
-  quantity!: number;
+  quantity?: number;
 
   @ApiPropertyOptional({
     type: [CartAddonDto],

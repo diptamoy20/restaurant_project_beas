@@ -66,8 +66,8 @@ async function request(path, options = {}) {
     });
 
   let response = await performRequest(token);
-
   let data = await response.json().catch(() => ({}));
+  let usedToken = token;
 
   if (!response.ok && response.status === 401 && token && refreshAuthToken && !skipAuthRefresh) {
     try {
@@ -80,6 +80,7 @@ async function request(path, options = {}) {
       if (refreshedToken) {
         response = await performRequest(refreshedToken);
         data = await response.json().catch(() => ({}));
+        usedToken = refreshedToken;
       }
     } catch (error) {
       if (debugAuth) {
@@ -106,7 +107,7 @@ async function request(path, options = {}) {
     }
 
     if (isUnauthorized && !skipUnauthorizedHandler) {
-      handleUnauthorized({ path, token });
+      handleUnauthorized({ path, token: usedToken });
     }
 
     throw new ApiError(message, {
@@ -155,6 +156,12 @@ export const api = {
     return request(path, {
       method: 'PATCH',
       body: JSON.stringify(body),
+      ...options,
+    });
+  },
+  delete(path, options = {}) {
+    return request(path, {
+      method: "DELETE",
       ...options,
     });
   },

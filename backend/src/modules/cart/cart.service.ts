@@ -105,8 +105,6 @@ export class CartService {
       return {
         userId,
 
-        cartId: null,
-
         totalItems: 0,
 
         subtotal: 0,
@@ -115,36 +113,41 @@ export class CartService {
       };
     }
 
-    const items = cartItems.map((item) => ({
-      cartItemId: item.id,
+    const items = cartItems.map((item) => {
+      const unitPrice = item.price;
+      const totalPrice = unitPrice * item.quantity;
 
-      menuItemId: item.menuItemId,
+      return {
+        cartItemId: item.id,
 
-      quantity: item.quantity,
+        menuItemId: item.menuItemId,
 
-      price: item.price,
+        quantity: item.quantity,
 
-      discount: item.menuItem.discountPrice,
+        price: totalPrice,
 
-      addOns: Array.isArray(item.addOns) ? (item.addOns as unknown[]) : [],
+        unitPrice: unitPrice,
 
-      description: item.menuItem.description,
+        discount: item.menuItem.discountPrice,
 
-      image: item.menuItem.imageUrl,
+        addOns: Array.isArray(item.addOns) ? (item.addOns as unknown[]) : [],
 
-      ingredients: item.menuItem.ingredients,
+        description: item.menuItem.description,
 
-      rating: item.menuItem.rating,
+        image: item.menuItem.imageUrl,
 
-      bestSeller: item.menuItem.isBestSelling,
+        ingredients: item.menuItem.ingredients,
 
-      name: item.menuItem.name,
-    }));
+        rating: item.menuItem.rating,
+
+        bestSeller: item.menuItem.isBestSelling,
+
+        name: item.menuItem.name,
+      };
+    });
 
     return {
       userId,
-
-      cartId: cartItems[0].id,
 
       totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
 
@@ -167,6 +170,10 @@ export class CartService {
       throw new BadRequestException('Menu item is not available');
     }
 
+    if (payload.restaurantId !== menuItem.restaurantId) {
+      throw new BadRequestException('Restaurant ID conflict');
+    }
+
     const selectedVariant = payload.variantId
       ? menuItem.variants.find((variant) => variant.id === payload.variantId)
       : null;
@@ -175,27 +182,13 @@ export class CartService {
       throw new BadRequestException('Selected variant is not available for this menu item');
     }
 
-    // const authoritativePrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
-
     const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
-
-    // const addOnsPrice = this.getAddOnsPrice(payload.addOns);
-
-    // const finalUnitPrice = unitPrice + addOnsPrice;
 
     const addOnsPrice = await this.calculateAddOnsTotal(payload.addOns);
 
     const finalUnitPrice = unitPrice + addOnsPrice;
 
-    const cartItem = await this.prisma.$transaction(async (transaction) => {
-      // const existingItem = await transaction.cartItem.findFirst({
-      //   where: {
-      //     userId,
-      //     menuItemId: payload.menuItemId,
-      //     variantId: payload.variantId ?? null,
-      //   },
-      // });
-
+    await this.prisma.$transaction(async (transaction) => {
       const existingItem = await transaction.cartItem.findFirst({
         where: {
           userId,
@@ -216,15 +209,10 @@ export class CartService {
       if (existingItem) {
         return transaction.cartItem.update({
           where: { id: existingItem.id },
-          // data: {
-          //   quantity: existingItem.quantity + payload.quantity,
-          //   price: authoritativePrice,
-          // },
-
           data: {
             quantity: existingItem.quantity + payload.quantity,
 
-            price: finalUnitPrice * (existingItem.quantity + payload.quantity),
+            price: finalUnitPrice,
 
             addOns: payload.addOns
               ? (payload.addOns as unknown as Prisma.InputJsonArray)
@@ -243,21 +231,13 @@ export class CartService {
       }
 
       return transaction.cartItem.create({
-        // data: {
-        //   userId,
-        //   menuItemId: payload.menuItemId,
-        //   variantId: payload.variantId,
-        //   quantity: payload.quantity,
-        //   price: authoritativePrice,
-        // },
         data: {
           userId,
           restaurantId: menuItem.restaurantId,
           menuItemId: payload.menuItemId,
           variantId: payload.variantId ?? null,
           quantity: payload.quantity,
-          // price: authoritativePrice,
-          price: finalUnitPrice * payload.quantity,
+          price: finalUnitPrice,
           addOns: payload.addOns
             ? (payload.addOns as unknown as Prisma.InputJsonArray)
             : Prisma.JsonNull,
@@ -321,6 +301,7 @@ export class CartService {
     );
 
     const finalPrice = unitPrice + addOnsPrice;
+    const quantity = payload.quantity ?? cartItem.quantity;
 
     await this.prisma.cartItem.update({
       where: {
@@ -328,9 +309,9 @@ export class CartService {
       },
 
       data: {
-        quantity: payload.quantity,
+        quantity,
 
-        price: finalPrice * payload.quantity,
+        price: finalPrice,
 
         addOns: payload.addOns
           ? (payload.addOns as unknown as Prisma.InputJsonArray)
@@ -385,33 +366,7 @@ export class CartService {
     return this.getCart(userId);
   }
 
-  private mapCartItem(item: CartItemWithMenu): CartItemResponseDto {
-    return {
-      id: item.id,
 
-      userId: item.userId,
-
-      restaurantId: item.restaurantId,
-
-      menuItemId: item.menuItemId,
-
-      variantId: item.variantId,
-
-      quantity: item.quantity,
-
-      price: item.price,
-
-      addOns: (item.addOns as CartItemResponseDto['addOns']) ?? null,
-
-      createdAt: item.createdAt,
-
-      updatedAt: item.updatedAt,
-
-      menuItem: item.menuItem,
-
-      variant: item.variant,
-    };
-  }
 
   // private getAddOnsPrice(addOns?: { price: number }[] | null): number {
   //   if (!addOns?.length) {
