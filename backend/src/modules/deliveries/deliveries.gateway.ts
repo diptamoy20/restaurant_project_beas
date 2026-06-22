@@ -5,11 +5,6 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-<<<<<<< HEAD
-=======
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
->>>>>>> fd7bc30193f0c1f6da496a964b9be99819d02e5f
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
