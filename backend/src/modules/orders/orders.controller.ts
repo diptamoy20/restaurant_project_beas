@@ -68,13 +68,13 @@ export class OrdersController {
         ? {
             ...payload,
             userId: request.user.id,
-            source: payload.source || OrderSource.WEBSITE,
+            source: payload.source ?? OrderSource.WEBSITE,
             discountAmount: undefined,
             manualDiscountAmount: undefined,
           }
         : {
             ...payload,
-            source: payload.source || OrderSource.ADMIN,
+            source: payload.source ?? OrderSource.ADMIN,
             manualDiscountAmount: payload.manualDiscountAmount ?? payload.discountAmount,
           };
 
