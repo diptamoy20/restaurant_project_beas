@@ -33,6 +33,9 @@ class MenuItemVariantDto {
 
 class CartAddonResponseDto {
   @ApiProperty()
+  addonGroupId!: number;
+
+  @ApiProperty()
   addonOptionId!: number;
 
   @ApiProperty()

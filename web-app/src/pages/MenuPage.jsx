@@ -112,11 +112,7 @@ export function MenuPage() {
     if (selectedRestaurantId !== activeRestaurantId) {
       setSelectedRestaurantId(activeRestaurantId);
     }
-  }, [
-    activeRestaurantId,
-    selectedRestaurantId,
-    setSelectedRestaurantId,
-  ]);
+  }, [activeRestaurantId, selectedRestaurantId, setSelectedRestaurantId]);
 
   useEffect(() => {
     if (!activeRestaurantId || urlRestaurantId) {
@@ -237,6 +233,8 @@ export function MenuPage() {
     };
   }, [customizingItem]);
 
+
+
   // Debounce search query to prevent excessive layout shifts
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -267,8 +265,10 @@ export function MenuPage() {
       result = result.filter(
         (item) =>
           item.name.toLowerCase().includes(query) ||
-          (item.description && item.description.toLowerCase().includes(query)) ||
-          (item.category?.name && item.category.name.toLowerCase().includes(query)),
+          (item.description &&
+            item.description.toLowerCase().includes(query)) ||
+          (item.category?.name &&
+            item.category.name.toLowerCase().includes(query)),
       );
     }
 
@@ -278,15 +278,28 @@ export function MenuPage() {
     } else if (sortOption === "price-high-low") {
       result.sort((a, b) => b.price - a.price);
     } else if (sortOption === "most-popular") {
-      result.sort((a, b) => (b.popularityScore ?? 0) - (a.popularityScore ?? 0));
+      result.sort(
+        (a, b) => (b.popularityScore ?? 0) - (a.popularityScore ?? 0),
+      );
     } else if (sortOption === "recommended") {
       result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     }
 
     return result;
-  }, [items, activeCategoryId, foodTypeFilter, debouncedSearchQuery, sortOption]);
+  }, [
+    items,
+    activeCategoryId,
+    foodTypeFilter,
+    debouncedSearchQuery,
+    sortOption,
+  ]);
 
-  const handleAddToCart = async (item, variant = null, addOns = [], quantity = 1) => {
+  const handleAddToCart = async (
+    item,
+    variant = null,
+    addOns = [],
+    quantity = 1,
+  ) => {
     setCartMessage("");
     dispatch(clearError());
 
@@ -316,10 +329,14 @@ export function MenuPage() {
     }
   };
 
+
+
   // Customizer Helper Functions
   const handleToggleAddon = (group, option) => {
     setSelectedAddons((current) => {
-      const isSelected = current.some((addon) => addon.addonOptionId === option.id);
+      const isSelected = current.some(
+        (addon) => addon.addonOptionId === option.id,
+      );
 
       if (isSelected) {
         return current.filter((addon) => addon.addonOptionId !== option.id);
@@ -327,7 +344,9 @@ export function MenuPage() {
 
       // If single choice group, filter out other options from same group
       if (group.selectionType === "SINGLE") {
-        const filtered = current.filter((addon) => addon.addonGroupId !== group.id);
+        const filtered = current.filter(
+          (addon) => addon.addonGroupId !== group.id,
+        );
         return [
           ...filtered,
           {
@@ -342,9 +361,13 @@ export function MenuPage() {
       }
 
       // Check maxSelect limits
-      const groupSelections = current.filter((addon) => addon.addonGroupId === group.id);
+      const groupSelections = current.filter(
+        (addon) => addon.addonGroupId === group.id,
+      );
       if (group.maxSelect && groupSelections.length >= group.maxSelect) {
-        setCustomizerError(`You can select a maximum of ${group.maxSelect} options for ${group.name}`);
+        setCustomizerError(
+          `You can select a maximum of ${group.maxSelect} options for ${group.name}`,
+        );
         return current;
       }
 
@@ -367,21 +390,31 @@ export function MenuPage() {
     setCustomizerError("");
 
     // Validate required groups
-    const activeGroups = customizingItem.addonGroups?.filter((g) => g.options.length > 0) || [];
+    const activeGroups =
+      customizingItem.addonGroups?.filter((g) => g.options.length > 0) || [];
     for (const group of activeGroups) {
-      const selections = selectedAddons.filter((addon) => addon.addonGroupId === group.id);
+      const selections = selectedAddons.filter(
+        (addon) => addon.addonGroupId === group.id,
+      );
 
       const minSelect = group.isRequired
         ? Math.max(group.minSelect ?? 1, 1)
         : (group.minSelect ?? 0);
 
       if (selections.length < minSelect) {
-        setCustomizerError(`Please select at least ${minSelect} option(s) for ${group.name}`);
+        setCustomizerError(
+          `Please select at least ${minSelect} option(s) for ${group.name}`,
+        );
         return;
       }
     }
 
-    handleAddToCart(customizingItem, selectedVariant, selectedAddons, customizerQuantity);
+    handleAddToCart(
+      customizingItem,
+      selectedVariant,
+      selectedAddons,
+      customizerQuantity,
+    );
     setCustomizingItem(null);
   };
 
@@ -389,7 +422,10 @@ export function MenuPage() {
   const customizedUnitPrice = useMemo(() => {
     if (!customizingItem) return 0;
     const base = getEffectiveMenuPrice(customizingItem, selectedVariant);
-    const addonsTotal = selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
+    const addonsTotal = selectedAddons.reduce(
+      (sum, addon) => sum + addon.price,
+      0,
+    );
     return base + addonsTotal;
   }, [customizingItem, selectedVariant, selectedAddons]);
 
@@ -497,8 +533,19 @@ export function MenuPage() {
       {(bestSellingLoading || bestSelling.length > 0) && (
         <div className="frequent-section">
           <h3>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: "1.25rem" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 00.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="2.5"
+              stroke="currentColor"
+              style={{ width: "1.25rem" }}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 00.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+              />
             </svg>
             Best Sellers
           </h3>
@@ -507,9 +554,13 @@ export function MenuPage() {
           ) : (
             <div className="frequent-scroll">
               {bestSelling.map((item) => {
-                const price = item.discountPrice != null && item.discountPrice > 0 ? item.discountPrice : item.price;
+                const price =
+                  item.discountPrice != null && item.discountPrice > 0
+                    ? item.discountPrice
+                    : item.price;
                 const hasVariants = item.variants && item.variants.length > 0;
-                const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+                const hasAddons =
+                  item.addonGroups && item.addonGroups.length > 0;
 
                 return (
                   <div key={`best-${item.id}`} className="frequent-card">
@@ -530,7 +581,9 @@ export function MenuPage() {
                     <div className="frequent-card-info">
                       <h4>{item.name}</h4>
                       <div className="frequent-card-footer">
-                        <span className="frequent-card-price">{formatRupees.format(price)}</span>
+                        <span className="frequent-card-price">
+                          {formatRupees.format(price)}
+                        </span>
                         <button
                           type="button"
                           className="frequent-add-btn"
@@ -562,14 +615,28 @@ export function MenuPage() {
       {frequentItems.length > 0 && (
         <div className="frequent-section">
           <h3>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" style={{ width: "1.25rem" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="2.5"
+              stroke="currentColor"
+              style={{ width: "1.25rem" }}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"
+              />
             </svg>
             Frequently Ordered
           </h3>
           <div className="frequent-scroll">
             {frequentItems.map((item) => {
-              const price = item.discountPrice != null && item.discountPrice > 0 ? item.discountPrice : item.price;
+              const price =
+                item.discountPrice != null && item.discountPrice > 0
+                  ? item.discountPrice
+                  : item.price;
               const hasVariants = item.variants && item.variants.length > 0;
               const hasAddons = item.addonGroups && item.addonGroups.length > 0;
 
@@ -592,7 +659,9 @@ export function MenuPage() {
                   <div className="frequent-card-info">
                     <h4>{item.name}</h4>
                     <div className="frequent-card-footer">
-                      <span className="frequent-card-price">{formatRupees.format(price)}</span>
+                      <span className="frequent-card-price">
+                        {formatRupees.format(price)}
+                      </span>
                       <button
                         type="button"
                         className="frequent-add-btn"
@@ -644,8 +713,18 @@ export function MenuPage() {
           {/* Right half: Search, sorting and Veg/Non-Veg toggles */}
           <div className="filter-controls">
             <div className="search-input-wrap">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="2.5"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                />
               </svg>
               <input
                 type="text"
@@ -670,13 +749,19 @@ export function MenuPage() {
             <div className="food-toggle-buttons">
               <button
                 className={`toggle-btn veg ${foodTypeFilter === "VEG" ? "active" : ""}`}
-                onClick={() => setFoodTypeFilter((prev) => (prev === "VEG" ? null : "VEG"))}
+                onClick={() =>
+                  setFoodTypeFilter((prev) => (prev === "VEG" ? null : "VEG"))
+                }
               >
                 Veg
               </button>
               <button
                 className={`toggle-btn non-veg ${foodTypeFilter === "NON_VEG" ? "active" : ""}`}
-                onClick={() => setFoodTypeFilter((prev) => (prev === "NON_VEG" ? null : "NON_VEG"))}
+                onClick={() =>
+                  setFoodTypeFilter((prev) =>
+                    prev === "NON_VEG" ? null : "NON_VEG",
+                  )
+                }
               >
                 Non-Veg
               </button>
@@ -687,9 +772,15 @@ export function MenuPage() {
 
       {/* Main Items Display List */}
       {filteredItems.length === 0 ? (
-        <div className="empty-state" style={{ textAlign: "center", paddingBlock: "3rem" }}>
+        <div
+          className="empty-state"
+          style={{ textAlign: "center", paddingBlock: "3rem" }}
+        >
           <h3>No items found</h3>
-          <p>We couldn't find any dishes matching your filters or search query. Try clearing them.</p>
+          <p>
+            We couldn't find any dishes matching your filters or search query.
+            Try clearing them.
+          </p>
         </div>
       ) : (
         <div className="menu-grid">
@@ -720,19 +811,31 @@ export function MenuPage() {
 
       {/* 4. SWIGGY-STYLE CUSTOMIZATION SHEET POPUP MODAL */}
       {customizingItem && (
-        <div className="customizer-overlay" onClick={() => setCustomizingItem(null)}>
-          <div className="customizer-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="customizer-overlay"
+          onClick={() => setCustomizingItem(null)}
+        >
+          <div
+            className="customizer-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="customizer-header">
               <div className="customizer-header-info">
                 {customizingItem.imageUrl ? (
                   <img src={customizingItem.imageUrl} alt="" />
                 ) : (
-                  <div className="menu-slide-placeholder" style={{ width: "60px", height: "60px" }} />
+                  <div
+                    className="menu-slide-placeholder"
+                    style={{ width: "60px", height: "60px" }}
+                  />
                 )}
                 <div className="customizer-header-copy">
                   <h2>{customizingItem.name}</h2>
-                  <p>{customizingItem.description || "Freshly cooked to your requirements."}</p>
+                  <p>
+                    {customizingItem.description ||
+                      "Freshly cooked to your requirements."}
+                  </p>
                   <strong>{formatRupees.format(customizedUnitPrice)}</strong>
                 </div>
               </div>
@@ -749,79 +852,105 @@ export function MenuPage() {
             {/* Scrollable Customization Content */}
             <div className="customizer-body">
               {/* Option 1: Variants Selector (Capsules) */}
-              {customizingItem.variants && customizingItem.variants.length > 0 && (
-                <div className="customizer-variant-section">
-                  <h3>Select Variant / Size</h3>
-                  <div className="customizer-variant-grid">
-                    {customizingItem.variants.map((v) => (
-                      <div
-                        key={`variant-${v.id}`}
-                        className={`customizer-variant-pill ${selectedVariant?.id === v.id ? "selected" : ""}`}
-                        onClick={() => setSelectedVariant(v)}
-                      >
-                        <span>{v.name}</span>
-                        <strong>{formatRupees.format(v.price)}</strong>
-                      </div>
-                    ))}
+              {customizingItem.variants &&
+                customizingItem.variants.length > 0 && (
+                  <div className="customizer-variant-section">
+                    <h3>Select Variant / Size</h3>
+                    <div className="customizer-variant-grid">
+                      {customizingItem.variants.map((v) => (
+                        <div
+                          key={`variant-${v.id}`}
+                          className={`customizer-variant-pill ${selectedVariant?.id === v.id ? "selected" : ""}`}
+                          onClick={() => setSelectedVariant(v)}
+                        >
+                          <span>{v.name}</span>
+                          <strong>{formatRupees.format(v.price)}</strong>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Option 2: Addon Groups */}
               {customizingItem.addonGroups &&
-                customizingItem.addonGroups.filter((g) => g.options.length > 0).map((group) => {
-                  const maxSelect = group.selectionType === "SINGLE" ? 1 : group.maxSelect;
+                customizingItem.addonGroups
+                  .filter((g) => g.options.length > 0)
+                  .map((group) => {
+                    const maxSelect =
+                      group.selectionType === "SINGLE" ? 1 : group.maxSelect;
 
-                  return (
-                    <div key={`addon-group-${group.id}`} className="customizer-option-group">
-                      <div className="customizer-group-title">
-                        <div>
-                          <h3>{group.name}</h3>
-                          {maxSelect && (
-                            <span className="customizer-group-limits">
-                              Choose up to {maxSelect} option(s)
-                            </span>
-                          )}
+                    return (
+                      <div
+                        key={`addon-group-${group.id}`}
+                        className="customizer-option-group"
+                      >
+                        <div className="customizer-group-title">
+                          <div>
+                            <h3>{group.name}</h3>
+                            {maxSelect && (
+                              <span className="customizer-group-limits">
+                                Choose up to {maxSelect} option(s)
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`customizer-group-badge ${group.isRequired ? "required" : ""}`}
+                          >
+                            {group.isRequired ? "Required" : "Optional"}
+                          </span>
                         </div>
-                        <span className={`customizer-group-badge ${group.isRequired ? "required" : ""}`}>
-                          {group.isRequired ? "Required" : "Optional"}
-                        </span>
-                      </div>
 
-                      <div className="customizer-option-list">
-                        {group.options.map((opt) => {
-                          const isChecked = selectedAddons.some(
-                            (addon) => addon.addonOptionId === opt.id,
-                          );
-                          const inputType = group.selectionType === "SINGLE" ? "radio" : "checkbox";
+                        <div className="customizer-option-list">
+                          {group.options.map((opt) => {
+                            const isChecked = selectedAddons.some(
+                              (addon) => addon.addonOptionId === opt.id,
+                            );
+                            const inputType =
+                              group.selectionType === "SINGLE"
+                                ? "radio"
+                                : "checkbox";
 
-                          return (
-                            <div
-                              key={`option-${opt.id}`}
-                              className={`customizer-option-row ${isChecked ? "checked" : ""}`}
-                              onClick={() => handleToggleAddon(group, opt)}
-                            >
-                              <label className="customizer-option-label" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  type={inputType}
-                                  name={`group-${group.id}`}
-                                  checked={isChecked}
-                                  onChange={() => handleToggleAddon(group, opt)}
-                                />
-                                <span>{opt.name}</span>
-                              </label>
-                              <span className="customizer-option-price">+ {formatRupees.format(opt.price)}</span>
-                            </div>
-                          );
-                        })}
+                            return (
+                              <div
+                                key={`option-${opt.id}`}
+                                className={`customizer-option-row ${isChecked ? "checked" : ""}`}
+                                onClick={() => handleToggleAddon(group, opt)}
+                              >
+                                <label
+                                  className="customizer-option-label"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <input
+                                    type={inputType}
+                                    name={`group-${group.id}`}
+                                    checked={isChecked}
+                                    onChange={() =>
+                                      handleToggleAddon(group, opt)
+                                    }
+                                  />
+                                  <span>{opt.name}</span>
+                                </label>
+                                <span className="customizer-option-price">
+                                  + {formatRupees.format(opt.price)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
             </div>
 
             {/* Error alerts */}
-            {customizerError && <div className="customizer-addon-error" style={{ margin: "1rem" }}>{customizerError}</div>}
+            {customizerError && (
+              <div
+                className="customizer-addon-error"
+                style={{ margin: "1rem" }}
+              >
+                {customizerError}
+              </div>
+            )}
 
             {/* Footer with Quantities Stepper and Checkout Action */}
             <div className="customizer-footer">
@@ -829,7 +958,9 @@ export function MenuPage() {
                 <button
                   type="button"
                   className="customizer-stepper-button"
-                  onClick={() => setCustomizerQuantity((q) => Math.max(1, q - 1))}
+                  onClick={() =>
+                    setCustomizerQuantity((q) => Math.max(1, q - 1))
+                  }
                   disabled={customizerQuantity <= 1}
                 >
                   -
@@ -849,7 +980,8 @@ export function MenuPage() {
                 className="primary-btn customizer-add-btn"
                 onClick={handleAddCustomizedToCart}
               >
-                Add Item - {formatRupees.format(customizedUnitPrice * customizerQuantity)}
+                Add Item -{" "}
+                {formatRupees.format(customizedUnitPrice * customizerQuantity)}
               </button>
             </div>
           </div>

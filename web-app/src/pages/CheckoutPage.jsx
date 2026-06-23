@@ -76,10 +76,18 @@ export function CheckoutPage() {
         menuItemId: item.menuItemId || item.id,
         variantId: item.variantId || undefined,
         quantity: item.quantity,
-        addons: (item.addOns ?? item.addons ?? []).map((addon) => ({
-          addonGroupId: addon.addonGroupId,
-          addonOptionId: addon.addonOptionId,
-        })),
+        addons: (item.addOns ?? item.addons ?? [])
+          .map((addon) => ({
+            addonGroupId: Number(addon.addonGroupId),
+            addonOptionId: Number(addon.addonOptionId ?? addon.id),
+          }))
+          .filter(
+            (addon) =>
+              Number.isInteger(addon.addonGroupId) &&
+              addon.addonGroupId > 0 &&
+              Number.isInteger(addon.addonOptionId) &&
+              addon.addonOptionId > 0,
+          ),
       })),
     }),
     [
@@ -329,10 +337,18 @@ export function CheckoutPage() {
         variantId: item.variantId || undefined,
         quantity: item.quantity,
         price: item.price,
-        addons: (item.addOns ?? []).map((addon) => ({
-          addonGroupId: addon.addonGroupId,
-          addonOptionId: addon.addonOptionId,
-        })),
+        addons: (item.addOns ?? item.addons ?? [])
+          .map((addon) => ({
+            addonGroupId: Number(addon.addonGroupId),
+            addonOptionId: Number(addon.addonOptionId ?? addon.id),
+          }))
+          .filter(
+            (addon) =>
+              Number.isInteger(addon.addonGroupId) &&
+              addon.addonGroupId > 0 &&
+              Number.isInteger(addon.addonOptionId) &&
+              addon.addonOptionId > 0,
+          ),
       })),
     };
 
