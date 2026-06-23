@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, OrderSource } from '@prisma/client';
 
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
@@ -394,7 +394,8 @@ export class OrdersService {
           items: payload.items,
           couponCode: payload.couponCode,
           manualDiscountAmount: payload.manualDiscountAmount,
-          allowManualDiscount: payload.source === 'ADMIN',
+          // allowManualDiscount: payload.source === 'ADMIN',
+          allowManualDiscount: payload.source === OrderSource.ADMIN,
           tipAmount: payload.tipAmount,
         },
         transaction,

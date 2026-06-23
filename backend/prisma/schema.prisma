@@ -8,6 +8,7 @@ datasource db {
 
 enum OrderSource {
   WEBSITE
+  MOBILE_APP
   QR_DINE_IN
   ADMIN
 }
