@@ -4,8 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { OrderSource } from '@prisma/client';
+import { Prisma, OrderSource } from '@prisma/client';
 
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
