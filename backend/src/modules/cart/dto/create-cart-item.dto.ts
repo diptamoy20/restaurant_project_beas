@@ -2,22 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsInt, IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
 
-class CartAddonDto {
-  @ApiProperty({
-    example: 5,
-  })
-  @Type(() => Number)
-  @IsInt()
-  addonOptionId!: number;
-
-  @ApiProperty({
-    example: 1,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  quantity!: number;
-}
+import { CartAddonDto } from './cart-addon.dto';
 
 export class CreateCartItemDto {
   @ApiProperty({

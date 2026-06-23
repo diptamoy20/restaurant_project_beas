@@ -52,6 +52,11 @@ class CartSummaryItemDto {
   @ApiProperty()
   unitPrice!: number;
 
+  @ApiProperty({
+    nullable: true,
+  })
+  restaurantId!: number | null;
+
   @ApiProperty()
   bestSeller!: boolean;
 }

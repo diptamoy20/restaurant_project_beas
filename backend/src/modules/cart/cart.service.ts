@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 
 import { CartResponseDto } from './dto/cart-response.dto';
+import { StoredCartAddon } from './dto/cart-addon.dto';
 import { CreateCartItemDto } from './dto/create-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -83,7 +84,7 @@ export class CartService {
       },
 
       orderBy: {
-        updatedAt: 'desc',
+        id: 'asc',
       },
     });
 
@@ -99,38 +100,29 @@ export class CartService {
       };
     }
 
-    const items = cartItems.map((item) => {
-      const unitPrice = item.price;
-      const totalPrice = unitPrice * item.quantity;
+    const items = await Promise.all(
+      cartItems.map(async (item) => {
+        const unitPrice = item.price;
+        const totalPrice = unitPrice * item.quantity;
 
-      return {
-        cartItemId: item.id,
-
-        menuItemId: item.menuItemId,
-
-        quantity: item.quantity,
-
-        price: totalPrice,
-
-        unitPrice: unitPrice,
-
-        discount: item.menuItem.discountPrice,
-
-        addOns: Array.isArray(item.addOns) ? (item.addOns as unknown[]) : [],
-
-        description: item.menuItem.description,
-
-        image: item.menuItem.imageUrl,
-
-        ingredients: item.menuItem.ingredients,
-
-        rating: item.menuItem.rating,
-
-        bestSeller: item.menuItem.isBestSelling,
-
-        name: item.menuItem.name,
-      };
-    });
+        return {
+          cartItemId: item.id,
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          price: totalPrice,
+          unitPrice: unitPrice,
+          restaurantId: item.restaurantId,
+          discount: item.menuItem.discountPrice,
+          addOns: await this.enrichStoredAddOns(item.addOns),
+          description: item.menuItem.description,
+          image: item.menuItem.imageUrl,
+          ingredients: item.menuItem.ingredients,
+          rating: item.menuItem.rating,
+          bestSeller: item.menuItem.isBestSelling,
+          name: item.menuItem.name,
+        };
+      }),
+    );
 
     return {
       userId,
@@ -160,6 +152,21 @@ export class CartService {
       throw new BadRequestException('Restaurant ID conflict');
     }
 
+    // Validation: Check if cart already has items from a different restaurant
+    const existingCartItems = await this.prisma.cartItem.findMany({
+      where: { userId },
+    });
+
+    const differentRestaurantItem = existingCartItems.find(
+      (item) => item.restaurantId !== menuItem.restaurantId,
+    );
+
+    if (differentRestaurantItem) {
+      throw new BadRequestException(
+        'Your cart contains items from a different restaurant. Please clear your cart first.',
+      );
+    }
+
     const selectedVariant = payload.variantId
       ? menuItem.variants.find((variant) => variant.id === payload.variantId)
       : null;
@@ -171,6 +178,7 @@ export class CartService {
     const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
     const addOnsPrice = await this.calculateAddOnsTotal(payload.addOns);
+    const normalizedAddOns = await this.normalizeAddOnsForStorage(payload.addOns);
 
     const finalUnitPrice = unitPrice + addOnsPrice;
 
@@ -200,8 +208,8 @@ export class CartService {
 
             price: finalUnitPrice,
 
-            addOns: payload.addOns
-              ? (payload.addOns as unknown as Prisma.InputJsonArray)
+            addOns: normalizedAddOns.length
+              ? (normalizedAddOns as unknown as Prisma.InputJsonArray)
               : (existingItem.addOns ?? Prisma.JsonNull),
           },
           include: {
@@ -224,8 +232,8 @@ export class CartService {
           variantId: payload.variantId ?? null,
           quantity: payload.quantity,
           price: finalUnitPrice,
-          addOns: payload.addOns
-            ? (payload.addOns as unknown as Prisma.InputJsonArray)
+          addOns: normalizedAddOns.length
+            ? (normalizedAddOns as unknown as Prisma.InputJsonArray)
             : Prisma.JsonNull,
         },
         include: {
@@ -279,12 +287,9 @@ export class CartService {
 
     const unitPrice = selectedVariant?.price ?? this.getMenuItemPrice(menuItem);
 
-    const addOnsPrice = await this.calculateAddOnsTotal(
-      (payload.addOns ?? cartItem.addOns ?? []) as {
-        addonOptionId: number;
-        quantity: number;
-      }[],
-    );
+    const addOnsInput = payload.addOns ?? (cartItem.addOns as StoredCartAddon[] | null) ?? [];
+    const normalizedAddOns = await this.normalizeAddOnsForStorage(addOnsInput);
+    const addOnsPrice = await this.calculateAddOnsTotal(normalizedAddOns);
 
     const finalPrice = unitPrice + addOnsPrice;
     const quantity = payload.quantity ?? cartItem.quantity;
@@ -299,8 +304,8 @@ export class CartService {
 
         price: finalPrice,
 
-        addOns: payload.addOns
-          ? (payload.addOns as unknown as Prisma.InputJsonArray)
+        addOns: normalizedAddOns.length
+          ? (normalizedAddOns as unknown as Prisma.InputJsonArray)
           : (cartItem.addOns ?? Prisma.JsonNull),
       },
     });
@@ -359,6 +364,85 @@ export class CartService {
 
   //   return addOns.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
   // }
+
+  private async normalizeAddOnsForStorage(
+    addOns?: { addonGroupId?: number; addonOptionId: number; quantity?: number }[] | null,
+  ): Promise<StoredCartAddon[]> {
+    if (!addOns?.length) {
+      return [];
+    }
+
+    const parsed = addOns
+      .map((addon) => ({
+        addonGroupId:
+          addon.addonGroupId != null && Number(addon.addonGroupId) > 0
+            ? Number(addon.addonGroupId)
+            : undefined,
+        addonOptionId: Number(addon.addonOptionId),
+        quantity: Math.max(1, Number(addon.quantity ?? 1)),
+      }))
+      .filter((addon) => Number.isInteger(addon.addonOptionId) && addon.addonOptionId > 0);
+
+    return this.enrichAddOnGroupIds(parsed);
+  }
+
+  private async enrichStoredAddOns(rawAddOns: Prisma.JsonValue | null): Promise<StoredCartAddon[]> {
+    if (!Array.isArray(rawAddOns) || !rawAddOns.length) {
+      return [];
+    }
+
+    const parsed = rawAddOns
+      .map((addon) => {
+        const record = addon as Record<string, unknown>;
+        return {
+          addonGroupId:
+            record.addonGroupId != null && Number(record.addonGroupId) > 0
+              ? Number(record.addonGroupId)
+              : undefined,
+          addonOptionId: Number(record.addonOptionId),
+          quantity: Math.max(1, Number(record.quantity ?? 1)),
+        };
+      })
+      .filter((addon) => Number.isInteger(addon.addonOptionId) && addon.addonOptionId > 0);
+
+    return this.enrichAddOnGroupIds(parsed);
+  }
+
+  private async enrichAddOnGroupIds(
+    addOns: { addonGroupId?: number; addonOptionId: number; quantity: number }[],
+  ): Promise<StoredCartAddon[]> {
+    if (!addOns.length) {
+      return [];
+    }
+
+    const missingOptionIds = addOns
+      .filter((addon) => !addon.addonGroupId)
+      .map((addon) => addon.addonOptionId);
+
+    const groupByOptionId = new Map<number, number>();
+
+    if (missingOptionIds.length) {
+      const options = await this.prisma.addonOption.findMany({
+        where: { id: { in: missingOptionIds } },
+        select: { id: true, groupId: true },
+      });
+
+      for (const option of options) {
+        groupByOptionId.set(option.id, option.groupId);
+      }
+    }
+
+    return addOns
+      .map((addon) => ({
+        addonGroupId: addon.addonGroupId ?? groupByOptionId.get(addon.addonOptionId),
+        addonOptionId: addon.addonOptionId,
+        quantity: addon.quantity,
+      }))
+      .filter(
+        (addon): addon is StoredCartAddon =>
+          addon.addonGroupId != null && addon.addonGroupId > 0 && addon.addonOptionId > 0,
+      );
+  }
 
   private async calculateAddOnsTotal(
     addOns?: { addonOptionId: number; quantity: number }[],

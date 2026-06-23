@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   fetchCart,
   updateCartItemAsync,
   removeFromCartAsync,
+  clearError, // newly added import for clearError action
 } from "../store/slices/cartSlice";
 import {
   createSessionAwarePath,
@@ -12,11 +13,11 @@ import {
   persistTableId,
   resolveRestaurantId,
   resolveTableId,
-} from '../lib/tableSession';
+} from "../lib/tableSession";
 
-const formatCurrency = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
+const formatCurrency = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
   maximumFractionDigits: 2,
 });
 
@@ -26,24 +27,32 @@ export function CartPage() {
   const location = useLocation();
   const items = useSelector((state) => state.cart.items);
   const token = useSelector((state) => state.auth.token);
-  const { loading: cartLoading, error: cartError } = useSelector((state) => state.cart);
-  const [errorMessage, setErrorMessage] = useState('');
+  const { loading: cartLoading, error: cartError } = useSelector(
+    (state) => state.cart,
+  );
+  const [errorMessage, setErrorMessage] = useState("");
   const cartRestaurantId = useMemo(
-    () => items.find((item) => item.restaurantId)?.restaurantId ?? '',
+    () => items.find((item) => item.restaurantId)?.restaurantId ?? "",
     [items],
   );
   const tableId = resolveTableId(location.search);
-  const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
+  // const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
+
+  //better logic to determine restaurantId: if cart has items, use that restaurantId, else use the one from URL
+  const urlRestaurantId = resolveRestaurantId(location.search);
+  const restaurantId = items.length > 0 ? cartRestaurantId : urlRestaurantId;
   const restaurantName =
-    items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant?.name ||
+    items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant
+      ?.name ||
     items.find((item) => item.restaurant?.name)?.restaurant?.name ||
-    '';
-  const restaurantLabel = restaurantName || (restaurantId ? `Restaurant #${restaurantId}` : '');
+    "";
+  const restaurantLabel =
+    restaurantName || (restaurantId ? `Restaurant #${restaurantId}` : "");
   const contextText = tableId
-    ? `Ordering for Table ${tableId}${restaurantLabel ? ` at ${restaurantLabel}` : ''}`
+    ? `Ordering for Table ${tableId}${restaurantLabel ? ` at ${restaurantLabel}` : ""}`
     : restaurantLabel
       ? `Ordering from ${restaurantLabel}`
-      : 'Review your items before checkout. GST and coupons are calculated at checkout.';
+      : "Review your items before checkout. GST and coupons are calculated at checkout.";
 
   useEffect(() => {
     if (tableId) {
@@ -57,9 +66,20 @@ export function CartPage() {
     }
   }, [restaurantId]);
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   dispatch(fetchCart());
+  // }, [dispatch]);
+
+useEffect(() => {
+  dispatch(clearError());
+  setErrorMessage('');
   dispatch(fetchCart());
 }, [dispatch]);
+
+useEffect(() => {
+  dispatch(clearError());
+  setErrorMessage('');
+}, [restaurantId]);
 
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price, 0),
@@ -69,64 +89,134 @@ export function CartPage() {
   const increaseQuantity = (item) => {
     // dispatch(increaseQuantityAction(item.cartKey));
     dispatch(
- updateCartItemAsync({
-   cartItemId:item.cartItemId,
-   quantity:item.quantity+1,
- })
-);
+      updateCartItemAsync({
+        cartItemId: item.cartItemId,
+        quantity: item.quantity + 1,
+      }),
+    );
   };
 
-  const decreaseQuantity = (item) => {
-    // dispatch(decreaseQuantityAction(item.cartKey));
-    dispatch(
- updateCartItemAsync({
-   cartItemId:item.cartItemId,
-   quantity:item.quantity-1,
- })
-);
+  //   const decreaseQuantity = (item) => {
+  //     // dispatch(decreaseQuantityAction(item.cartKey));
+  //     dispatch(
+  //  updateCartItemAsync({
+  //    cartItemId:item.cartItemId,
+  //    quantity:item.quantity-1,
+  //  })
+  // );
+  //   };
+
+  const decreaseQuantity = async (item) => {
+    try {
+      // If quantity is already 1 → remove item
+      if (item.quantity <= 1) {
+        await dispatch(removeFromCartAsync(item.cartItemId)).unwrap();
+
+        return;
+      }
+
+      // Otherwise decrease normally
+      await dispatch(
+        updateCartItemAsync({
+          cartItemId: item.cartItemId,
+          quantity: item.quantity - 1,
+        }),
+      ).unwrap();
+    } catch (error) {
+      setErrorMessage(error?.message || "Unable to update cart.");
+    }
   };
 
   const removeItem = (item) => {
     // dispatch(removeItemAction(item.cartKey));
-    dispatch(
-      removeFromCartAsync(item.cartItemId)
-    );
+    dispatch(removeFromCartAsync(item.cartItemId));
   };
 
-  const proceedToCheckout = () => {
-    setErrorMessage('');
+  const proceedToCheckout = async () => {
+    setErrorMessage("");
 
     if (items.length === 0) {
-      setErrorMessage('Your cart is empty. Add at least one item before checkout.');
+      setErrorMessage(
+        "Your cart is empty. Add at least one item before checkout.",
+      );
       return;
     }
 
-    const checkoutPath = createSessionAwarePath('/checkout', tableId, restaurantId);
-    const [checkoutPathname, checkoutSearch = ''] = checkoutPath.split('?');
+    const checkoutPath = createSessionAwarePath(
+      "/checkout",
+      tableId,
+      restaurantId,
+    );
+    const [checkoutPathname, checkoutSearch = ""] = checkoutPath.split("?");
 
     if (!token) {
-      navigate('/login', {
+      navigate("/login", {
         state: {
           from: {
             pathname: checkoutPathname,
-            search: checkoutSearch ? `?${checkoutSearch}` : '',
+            search: checkoutSearch ? `?${checkoutSearch}` : "",
           },
         },
       });
       return;
     }
 
-    if (!restaurantId) {
-      setErrorMessage('Restaurant context is missing. Please scan table QR and open menu again.');
-      return;
-    }
+    try {
+      // Reload cart to verify with actual backend state
+      const result = await dispatch(fetchCart()).unwrap();
+      const latestItems = result?.cartItems || [];
 
-    if (items.some((item) => String(item.restaurantId) !== String(restaurantId))) {
-      setErrorMessage('Cart contains items from a different restaurant. Please clear cart and retry.');
-      return;
-    }
+      if (latestItems.length === 0) {
+        setErrorMessage("Your cart is empty.");
+        return;
+      }
 
-    navigate(checkoutPath);
+      // Check if items from multiple restaurants are mixed
+      const uniqueRestaurantIds = [
+        ...new Set(
+          latestItems.map((item) => item.restaurantId).filter(Boolean),
+        ),
+      ];
+      if (uniqueRestaurantIds.length > 1) {
+        setErrorMessage(
+          "Cart contains items from different restaurants. Please clear cart and retry.",
+        );
+        return;
+      }
+
+      const cartRestId = latestItems[0]?.restaurantId;
+      const targetRestaurantId = restaurantId || cartRestId;
+
+      if (!targetRestaurantId) {
+        setErrorMessage(
+          "Restaurant context is missing. Please scan table QR and open menu again.",
+        );
+        return;
+      }
+
+      // If the current restaurant ID doesn't match the items in the cart, block
+      if (
+        latestItems.some(
+          (item) => String(item.restaurantId) !== String(targetRestaurantId),
+        )
+      ) {
+        setErrorMessage(
+          "Cart contains items from a different restaurant. Please clear cart and retry.",
+        );
+        return;
+      }
+
+      const finalPath = createSessionAwarePath(
+        "/checkout",
+        tableId,
+        targetRestaurantId,
+      );
+      navigate(finalPath);
+    } catch (error) {
+      setErrorMessage(
+        error.message || "Failed to verify cart status. Please try again.",
+      );
+    }
   };
 
   return (
@@ -135,9 +225,7 @@ export function CartPage() {
         <div>
           <p className="eyebrow">Cart</p>
           <h2>Your order summary</h2>
-          <p className="cart-supporting-copy">
-            {contextText}
-          </p>
+          <p className="cart-supporting-copy">{contextText}</p>
         </div>
       </div>
 
@@ -155,15 +243,21 @@ export function CartPage() {
                     <div>
                       <span className="pill">{item.category?.name}</span>
                       <h3>{item.name}</h3>
-                      <p className="line-item-meta">{formatCurrency.format(item.unitPrice)} per item</p>
-                      {(item.variant || (item.addOns && item.addOns.length > 0)) && (
+                      <p className="line-item-meta">
+                        {formatCurrency.format(item.unitPrice)} per item
+                      </p>
+                      {(item.variant ||
+                        (item.addOns && item.addOns.length > 0)) && (
                         <div className="cart-item-customizations">
                           {item.variant && (
                             <span>Size: {item.variant.name}</span>
                           )}
                           {(item.addOns ?? []).map((addon) => (
-                            <span key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}>
-                              + {addon.addonOptionName || addon.name} (+ {formatCurrency.format(addon.price)})
+                            <span
+                              key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}
+                            >
+                              + {addon.addonOptionName || addon.name} (+{" "}
+                              {formatCurrency.format(addon.price)})
                             </span>
                           ))}
                         </div>
@@ -179,7 +273,10 @@ export function CartPage() {
                   </div>
 
                   <div className="cart-item-footer">
-                    <div className="quantity-selector" aria-label={`Quantity for ${item.name}`}>
+                    <div
+                      className="quantity-selector"
+                      aria-label={`Quantity for ${item.name}`}
+                    >
                       <button
                         type="button"
                         className="quantity-button"
@@ -220,11 +317,15 @@ export function CartPage() {
               <span>Estimated Total</span>
               <strong>{formatCurrency.format(subtotal)}</strong>
             </div>
-            <p className="cart-tax-note">GST, coupons, and payable total are calculated on checkout.</p>
+            <p className="cart-tax-note">
+              GST, coupons, and payable total are calculated on checkout.
+            </p>
           </div>
 
           {errorMessage || cartError ? (
-            <div className="order-status-banner error">{errorMessage || cartError}</div>
+            <div className="order-status-banner error">
+              {errorMessage || cartError}
+            </div>
           ) : null}
 
           <button

@@ -3,6 +3,17 @@ import { cartApi } from "../../services/cartApi";
 
 const CART_STORAGE_KEY = "cart_items";
 
+function cleanApiError(message = "") {
+  const cleaned = message.replace(/\s*\(requestId:.*?\)/, "");
+  if (
+    cleaned.includes("different restaurant") ||
+    cleaned.includes("Please clear your cart first")
+  ) {
+    return "Your cart already contains items from another restaurant. Please clear the cart before adding new items.";
+  }
+  return cleaned;
+}
+
 /** Matches backend CartService.getMenuItemPrice — discount applies only without a variant. */
 export function getEffectiveMenuPrice(menuItem, variant = null) {
   if (variant != null && variant.price != null) {
@@ -144,6 +155,24 @@ const saveCartToStorage = (items) => {
   }
 };
 
+function mapServerAddOns(addOns = []) {
+  return addOns
+    .map((addon) => ({
+      addonGroupId: Number(addon.addonGroupId),
+      addonOptionId: Number(addon.addonOptionId),
+      quantity: Math.max(1, Number(addon.quantity ?? 1)),
+      name: addon.name,
+      price: addon.price ?? addon.addonOptionPrice,
+    }))
+    .filter(
+      (addon) =>
+        Number.isInteger(addon.addonGroupId) &&
+        addon.addonGroupId > 0 &&
+        Number.isInteger(addon.addonOptionId) &&
+        addon.addonOptionId > 0,
+    );
+}
+
 function mapServerCart(cart) {
   return (cart?.cartItems || []).map((item) => ({
     cartItemId: item.cartItemId,
@@ -152,7 +181,7 @@ function mapServerCart(cart) {
     quantity: item.quantity,
     price: item.price,
     unitPrice: item.unitPrice,
-    addOns: item.addOns || [],
+    addOns: mapServerAddOns(item.addOns || []),
     cartKey: String(item.cartItemId),
 
     restaurantId: item.restaurantId,
@@ -215,6 +244,7 @@ export const addToCartAsync = createAsyncThunk(
         variantId: payload.variant?.id ?? payload.variantId ?? null,
         quantity: Number(payload.quantity),
         addOns: (payload.addOns ?? []).map((addon) => ({
+          addonGroupId: Number(addon.addonGroupId),
           addonOptionId: Number(addon.addonOptionId),
           quantity: Number(addon.quantity ?? 1),
         })),
@@ -436,7 +466,7 @@ const cartSlice = createSlice({
       })
       .addCase(fetchCart.rejected, (state, action) => {
         state.syncing = false;
-        state.error = action.payload;
+        state.error = cleanApiError(action.payload);
       })
       // Add to Cart Async
       .addCase(addToCartAsync.pending, (state) => {
@@ -457,7 +487,7 @@ const cartSlice = createSlice({
       })
       .addCase(addToCartAsync.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = cleanApiError(action.payload);
       })
       // Update Cart Item Async
       .addCase(updateCartItemAsync.pending, (state) => {
@@ -473,7 +503,7 @@ const cartSlice = createSlice({
       })
       .addCase(updateCartItemAsync.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = cleanApiError(action.payload);
       })
 
       // Remove from Cart Async
@@ -486,7 +516,7 @@ const cartSlice = createSlice({
       // })
       .addCase(removeFromCartAsync.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = cleanApiError(action.payload);
       })
 
       .addCase(removeFromCartAsync.fulfilled, (state, action) => {
@@ -508,7 +538,7 @@ const cartSlice = createSlice({
       // })
       .addCase(clearCartAsync.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = cleanApiError(action.payload);
       })
       .addCase(clearCartAsync.fulfilled, (state) => {
         state.loading = false;
