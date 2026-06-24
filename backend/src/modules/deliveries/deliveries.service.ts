@@ -449,11 +449,30 @@ export class DeliveriesService {
     orderId: number,
     requester: AuthenticatedUser,
   ): Promise<DeliveryTrackingResponseDto> {
+    // const delivery = await this.prisma.delivery.findUnique({
+    //   where: { orderId },
+    //   include: {
+    //     agent: true,
+    //     order: true,
+    //     trackingLogs: {
+    //       orderBy: { recordedAt: 'desc' },
+    //       ...toPrismaPagination({ limit: 20, offset: 0 }),
+    //     },
+    //   },
+    // });
+
     const delivery = await this.prisma.delivery.findUnique({
       where: { orderId },
       include: {
         agent: true,
-        order: true,
+
+        order: {
+          include: {
+            user: true,
+            address: true,
+          },
+        },
+
         trackingLogs: {
           orderBy: { recordedAt: 'desc' },
           ...toPrismaPagination({ limit: 20, offset: 0 }),
@@ -488,6 +507,25 @@ export class DeliveriesService {
             isAvailable: delivery.agent.isAvailable,
           }
         : null,
+      customer: {
+        id: delivery.order.user?.id ?? null,
+        name: delivery.order.user?.name ?? null,
+        phone: delivery.order.user?.phone ?? null,
+        profileImageUrl: delivery.order.user?.profileImageUrl ?? null,
+
+        address: delivery.order.address
+          ? {
+              id: delivery.order.address.id,
+              label: delivery.order.address.label,
+              address: delivery.order.address.address,
+              city: delivery.order.address.city,
+              state: delivery.order.address.state,
+              latitude: delivery.order.address.latitude,
+              longitude: delivery.order.address.longitude,
+              fullText: this.formatAddress(delivery.order.address),
+            }
+          : null,
+      },
       order: {
         id: delivery.order.id,
         orderNumber: delivery.order.orderNumber,

@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
-
+import { DeliveryBoyCustomerDto } from './delivery-boy-response.dto';
 import { DeliveryAgentDto } from './delivery-agent.dto';
 import { DeliveryTrackingLogDto } from './delivery-tracking-log.dto';
 import { OrderSummaryDto } from './order-summary.dto';
@@ -36,4 +36,13 @@ export class DeliveryTrackingResponseDto {
   @ValidateNested({ each: true })
   @Type(() => DeliveryTrackingLogDto)
   trackingHistory!: DeliveryTrackingLogDto[];
+
+  @ApiPropertyOptional({
+    type: () => DeliveryBoyCustomerDto,
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeliveryBoyCustomerDto)
+  customer!: DeliveryBoyCustomerDto | null;
 }
