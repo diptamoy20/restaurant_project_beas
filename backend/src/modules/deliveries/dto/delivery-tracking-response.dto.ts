@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
-import { DeliveryBoyCustomerDto } from './delivery-boy-response.dto';
+
 import { DeliveryAgentDto } from './delivery-agent.dto';
+import { DeliveryBoyCustomerDto } from './delivery-boy-response.dto';
 import { DeliveryTrackingLogDto } from './delivery-tracking-log.dto';
 import { OrderSummaryDto } from './order-summary.dto';
 
