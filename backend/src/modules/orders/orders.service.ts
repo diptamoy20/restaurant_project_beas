@@ -131,9 +131,28 @@ export class OrdersService {
 
     const allowed = new Set<string>([ORDER_STATUS.PENDING, ORDER_STATUS.PLACED]);
 
+    // if (!allowed.has(existing.status)) {
+    //   throw new BadRequestException(`Order cannot be accepted from status ${existing.status}`);
+    // }
+
     if (!allowed.has(existing.status)) {
-      throw new BadRequestException(`Order cannot be accepted from status ${existing.status}`);
-    }
+  throw new BadRequestException(
+    `Order cannot be accepted from status ${existing.status}`,
+  );
+}
+
+/**
+ * Delivery orders must have delivery boy assigned
+ * before admin accepts the order
+ */
+if (
+  existing.orderType === 'DELIVERY' &&
+  (!existing.delivery || !existing.delivery.agentId)
+) {
+  throw new BadRequestException(
+    'Assign a delivery boy before accepting this order',
+  );
+}
 
     const now = new Date();
     const order = await this.prisma.order.update({
@@ -263,6 +282,25 @@ export class OrdersService {
     if (!existing) {
       throw new NotFoundException('Order not found');
     }
+
+    // Delivery orders must have assigned delivery boy
+const deliveryRequiredStatuses = [
+  ORDER_STATUS.ACCEPTED,
+  ORDER_STATUS.PREPARING,
+  ORDER_STATUS.ON_THE_WAY,
+  ORDER_STATUS.DELIVERED,
+] as string[];
+
+if (
+  existing.orderType === 'DELIVERY' &&
+  deliveryRequiredStatuses.includes(status)
+) {
+  if (!existing.delivery?.agentId) {
+    throw new BadRequestException(
+      'Please assign a delivery boy before changing order status',
+    );
+  }
+}
 
     const now = new Date();
     const cancellationReason = options.cancellationReason?.trim();
