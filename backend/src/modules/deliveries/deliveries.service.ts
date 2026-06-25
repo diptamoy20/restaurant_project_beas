@@ -501,138 +501,133 @@ export class DeliveriesService {
     // });
 
     const order = await this.prisma.order.findUnique({
-  where: { id: orderId },
+      where: { id: orderId },
 
-  include: {
-    user: true,
-
-    address: true,
-
-    restaurant: true,
-
-    items: {
       include: {
-        menuItem: true,
-        variant: true,
-        addons: true,
-      },
-    },
+        user: true,
 
-    delivery: {
-      include: {
-        order: {
+        address: true,
+
+        restaurant: true,
+
+        items: {
           include: {
-            user: true,
-            address: true,
-            items: {
+            menuItem: true,
+            variant: true,
+            addons: true,
+          },
+        },
+
+        delivery: {
+          include: {
+            order: {
               include: {
-                menuItem: true,
-                variant: true,
-                addons: true,
+                user: true,
+                address: true,
+                items: {
+                  include: {
+                    menuItem: true,
+                    variant: true,
+                    addons: true,
+                  },
+                },
               },
+            },
+
+            agent: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                isAvailable: true,
+                vehicleType: true,
+                vehicleNumber: true,
+                vehicleBrand: true,
+                vehicleColor: true,
+              },
+            },
+
+            trackingLogs: {
+              orderBy: {
+                recordedAt: 'desc',
+              },
+
+              take: 20,
             },
           },
         },
-
-        agent: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            isAvailable: true,
-            vehicleType: true,
-            vehicleNumber: true,
-            vehicleBrand: true,
-            vehicleColor: true,
-          },
-        },
-
-        trackingLogs: {
-          orderBy: {
-            recordedAt: 'desc',
-          },
-
-          take: 20,
-        },
       },
-    },
-  },
-});
+    });
 
     // if (!delivery) {
     //   throw new NotFoundException('Delivery not found for this order');
     // }
-     if (!order) {
-   throw new NotFoundException('Order not found')
- }
- const delivery = order.delivery;
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const delivery = order.delivery;
 
-if (!delivery) {
-  return {
-    deliveryId: null,
+    if (!delivery) {
+      return {
+        deliveryId: null,
 
-    status: DELIVERY_STATUS.PENDING,
+        status: DELIVERY_STATUS.PENDING,
 
-    agent: null,
+        agent: null,
 
-    customer: {
-      id: order.user?.id ?? null,
-      name: order.user?.name ?? null,
-      phone: order.user?.phone ?? null,
-      profileImageUrl: order.user?.profileImageUrl ?? null,
+        customer: {
+          id: order.user?.id ?? null,
+          name: order.user?.name ?? null,
+          phone: order.user?.phone ?? null,
+          profileImageUrl: order.user?.profileImageUrl ?? null,
 
-      address: order.address
-        ? {
-            id: order.address.id,
-            label: order.address.label,
-            address: order.address.address,
-            city: order.address.city,
-            state: order.address.state,
-            latitude: order.address.latitude,
-            longitude: order.address.longitude,
-            fullText: this.formatAddress(order.address),
-          }
-        : null,
-    },
+          address: order.address
+            ? {
+                id: order.address.id,
+                label: order.address.label,
+                address: order.address.address,
+                city: order.address.city,
+                state: order.address.state,
+                latitude: order.address.latitude,
+                longitude: order.address.longitude,
+                fullText: this.formatAddress(order.address),
+              }
+            : null,
+        },
 
-    order: {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      status: order.status,
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status,
 
-      totalAmount: order.totalAmount,
+          totalAmount: order.totalAmount,
 
-      paymentStatus: order.paymentStatus,
+          paymentStatus: order.paymentStatus,
 
-      itemsSummary: {
-        itemCount: order.items.length,
+          itemsSummary: {
+            itemCount: order.items.length,
 
-        totalQuantity: order.items.reduce(
-          (sum: number, item) => sum + item.quantity,
-          0,
-        ),
-      },
+            totalQuantity: order.items.reduce((sum: number, item) => sum + item.quantity, 0),
+          },
 
-      items: order.items.map((item) => ({
-        id: item.id,
-        menuItemId: item.menuItemId,
-        name: item.menuItem.name,
-        imageUrl: item.menuItem.imageUrl,
-        variantName: item.variant?.name ?? null,
-        addons: item.addons.map(
-          (addon) => addon.addonOptionName,
-        ),
-        quantity: item.quantity,
-        unitPrice: item.price,
-        totalPrice: item.totalPrice,
-      })),
-    },
+          items: order.items.map((item) => ({
+            id: item.id,
+            menuItemId: item.menuItemId,
+            name: item.menuItem.name,
+            imageUrl: item.menuItem.imageUrl,
+            variantName: item.variant?.name ?? null,
+            addons: item.addons.map((addon) => addon.addonOptionName),
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.totalPrice,
+          })),
+        },
 
-    latestLocation: null,
+        latestLocation: null,
 
-    trackingHistory: [],
-  };
-}
+        trackingHistory: [],
+      };
+    }
 
     if (this.hasRole(requester, Role.CUSTOMER) && delivery.order.userId !== requester.id) {
       throw new ForbiddenException('You do not have permission to access this delivery tracking');

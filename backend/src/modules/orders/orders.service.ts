@@ -136,23 +136,16 @@ export class OrdersService {
     // }
 
     if (!allowed.has(existing.status)) {
-  throw new BadRequestException(
-    `Order cannot be accepted from status ${existing.status}`,
-  );
-}
+      throw new BadRequestException(`Order cannot be accepted from status ${existing.status}`);
+    }
 
-/**
- * Delivery orders must have delivery boy assigned
- * before admin accepts the order
- */
-if (
-  existing.orderType === 'DELIVERY' &&
-  (!existing.delivery || !existing.delivery.agentId)
-) {
-  throw new BadRequestException(
-    'Assign a delivery boy before accepting this order',
-  );
-}
+    /**
+     * Delivery orders must have delivery boy assigned
+     * before admin accepts the order
+     */
+    if (existing.orderType === 'DELIVERY' && (!existing.delivery || !existing.delivery.agentId)) {
+      throw new BadRequestException('Assign a delivery boy before accepting this order');
+    }
 
     const now = new Date();
     const order = await this.prisma.order.update({
@@ -284,23 +277,18 @@ if (
     }
 
     // Delivery orders must have assigned delivery boy
-const deliveryRequiredStatuses = [
-  ORDER_STATUS.ACCEPTED,
-  ORDER_STATUS.PREPARING,
-  ORDER_STATUS.ON_THE_WAY,
-  ORDER_STATUS.DELIVERED,
-] as string[];
+    const deliveryRequiredStatuses = [
+      ORDER_STATUS.ACCEPTED,
+      ORDER_STATUS.PREPARING,
+      ORDER_STATUS.ON_THE_WAY,
+      ORDER_STATUS.DELIVERED,
+    ] as string[];
 
-if (
-  existing.orderType === 'DELIVERY' &&
-  deliveryRequiredStatuses.includes(status)
-) {
-  if (!existing.delivery?.agentId) {
-    throw new BadRequestException(
-      'Please assign a delivery boy before changing order status',
-    );
-  }
-}
+    if (existing.orderType === 'DELIVERY' && deliveryRequiredStatuses.includes(status)) {
+      if (!existing.delivery?.agentId) {
+        throw new BadRequestException('Please assign a delivery boy before changing order status');
+      }
+    }
 
     const now = new Date();
     const cancellationReason = options.cancellationReason?.trim();
