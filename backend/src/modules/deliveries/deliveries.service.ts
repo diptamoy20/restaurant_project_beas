@@ -461,47 +461,172 @@ export class DeliveriesService {
     //   },
     // });
 
-    const delivery = await this.prisma.delivery.findUnique({
-      where: { orderId },
-      include: {
-        agent: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            isAvailable: true,
+    // const order = await this.prisma.delivery.findUnique({
+    //   where: { orderId },
+    //   include: {
+    //     agent: {
+    //       select: {
+    //         id: true,
+    //         name: true,
+    //         phone: true,
+    //         isAvailable: true,
 
-            vehicleType: true,
-            vehicleNumber: true,
-            vehicleBrand: true,
-            vehicleColor: true,
+    //         vehicleType: true,
+    //         vehicleNumber: true,
+    //         vehicleBrand: true,
+    //         vehicleColor: true,
+    //       },
+    //     },
+
+    //     order: {
+    //       include: {
+    //         user: true,
+    //         address: true,
+
+    //         items: {
+    //           include: {
+    //             menuItem: true,
+    //             variant: true,
+    //             addons: true,
+    //           },
+    //         },
+    //       },
+    //     },
+
+    //     trackingLogs: {
+    //       orderBy: { recordedAt: 'desc' },
+    //       ...toPrismaPagination({ limit: 20, offset: 0 }),
+    //     },
+    //   },
+    // });
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+
+      include: {
+        user: true,
+
+        address: true,
+
+        restaurant: true,
+
+        items: {
+          include: {
+            menuItem: true,
+            variant: true,
+            addons: true,
           },
         },
 
-        order: {
+        delivery: {
           include: {
-            user: true,
-            address: true,
-
-            items: {
+            order: {
               include: {
-                menuItem: true,
-                variant: true,
-                addons: true,
+                user: true,
+                address: true,
+                items: {
+                  include: {
+                    menuItem: true,
+                    variant: true,
+                    addons: true,
+                  },
+                },
               },
             },
-          },
-        },
 
-        trackingLogs: {
-          orderBy: { recordedAt: 'desc' },
-          ...toPrismaPagination({ limit: 20, offset: 0 }),
+            agent: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                isAvailable: true,
+                vehicleType: true,
+                vehicleNumber: true,
+                vehicleBrand: true,
+                vehicleColor: true,
+              },
+            },
+
+            trackingLogs: {
+              orderBy: {
+                recordedAt: 'desc',
+              },
+
+              take: 20,
+            },
+          },
         },
       },
     });
 
+    // if (!delivery) {
+    //   throw new NotFoundException('Delivery not found for this order');
+    // }
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const delivery = order.delivery;
+
     if (!delivery) {
-      throw new NotFoundException('Delivery not found for this order');
+      return {
+        deliveryId: null,
+
+        status: DELIVERY_STATUS.PENDING,
+
+        agent: null,
+
+        customer: {
+          id: order.user?.id ?? null,
+          name: order.user?.name ?? null,
+          phone: order.user?.phone ?? null,
+          profileImageUrl: order.user?.profileImageUrl ?? null,
+
+          address: order.address
+            ? {
+                id: order.address.id,
+                label: order.address.label,
+                address: order.address.address,
+                city: order.address.city,
+                state: order.address.state,
+                latitude: order.address.latitude,
+                longitude: order.address.longitude,
+                fullText: this.formatAddress(order.address),
+              }
+            : null,
+        },
+
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+
+          totalAmount: order.totalAmount,
+
+          paymentStatus: order.paymentStatus,
+
+          itemsSummary: {
+            itemCount: order.items.length,
+
+            totalQuantity: order.items.reduce((sum: number, item) => sum + item.quantity, 0),
+          },
+
+          items: order.items.map((item) => ({
+            id: item.id,
+            menuItemId: item.menuItemId,
+            name: item.menuItem.name,
+            imageUrl: item.menuItem.imageUrl,
+            variantName: item.variant?.name ?? null,
+            addons: item.addons.map((addon) => addon.addonOptionName),
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.totalPrice,
+          })),
+        },
+
+        latestLocation: null,
+
+        trackingHistory: [],
+      };
     }
 
     if (this.hasRole(requester, Role.CUSTOMER) && delivery.order.userId !== requester.id) {

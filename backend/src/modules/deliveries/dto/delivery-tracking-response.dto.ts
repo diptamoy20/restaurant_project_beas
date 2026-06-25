@@ -8,9 +8,13 @@ import { DeliveryTrackingLogDto } from './delivery-tracking-log.dto';
 import { OrderSummaryDto } from './order-summary.dto';
 
 export class DeliveryTrackingResponseDto {
-  @ApiProperty({ example: 1 })
+  @ApiProperty({
+    example: 1,
+    nullable: true,
+  })
+  @IsOptional()
   @IsNumber()
-  deliveryId!: number;
+  deliveryId!: number | null;
 
   @ApiProperty({ example: 'ON_THE_WAY' })
   @IsString()

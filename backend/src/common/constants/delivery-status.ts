@@ -1,4 +1,5 @@
 export const DELIVERY_STATUS = {
+  PENDING: 'PENDING',
   ASSIGNED: 'ASSIGNED',
   ON_THE_WAY: 'ON_THE_WAY',
   DELIVERED: 'DELIVERED',
@@ -7,7 +8,8 @@ export const DELIVERY_STATUS = {
 
 export type DeliveryStatusValue = (typeof DELIVERY_STATUS)[keyof typeof DELIVERY_STATUS];
 
-export const ACTIVE_DELIVERY_STATUSES: DeliveryStatusValue[] = [
+export const ACTIVE_DELIVERY_STATUSES = [
+  DELIVERY_STATUS.PENDING,
   DELIVERY_STATUS.ASSIGNED,
   DELIVERY_STATUS.ON_THE_WAY,
 ];
