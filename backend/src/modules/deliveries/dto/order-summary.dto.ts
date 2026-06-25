@@ -1,24 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+
+import { OrderItemDto } from './order-item.dto';
+import { OrderItemsSummaryDto } from './order-items-summary.dto';
 
 export class OrderSummaryDto {
-  @ApiProperty({ example: 1 })
-  @IsNumber()
+  @ApiProperty()
   id!: number;
 
-  @ApiProperty({ example: 'ORD-1001' })
-  @IsString()
+  @ApiProperty()
   orderNumber!: string;
 
-  @ApiProperty({ example: 'PLACED' })
-  @IsString()
+  @ApiProperty()
   status!: string;
 
-  @ApiProperty({ example: 268 })
-  @IsNumber()
+  @ApiProperty()
   totalAmount!: number;
 
-  @ApiProperty({ example: 'PENDING' })
-  @IsString()
+  @ApiProperty()
   paymentStatus!: string;
+
+  @ApiProperty({
+    type: () => OrderItemsSummaryDto,
+  })
+  @Type(() => OrderItemsSummaryDto)
+  itemsSummary!: OrderItemsSummaryDto;
+
+  @ApiProperty({
+    type: [OrderItemDto],
+  })
+  @Type(() => OrderItemDto)
+  items!: OrderItemDto[];
 }

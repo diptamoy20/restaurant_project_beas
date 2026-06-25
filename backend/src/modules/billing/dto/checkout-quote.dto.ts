@@ -200,6 +200,14 @@ export class CheckoutQuoteResponseDto {
   @IsNumber()
   menuDiscountAmount!: number;
 
+  @ApiPropertyOptional({
+    example: 1,
+    nullable: true,
+  })
+  @IsOptional()
+  @IsNumber()
+  couponId!: number | null;
+
   @ApiPropertyOptional({ example: 'WELCOME50', nullable: true })
   @IsOptional()
   @IsString()

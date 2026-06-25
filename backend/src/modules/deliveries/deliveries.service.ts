@@ -464,12 +464,32 @@ export class DeliveriesService {
     const delivery = await this.prisma.delivery.findUnique({
       where: { orderId },
       include: {
-        agent: true,
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            isAvailable: true,
+
+            vehicleType: true,
+            vehicleNumber: true,
+            vehicleBrand: true,
+            vehicleColor: true,
+          },
+        },
 
         order: {
           include: {
             user: true,
             address: true,
+
+            items: {
+              include: {
+                menuItem: true,
+                variant: true,
+                addons: true,
+              },
+            },
           },
         },
 
@@ -505,6 +525,13 @@ export class DeliveriesService {
             name: delivery.agent.name,
             phone: delivery.agent.phone,
             isAvailable: delivery.agent.isAvailable,
+
+            vehicle: {
+              vehicleType: delivery.agent.vehicleType,
+              vehicleNumber: delivery.agent.vehicleNumber,
+              brand: delivery.agent.vehicleBrand,
+              color: delivery.agent.vehicleColor,
+            },
           }
         : null,
       customer: {
@@ -526,13 +553,41 @@ export class DeliveriesService {
             }
           : null,
       },
+
       order: {
         id: delivery.order.id,
         orderNumber: delivery.order.orderNumber,
         status: delivery.order.status,
         totalAmount: delivery.order.totalAmount,
         paymentStatus: delivery.order.paymentStatus,
+
+        itemsSummary: {
+          itemCount: delivery.order.items.length,
+
+          totalQuantity: delivery.order.items.reduce((sum, item) => sum + item.quantity, 0),
+        },
+
+        items: delivery.order.items.map((item) => ({
+          id: item.id,
+
+          menuItemId: item.menuItemId,
+
+          name: item.menuItem.name,
+
+          imageUrl: item.menuItem.imageUrl,
+
+          variantName: item.variant?.name ?? null,
+
+          addons: item.addons.map((addon) => addon.addonOptionName),
+
+          quantity: item.quantity,
+
+          unitPrice: item.price,
+
+          totalPrice: item.totalPrice,
+        })),
       },
+
       latestLocation: delivery.trackingLogs[0]
         ? this.mapTrackingLog(delivery.trackingLogs[0])
         : null,
