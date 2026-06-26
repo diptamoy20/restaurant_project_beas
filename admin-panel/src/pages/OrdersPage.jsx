@@ -21,6 +21,10 @@ import {
 } from "../services/orderApi";
 import { useConfirmCodPaymentByAdminMutation } from "../services/paymentApi";
 import { formatDateTime, formatTime } from "../utils/date";
+import {
+  connectOrderSocket,
+  disconnectOrderSocket,
+} from "../services/orderSocket";
 
 const statusClasses = {
   PLACED: "bg-amber-100 text-amber-800",
@@ -213,7 +217,8 @@ function OrderDetailsModal({ orderId, onClose }) {
     useListDeliveryAgentsQuery(undefined, {
       skip: !orderId,
     });
-  const [confirmCodPayment, confirmCodState] = useConfirmCodPaymentByAdminMutation();
+  const [confirmCodPayment, confirmCodState] =
+    useConfirmCodPaymentByAdminMutation();
   const [invoiceDownloadError, setInvoiceDownloadError] = useState("");
 
   if (!orderId) {
@@ -463,10 +468,16 @@ function OrderDetailsModal({ orderId, onClose }) {
                     }
                   />
                   {data.cancellationReason ? (
-                    <DetailRow label="Cancel Notes" value={data.cancellationReason} />
+                    <DetailRow
+                      label="Cancel Notes"
+                      value={data.cancellationReason}
+                    />
                   ) : null}
                   {data.cancelledAt ? (
-                    <DetailRow label="Cancelled At" value={formatDateTime(data.cancelledAt)} />
+                    <DetailRow
+                      label="Cancelled At"
+                      value={formatDateTime(data.cancelledAt)}
+                    />
                   ) : null}
                   {data.orderType === "DELIVERY" ? (
                     <div className="grid grid-cols-[150px_1fr] gap-4">
@@ -500,7 +511,9 @@ function OrderDetailsModal({ orderId, onClose }) {
                   ) : null}
                   {invoiceError ? (
                     <p className="mt-1 text-xs font-semibold text-rose-600">
-                      {invoiceError?.data?.message || invoiceError?.error || "Invoice could not be loaded."}
+                      {invoiceError?.data?.message ||
+                        invoiceError?.error ||
+                        "Invoice could not be loaded."}
                     </p>
                   ) : null}
                   {invoiceDownloadError ? (
@@ -517,7 +530,8 @@ function OrderDetailsModal({ orderId, onClose }) {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {data.paymentMethod === "COD" && data.paymentStatus !== "PAID" ? (
+                  {data.paymentMethod === "COD" &&
+                  data.paymentStatus !== "PAID" ? (
                     <Button
                       disabled={confirmCodState.isLoading}
                       onClick={async () => {
@@ -526,7 +540,9 @@ function OrderDetailsModal({ orderId, onClose }) {
                         refetchInvoice();
                       }}
                     >
-                      {confirmCodState.isLoading ? "Confirming..." : "Confirm COD Payment"}
+                      {confirmCodState.isLoading
+                        ? "Confirming..."
+                        : "Confirm COD Payment"}
                     </Button>
                   ) : null}
                   <Button
@@ -536,7 +552,9 @@ function OrderDetailsModal({ orderId, onClose }) {
                       try {
                         await downloadOrderInvoice(data.id);
                       } catch (downloadError) {
-                        setInvoiceDownloadError(downloadError.message || "Invoice download failed.");
+                        setInvoiceDownloadError(
+                          downloadError.message || "Invoice download failed.",
+                        );
                       }
                     }}
                     variant="secondary"
@@ -640,6 +658,25 @@ export function OrdersPage() {
   const [updateOrderStatus, { error: actionError, isLoading: isUpdating }] =
     useUpdateOrderStatusMutation();
 
+      const queryParams = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(filters).filter(
+          ([, value]) => value !== "" && value !== null && value !== undefined,
+        ),
+      ),
+    [filters],
+  );
+
+    const { data, isFetching, error, refetch } = useListOrdersQuery(queryParams, {
+    pollingInterval: 0,
+  });
+
+  useEffect(() => {
+    connectOrderSocket(() => refetch());
+    return () => disconnectOrderSocket();
+  }, [refetch]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setFilters((current) => ({
@@ -652,19 +689,6 @@ export function OrdersPage() {
     return () => window.clearTimeout(timer);
   }, [searchText]);
 
-  const queryParams = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(filters).filter(
-          ([, value]) => value !== "" && value !== null && value !== undefined,
-        ),
-      ),
-    [filters],
-  );
-
-  const { data, isFetching, error } = useListOrdersQuery(queryParams, {
-    pollingInterval: 15000,
-  });
   const { data: deliveryAgents = [], isFetching: isLoadingAgents } =
     useListDeliveryAgentsQuery();
 
@@ -988,7 +1012,11 @@ export function OrdersPage() {
               >
                 Close
               </Button>
-              <Button disabled={isUpdating} onClick={submitCancelOrder} variant="danger">
+              <Button
+                disabled={isUpdating}
+                onClick={submitCancelOrder}
+                variant="danger"
+              >
                 {isUpdating ? "Cancelling..." : "Cancel Order"}
               </Button>
             </div>

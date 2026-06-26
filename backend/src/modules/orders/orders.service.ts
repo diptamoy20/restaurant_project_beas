@@ -21,6 +21,7 @@ import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { BillingService } from '../billing/billing.service';
+import { DeliveriesGateway } from '../deliveries/deliveries.gateway';
 
 type OrderWithRelations = Prisma.OrderGetPayload<{
   include: {
@@ -75,6 +76,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly billingService: BillingService,
+    private readonly deliveriesGateway: DeliveriesGateway,
   ) {}
 
   async listMyOrders(
@@ -160,7 +162,18 @@ export class OrdersService {
       include: ORDER_INCLUDE,
     });
 
-    return this.mapOrder(order);
+    // return this.mapOrder(order);
+
+    const mapped = this.mapOrder(order);
+
+    this.deliveriesGateway.emitOrderUpdated(order.id, {
+      type: 'ORDER_ACCEPTED',
+      order: mapped,
+    });
+
+    this.deliveriesGateway.emitOrdersRefresh();
+
+    return mapped;
   }
 
   async listDeliveryAgents(options?: {
@@ -259,7 +272,17 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    return this.mapOrder(order);
+    // return this.mapOrder(order);
+    const mapped = this.mapOrder(order);
+
+    this.deliveriesGateway.emitOrderUpdated(order.id, {
+      type: 'DELIVERY_ASSIGNED',
+      order: mapped,
+    });
+
+    this.deliveriesGateway.emitOrdersRefresh();
+
+    return mapped;
   }
 
   async updateOrderStatusByAdmin(
@@ -338,7 +361,18 @@ export class OrdersService {
       include: ORDER_INCLUDE,
     });
 
-    return this.mapOrder(order);
+    // return this.mapOrder(order);
+    const mapped = this.mapOrder(order);
+
+    this.deliveriesGateway.emitOrderUpdated(order.id, {
+      type: 'ORDER_STATUS_CHANGED',
+      status,
+      order: mapped,
+    });
+
+    this.deliveriesGateway.emitOrdersRefresh();
+
+    return mapped;
   }
 
   async getOrder(id: number, requester: AuthenticatedUser): Promise<OrderResponseDto> {
