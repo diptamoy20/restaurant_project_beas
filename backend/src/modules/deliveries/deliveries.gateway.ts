@@ -246,4 +246,14 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
 
     return 'Delivery tracking socket error';
   }
+
+  emitOrderUpdated(orderId: number, payload: unknown): void {
+    this.server.to(this.orderRoom(orderId)).emit('order:updated', payload);
+
+    this.logger.log(`order:updated emitted orderId=${orderId}`);
+  }
+
+  emitOrdersRefresh(): void {
+    this.server.emit('orders:refresh');
+  }
 }
