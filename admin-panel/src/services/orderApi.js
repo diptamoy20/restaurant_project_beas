@@ -99,9 +99,12 @@ export const orderApi = createApi({
         method: "PATCH",
         body: { agentId },
       }),
+      // Only invalidate the specific order — the mutation response already
+      // returns the updated order so the detail view refreshes via cache.
+      // Invalidating the broad "Order" list tag caused the whole order list
+      // to refetch on every assignment, doubling up with the socket event.
       invalidatesTags: (_result, _error, { orderId }) => [
         { type: "Order", id: orderId },
-        "Order",
       ],
     }),
   }),

@@ -172,7 +172,8 @@ export class OrdersService {
       order: mapped,
     });
 
-    this.deliveriesGateway.emitOrdersRefresh();
+    // Targeted per-order event only — no global broadcast needed.
+    // The admin list updates via RTK Query tag invalidation on the mutation response.
 
     return mapped;
   }
@@ -371,7 +372,8 @@ export class OrdersService {
       order: mapped,
     });
 
-    this.deliveriesGateway.emitOrdersRefresh();
+    // Targeted per-order event only — no global broadcast needed.
+    // The admin list updates via RTK Query tag invalidation on the mutation response.
 
     return mapped;
   }
