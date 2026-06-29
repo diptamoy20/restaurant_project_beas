@@ -668,12 +668,18 @@ export function OrdersPage() {
     [filters],
   );
 
-    const { data, isFetching, error, refetch } = useListOrdersQuery(queryParams, {
+    const { data, isFetching, error } = useListOrdersQuery(queryParams, {
     pollingInterval: 0,
   });
 
   useEffect(() => {
-    connectOrderSocket(() => refetch());
+    // Socket is used for targeted per-order updates (order:updated).
+    // The order list refreshes via RTK Query tag invalidation on mutations,
+    // not via socket broadcasts — this prevents the refetch loop.
+    connectOrderSocket((_orderId, _payload) => {
+      // Reserved for future: surgically update a single order in the cache
+      // using dispatch(orderApi.util.updateQueryData(...)) if needed.
+    });
     return () => disconnectOrderSocket();
   }, []);
 
