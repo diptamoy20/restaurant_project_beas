@@ -675,7 +675,7 @@ export function OrdersPage() {
   useEffect(() => {
     connectOrderSocket(() => refetch());
     return () => disconnectOrderSocket();
-  }, [refetch]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
