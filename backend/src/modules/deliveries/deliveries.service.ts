@@ -643,7 +643,7 @@ export class DeliveriesService {
 
     return {
       deliveryId: delivery.id,
-      status: delivery.status,
+      status: delivery.status === DELIVERY_STATUS.ASSIGNED ? 'DELIVERY_ASSIGNED' : delivery.status,
       agent: delivery.agent
         ? {
             id: delivery.agent.id,
