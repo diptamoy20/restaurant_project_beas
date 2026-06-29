@@ -276,7 +276,7 @@ export class OrdersService {
     const mapped = this.mapOrder(order);
 
     this.deliveriesGateway.emitOrderUpdated(order.id, {
-      type: 'DELIVERY_ASSIGNED',
+      status: 'DELIVERY_ASSIGNED',
       order: mapped,
     });
 
