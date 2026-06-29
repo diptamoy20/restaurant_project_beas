@@ -81,6 +81,10 @@ export class MenuController {
   getMenu(
     @Param() params: GetMenuDto,
     @Query() query: PaginatedMenuQueryDto,
+    @Req()
+    request: {
+      user?: AuthenticatedUser;
+    },
   ): Promise<MenuResponseDto> {
     const hasCoordinates =
       query.lat !== undefined ||
@@ -89,18 +93,26 @@ export class MenuController {
       query.longitude !== undefined;
 
     if (!hasCoordinates) {
-      return this.menuService.getMenuByRestaurant(params.restaurantId, {
+      return this.menuService.getMenuByRestaurant(
+        params.restaurantId,
+        {
+          categoryId: query.categoryId,
+          limit: query.limit,
+          offset: query.offset,
+        },
+        request.user?.id,
+      );
+    }
+
+    return this.menuService.getMenuByRestaurant(
+      params.restaurantId,
+      {
+        coordinates: query.getCoordinates(),
         categoryId: query.categoryId,
         limit: query.limit,
         offset: query.offset,
-      });
-    }
-
-    return this.menuService.getMenuByRestaurant(params.restaurantId, {
-      coordinates: query.getCoordinates(),
-      categoryId: query.categoryId,
-      limit: query.limit,
-      offset: query.offset,
-    });
+      },
+      request.user?.id,
+    );
   }
 }

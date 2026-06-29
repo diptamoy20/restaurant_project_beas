@@ -83,6 +83,10 @@ export class MenuItemDto {
   @IsOptional()
   isBestSelling?: boolean;
 
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isFavorite!: boolean;
+
   @ApiPropertyOptional({ example: 15 })
   @IsOptional()
   preparationTime?: number | null;
