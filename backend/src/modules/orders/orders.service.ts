@@ -168,6 +168,7 @@ export class OrdersService {
 
     this.deliveriesGateway.emitOrderUpdated(order.id, {
       type: 'ORDER_ACCEPTED',
+      status: 'ACCEPTED',
       order: mapped,
     });
 
