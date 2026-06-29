@@ -31,6 +31,11 @@ const MIN_PERSONAL_ORDER_SESSIONS = 2;
 const MENU_ITEM_INCLUDE = {
   category: true,
   variants: true,
+  favorites: {
+    select: {
+      userId: true,
+    },
+  },
   addonGroups: {
     where: { isActive: true },
     include: {
@@ -57,6 +62,10 @@ const ADMIN_MENU_ITEM_INCLUDE = {
 } satisfies Prisma.MenuItemInclude;
 
 type MenuItemRow = Prisma.MenuItemGetPayload<{
+  include: typeof MENU_ITEM_INCLUDE;
+}>;
+
+type AdminMenuItemRow = Prisma.MenuItemGetPayload<{
   include: typeof ADMIN_MENU_ITEM_INCLUDE;
 }>;
 
@@ -81,6 +90,7 @@ export class MenuService {
   async getMenuByRestaurant(
     restaurantId: number,
     options: MenuQueryOptions = {},
+    userId?: number,
   ): Promise<MenuResponseDto> {
     const pagination = normalizePagination(options, { limit: 20, maxLimit: 50 });
     const cacheKey = this.locationService.buildMenuCacheKey(
@@ -128,7 +138,8 @@ export class MenuService {
         )
       : undefined;
 
-    const mappedItems = items.map((item) => this.mapMenuItem(item));
+    // const mappedItems = items.map((item) => this.mapMenuItem(item));
+    const mappedItems = items.map((item) => this.mapMenuItem(item, userId));
     const categories = this.mapMenuCategories(categoryRows, mappedItems);
 
     const response: MenuResponseDto = {
@@ -172,6 +183,11 @@ export class MenuService {
       where,
       include: {
         category: true,
+        favorites: {
+          select: {
+            userId: true,
+          },
+        },
         variants: true,
         restaurant: true,
         addonGroups: {
@@ -817,7 +833,7 @@ export class MenuService {
     };
   }
 
-  private mapMenuItem(item: MenuItemRow): MenuItemDto {
+  private mapMenuItem(item: MenuItemRow | AdminMenuItemRow, userId?: number): MenuItemDto {
     return {
       id: item.id,
       name: item.name,
@@ -859,6 +875,10 @@ export class MenuService {
       rating: item.rating,
       isBestSelling: item.isBestSelling,
       preparationTime: item.preparationTime,
+      isFavorite:
+        !!userId && 'favorites' in item && Array.isArray(item.favorites)
+          ? item.favorites.some((f) => f.userId === userId)
+          : false,
     };
   }
 

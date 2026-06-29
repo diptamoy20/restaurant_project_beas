@@ -35,6 +35,7 @@ model User {
   role                   UserRole?
   addresses              UserAddress[]
   orders                 Order[]
+  favorites              FavoriteMenuItem[]
   cartItems              CartItem[]
   memberships            Membership[]
   loyaltyTxns            LoyaltyTransaction[]
@@ -208,29 +209,30 @@ model Category {
 }
 
 model MenuItem {
-  id                  Int               @id @default(autoincrement())
-  restaurantId        Int               @map("restaurant_id")
-  categoryId          Int               @map("category_id")
+  id                  Int                @id @default(autoincrement())
+  restaurantId        Int                @map("restaurant_id")
+  categoryId          Int                @map("category_id")
   name                String
   description         String?
   price               Float
-  discountPrice       Float?            @map("discount_price")
-  imageUrl            String?           @map("image_url")
-  imagePublicId       String?           @map("image_public_id")
-  foodType            String            @default("VEG") @map("food_type")
-  spicyLevel          Int?              @map("spicy_level")
+  discountPrice       Float?             @map("discount_price")
+  imageUrl            String?            @map("image_url")
+  imagePublicId       String?            @map("image_public_id")
+  foodType            String             @default("VEG") @map("food_type")
+  spicyLevel          Int?               @map("spicy_level")
   ingredients         String?
-  isAvailable         Boolean           @default(true) @map("is_available")
-  isBestSelling       Boolean           @default(false) @map("is_best_selling")
-  popularityScore     Int               @default(0) @map("popularity_score")
+  isAvailable         Boolean            @default(true) @map("is_available")
+  isBestSelling       Boolean            @default(false) @map("is_best_selling")
+  popularityScore     Int                @default(0) @map("popularity_score")
   rating              Float?
-  preparationTime     Int?              @map("preparation_time")
-  customizableOptions Json?             @map("customizable_options")
-  restaurant          Restaurant        @relation(fields: [restaurantId], references: [id])
-  category            Category          @relation(fields: [categoryId], references: [id])
+  preparationTime     Int?               @map("preparation_time")
+  customizableOptions Json?              @map("customizable_options")
+  restaurant          Restaurant         @relation(fields: [restaurantId], references: [id])
+  category            Category           @relation(fields: [categoryId], references: [id])
   variants            MenuItemVariant[]
   addonGroups         AddonGroup[]
   orderItems          OrderItem[]
+  favorites           FavoriteMenuItem[]
   cartItems           CartItem[]
 
   @@map("menu_items")
@@ -569,6 +571,20 @@ model CartItem {
 
   @@unique([userId, menuItemId, variantId])
   @@map("cart_items")
+}
+
+model FavoriteMenuItem {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  menuItemId Int      @map("menu_item_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, menuItemId])
+  @@index([userId])
+  @@index([menuItemId])
+  @@map("favorite_menu_items")
 }
 
 model Notification {
