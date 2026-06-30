@@ -15,6 +15,7 @@ import {
   BadRequestException,
   UseInterceptors,
   Res,
+  Req,
 } from '@nestjs/common';
 import {
   ApiBody,
@@ -51,6 +52,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { Role } from '../../common/enums/role.enum';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { MenuResponseDto, PaginatedMenuQueryDto } from '../menu/dto';
 import { MenuService } from '../menu/menu.service';
 
@@ -369,7 +371,9 @@ export class RestaurantsController {
   async getRestaurantMenu(
     @Param('id', ParseIntPipe) id: number,
     @Query() query: PaginatedMenuQueryDto,
+    @Req() request: { user?: AuthenticatedUser },
   ): Promise<MenuResponseDto> {
+    const userId = request.user?.id;
     const hasCoordinates =
       query.lat !== undefined ||
       query.lng !== undefined ||
@@ -377,21 +381,29 @@ export class RestaurantsController {
       query.longitude !== undefined;
 
     if (!hasCoordinates) {
-      return this.menuService.getMenuByRestaurant(id, {
-        categoryId: query.categoryId,
-        limit: query.limit,
-        offset: query.offset,
-      });
+      return this.menuService.getMenuByRestaurant(
+        id,
+        {
+          categoryId: query.categoryId,
+          limit: query.limit,
+          offset: query.offset,
+        },
+        userId,
+      );
     }
 
     const { lat, lng } = query.getCoordinates();
 
-    return this.menuService.getMenuByRestaurant(id, {
-      coordinates: { lat, lng },
-      categoryId: query.categoryId,
-      limit: query.limit,
-      offset: query.offset,
-    });
+    return this.menuService.getMenuByRestaurant(
+      id,
+      {
+        coordinates: { lat, lng },
+        categoryId: query.categoryId,
+        limit: query.limit,
+        offset: query.offset,
+      },
+      userId,
+    );
   }
 
   /**
