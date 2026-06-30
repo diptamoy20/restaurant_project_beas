@@ -299,8 +299,8 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
           deliveryId: number;
           latitude: number;
           longitude: number;
-          speed: number | null;
-          heading: number | null;
+          speed?: number | null;
+          heading?: number | null;
           recordedAt: Date;
         }
       | null
@@ -313,8 +313,8 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
         deliveryId: trackingLog.deliveryId,
         latitude: trackingLog.latitude,
         longitude: trackingLog.longitude,
-        speed: trackingLog.speed,
-        heading: trackingLog.heading,
+        speed: trackingLog.speed ?? null,
+        heading: trackingLog.heading ?? null,
         recordedAt: trackingLog.recordedAt,
         source: 'driver',
       };
