@@ -372,7 +372,7 @@ export class OrdersService {
     const mapped = this.mapOrder(order);
 
     const latestLocation = DeliveriesGateway.resolveLatestLocation(
-      order.delivery?.status ?? '',
+      status,
       order.delivery?.trackingLogs?.[0],
       order.restaurant,
     );
