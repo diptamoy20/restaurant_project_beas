@@ -152,16 +152,37 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
       }
 
       const result = await this.deliveriesService.updateMyLiveLocation(user, payload);
-      const data = {
-        orderId: payload.orderId,
-        ...result,
+
+      // Fetch current delivery + order state so we can build the unified payload.
+      const deliveryWithOrder = await this.deliveriesService.getDeliveryWithOrderForSocket(
+        payload.orderId,
+      );
+
+      const latestLocation = DeliveriesGateway.resolveLatestLocation(
+        deliveryWithOrder?.status ?? DELIVERY_STATUS.ON_THE_WAY,
+        result.tracking,
+        deliveryWithOrder?.order?.restaurant,
+      );
+
+      const unifiedPayload = {
+        type: 'DELIVERY_LOCATION_UPDATED',
+        status: deliveryWithOrder?.order?.status ?? DELIVERY_STATUS.ON_THE_WAY,
+        order: deliveryWithOrder
+          ? this.deliveriesService.mapOrderForSocket(deliveryWithOrder)
+          : null,
+        latestLocation,
       };
 
-      this.server.to(this.orderRoom(payload.orderId)).emit('delivery:location:updated', data);
+      // Broadcast unified event to the room (customer + admin listening on this order).
+      this.server.to(this.orderRoom(payload.orderId)).emit('order:updated', unifiedPayload);
 
+      // Ack back to the delivery boy with the raw tracking result.
       return {
         event: 'delivery:location:updated',
-        data,
+        data: {
+          orderId: payload.orderId,
+          ...result,
+        },
       };
     } catch (error) {
       return this.toSocketError(error);
