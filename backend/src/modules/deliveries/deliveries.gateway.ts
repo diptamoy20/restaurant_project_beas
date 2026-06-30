@@ -4,6 +4,8 @@ import {
   UnauthorizedException,
   UsePipes,
   ValidationPipe,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -22,6 +24,8 @@ import { Server, Socket } from 'socket.io';
 
 import { DeliveriesService } from './deliveries.service';
 import { UpdateMyDeliveryLocationDto } from './dto';
+import { DeliveryTrackingLogDto } from './dto/delivery-tracking-log.dto';
+import { DELIVERY_STATUS } from '../../common/constants/delivery-status';
 import { Role } from '../../common/enums/role.enum';
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -67,6 +71,7 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
   private readonly logger = new Logger(DeliveriesGateway.name);
 
   constructor(
+    @Inject(forwardRef(() => DeliveriesService))
     private readonly deliveriesService: DeliveriesService,
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
@@ -255,5 +260,58 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
 
   emitOrdersRefresh(): void {
     this.server.emit('orders:refresh');
+  }
+
+  /**
+   * Resolves the latestLocation for a socket payload.
+   *
+   * Priority:
+   *  1. Most recent driver tracking log  → source: 'driver'
+   *  2. Restaurant coordinates when status is ON_THE_WAY → source: 'restaurant'
+   *  3. null for all other cases
+   */
+  static resolveLatestLocation(
+    status: string,
+    trackingLog:
+      | {
+          id: number;
+          deliveryId: number;
+          latitude: number;
+          longitude: number;
+          speed: number | null;
+          heading: number | null;
+          recordedAt: Date;
+        }
+      | null
+      | undefined,
+    restaurant: { latitude: number; longitude: number; id: number } | null | undefined,
+  ): DeliveryTrackingLogDto | null {
+    if (trackingLog) {
+      return {
+        id: trackingLog.id,
+        deliveryId: trackingLog.deliveryId,
+        latitude: trackingLog.latitude,
+        longitude: trackingLog.longitude,
+        speed: trackingLog.speed,
+        heading: trackingLog.heading,
+        recordedAt: trackingLog.recordedAt,
+        source: 'driver',
+      };
+    }
+
+    if (status === DELIVERY_STATUS.ON_THE_WAY && restaurant) {
+      return {
+        id: 0,
+        deliveryId: 0,
+        latitude: restaurant.latitude,
+        longitude: restaurant.longitude,
+        speed: null,
+        heading: null,
+        recordedAt: new Date(),
+        source: 'restaurant',
+      };
+    }
+
+    return null;
   }
 }
