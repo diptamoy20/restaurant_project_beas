@@ -721,7 +721,18 @@ export class DeliveriesService {
 
       latestLocation: delivery.trackingLogs[0]
         ? this.mapTrackingLog(delivery.trackingLogs[0])
-        : null,
+        : delivery.status === DELIVERY_STATUS.ON_THE_WAY && order.restaurant
+          ? {
+              id: 0,
+              deliveryId: delivery.id,
+              latitude: order.restaurant.latitude,
+              longitude: order.restaurant.longitude,
+              speed: null,
+              heading: null,
+              recordedAt: new Date(),
+              source: 'restaurant' as const,
+            }
+          : null,
       trackingHistory: delivery.trackingLogs.map((log) => this.mapTrackingLog(log)),
     };
   }
@@ -1241,6 +1252,7 @@ export class DeliveriesService {
       speed: log.speed,
       heading: log.heading,
       recordedAt: log.recordedAt,
+      source: 'driver',
     };
   }
 

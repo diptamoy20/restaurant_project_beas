@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDate, IsNumber, IsOptional } from 'class-validator';
+import { IsDate, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class DeliveryTrackingLogDto {
   @ApiProperty({ example: 2 })
@@ -31,4 +31,16 @@ export class DeliveryTrackingLogDto {
   @ApiProperty({ example: '2026-04-17T09:45:00.000Z' })
   @IsDate()
   recordedAt!: Date;
+
+  @ApiPropertyOptional({
+    example: 'driver',
+    enum: ['driver', 'restaurant'],
+    description:
+      '"driver" = live GPS from delivery boy, "restaurant" = initial fallback coordinate before first driver update',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['driver', 'restaurant'])
+  source?: 'driver' | 'restaurant' | null;
 }
