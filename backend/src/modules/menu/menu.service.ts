@@ -97,7 +97,7 @@ export class MenuService {
       restaurantId,
       options.coordinates?.lat,
       options.coordinates?.lng,
-      [options.categoryId ?? 'all', pagination.limit, pagination.offset],
+      [options.categoryId ?? 'all', pagination.limit, pagination.offset, userId ?? 'guest'],
     );
     const cached = await this.cache.get<MenuResponseDto>(cacheKey);
 
