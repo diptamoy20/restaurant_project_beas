@@ -312,6 +312,7 @@ export class DeliveriesService {
     this.deliveriesGateway.emitOrderUpdated(orderId, {
       type: 'ORDER_STATUS_CHANGED',
       status: ORDER_STATUS.ON_THE_WAY,
+      order: this.mapOrderForSocket(updated),
       latestLocation,
     });
 
@@ -412,6 +413,7 @@ export class DeliveriesService {
     this.deliveriesGateway.emitOrderUpdated(orderId, {
       type: 'ORDER_STATUS_CHANGED',
       status: orderStatus,
+      order: this.mapOrderForSocket(updated),
       latestLocation,
     });
 
@@ -930,6 +932,41 @@ export class DeliveriesService {
     return {
       message: 'Delivery location updated',
       tracking: this.mapTrackingLog(tracking),
+    };
+  }
+
+  /**
+   * Fetches the delivery record for an order with enough data to build the
+   * unified socket payload. Used by the gateway after a live location update.
+   */
+  async getDeliveryWithOrderForSocket(orderId: number): Promise<DeliveryDetailRecord | null> {
+    return this.prisma.delivery.findUnique({
+      where: { orderId },
+      include: DELIVERY_DETAIL_INCLUDE,
+    });
+  }
+
+  /**
+   * Builds a minimal order summary from a DeliveryDetailRecord for use in
+   * unified socket payloads (order:updated). Keeps the same shape as the
+   * admin OrderResponseDto so the frontend can use one model everywhere.
+   */
+  mapOrderForSocket(delivery: DeliveryDetailRecord): Record<string, unknown> {
+    const order = delivery.order;
+
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      finalAmount: order.finalAmount,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      createdAt: order.createdAt,
+      deliveredAt: order.deliveredAt ?? null,
+      delivery: {
+        id: delivery.id,
+        status: delivery.status,
+      },
     };
   }
 
