@@ -49,6 +49,14 @@ export class DeliveryAgentDto {
   @IsString()
   phone!: string;
 
+  @ApiPropertyOptional({
+    example: 'https://example.com/profile.jpg',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  profileImageUrl!: string | null;
+
   @ApiProperty({ example: false })
   @IsBoolean()
   isAvailable!: boolean;
