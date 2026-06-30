@@ -15,7 +15,7 @@ export class OrderSummaryDto {
   status!: string;
 
   @ApiProperty()
-  totalAmount!: number;
+  finalAmount!: number;
 
   @ApiProperty()
   paymentStatus!: string;

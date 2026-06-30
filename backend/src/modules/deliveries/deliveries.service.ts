@@ -544,6 +544,11 @@ export class DeliveriesService {
                 vehicleNumber: true,
                 vehicleBrand: true,
                 vehicleColor: true,
+                user: {
+                  select: {
+                    profileImageUrl: true,
+                  },
+                },
               },
             },
 
@@ -600,7 +605,7 @@ export class DeliveriesService {
           orderNumber: order.orderNumber,
           status: order.status,
 
-          totalAmount: order.totalAmount,
+          finalAmount: order.finalAmount,
 
           paymentStatus: order.paymentStatus,
 
@@ -649,6 +654,7 @@ export class DeliveriesService {
             id: delivery.agent.id,
             name: delivery.agent.name,
             phone: delivery.agent.phone,
+            profileImageUrl: delivery.agent.user?.profileImageUrl ?? null,
             isAvailable: delivery.agent.isAvailable,
 
             vehicle: {
@@ -683,7 +689,7 @@ export class DeliveriesService {
         id: delivery.order.id,
         orderNumber: delivery.order.orderNumber,
         status: delivery.order.status,
-        totalAmount: delivery.order.totalAmount,
+        finalAmount: delivery.order.finalAmount,
         paymentStatus: delivery.order.paymentStatus,
 
         itemsSummary: {
