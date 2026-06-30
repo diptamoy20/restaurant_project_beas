@@ -42,6 +42,7 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
     delivery: {
       include: {
         agent: true;
+        trackingLogs: true;
       };
     };
     invoice: true;
@@ -66,6 +67,10 @@ const ORDER_INCLUDE = {
   delivery: {
     include: {
       agent: true,
+      trackingLogs: {
+        orderBy: { recordedAt: 'desc' as const },
+        take: 1,
+      },
     },
   },
   invoice: true,
@@ -366,10 +371,17 @@ export class OrdersService {
     // return this.mapOrder(order);
     const mapped = this.mapOrder(order);
 
+    const latestLocation = DeliveriesGateway.resolveLatestLocation(
+      order.delivery?.status ?? '',
+      order.delivery?.trackingLogs?.[0],
+      order.restaurant,
+    );
+
     this.deliveriesGateway.emitOrderUpdated(order.id, {
       type: 'ORDER_STATUS_CHANGED',
       status,
       order: mapped,
+      latestLocation,
     });
 
     // Targeted per-order event only — no global broadcast needed.

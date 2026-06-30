@@ -3,10 +3,13 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 
+import { DeliveriesGateway } from './deliveries.gateway';
 import {
   DeliveryAgentProfileResponseDto,
   DeliveryBoyDashboardDto,
@@ -125,6 +128,8 @@ export class DeliveriesService {
     private readonly paymentsService: PaymentsService,
     private readonly routingService: RoutingService,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => DeliveriesGateway))
+    private readonly deliveriesGateway: DeliveriesGateway,
   ) {}
 
   async getDashboard(requester: AuthenticatedUser): Promise<DeliveryBoyDashboardDto> {
@@ -298,6 +303,18 @@ export class DeliveriesService {
       });
     });
 
+    const latestLocation = DeliveriesGateway.resolveLatestLocation(
+      updated.status,
+      updated.trackingLogs[0],
+      updated.order.restaurant,
+    );
+
+    this.deliveriesGateway.emitOrderUpdated(orderId, {
+      type: 'ORDER_STATUS_CHANGED',
+      status: ORDER_STATUS.ON_THE_WAY,
+      latestLocation,
+    });
+
     return this.mapOrderDetails(updated);
   }
 
@@ -385,6 +402,18 @@ export class DeliveriesService {
     if (codSettled) {
       await this.paymentsService.finalizeCodPaymentAfterDelivery(orderId);
     }
+
+    const latestLocation = DeliveriesGateway.resolveLatestLocation(
+      updated.status,
+      updated.trackingLogs[0],
+      updated.order.restaurant,
+    );
+
+    this.deliveriesGateway.emitOrderUpdated(orderId, {
+      type: 'ORDER_STATUS_CHANGED',
+      status: orderStatus,
+      latestLocation,
+    });
 
     return this.mapOrderDetails(updated);
   }
