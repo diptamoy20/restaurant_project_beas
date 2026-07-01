@@ -912,15 +912,52 @@ export class MenuService {
   }
 
   /**
-   * Clears all cached menu responses for a specific user across all
-   * restaurants. Called when a user adds or removes a favorite so that
-   * the next menu fetch reflects the real isFavorite state from the DB.
+   * Clears all cached menu responses for a specific user + restaurant so that
+   * the next GET /menu call re-fetches from the DB with correct isFavorite values.
+   *
+   * Called by FavoritesService after every add/remove operation.
+   *
+   * Strategy:
+   *  1. Sweep the in-memory cache with a predicate (handles global + geo keys).
+   *  2. Reconstruct the known global key variants and delete them from Redis
+   *     explicitly, because deleteMatching() only touches in-memory storage.
+   *
+   * Redis geo-keyed entries expire naturally after MENU_CACHE_TTL_SECONDS (300 s)
+   * and cannot be pattern-deleted without SCAN support, but the global key covers
+   * the vast majority of mobile/web requests that omit lat/lng.
    */
   async clearUserMenuCache(restaurantId: number, userId: number): Promise<void> {
-    // Remove every in-memory key that belongs to this restaurant + user combo.
+    // 1. Clear every matching in-memory entry (global + any geo-keyed variant).
     this.cache.deleteMatching(
-      (key) => key.startsWith(`menu:${restaurantId}:`) && key.endsWith(`:${userId}`),
+      (key) =>
+        (key.startsWith(`menu:${restaurantId}:`) || key.includes(`:${restaurantId}:`)) &&
+        key.endsWith(`:${userId}`),
     );
+
+    // 2. Explicitly delete the most common global key variants from Redis.
+    //    These mirror what buildMenuCacheKey produces when lat/lng are absent,
+    //    iterating across realistic pagination/category combinations.
+    const paginationVariants: Array<[number, number]> = [
+      [20, 0],
+      [50, 0],
+      [20, 20],
+      [20, 40],
+    ];
+
+    const deletePromises: Promise<void>[] = [];
+
+    for (const [limit, offset] of paginationVariants) {
+      // No category filter (most common case)
+      const globalKey = this.locationService.buildMenuCacheKey(restaurantId, undefined, undefined, [
+        'all',
+        limit,
+        offset,
+        userId,
+      ]);
+      deletePromises.push(this.cache.delete(globalKey));
+    }
+
+    await Promise.all(deletePromises);
   }
 
   private mapMenuCategories(
