@@ -9,6 +9,11 @@ import {
   getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
 import { fetchMenu } from "../store/slices/menuSlice";
+import {
+  fetchFavorites,
+  addFavorite,
+  removeFavorite,
+} from "../store/slices/favoritesSlice";
 import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx";
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
@@ -51,6 +56,29 @@ export function MenuPage() {
   const { error: cartError } = useSelector((state) => state.cart);
 
   const isAuthenticated = useSelector((state) => !!state.auth.token);
+
+  // Favorites state
+  const favoriteIds = useSelector((state) => state.favorites.ids);
+  const favoritesToggling = useSelector((state) => state.favorites.toggling);
+
+  // Load favorites once when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchFavorites());
+    }
+  }, [dispatch, isAuthenticated]);
+
+  const handleToggleFavorite = (item) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    if (favoriteIds.includes(item.id)) {
+      dispatch(removeFavorite(item.id));
+    } else {
+      dispatch(addFavorite(item.id));
+    }
+  };
 
   const urlRestaurantId = getRestaurantIdFromUrl(location.search);
 
@@ -792,6 +820,9 @@ export function MenuPage() {
               <MenuSlideCard
                 key={`menu-item-${item.id}`}
                 item={item}
+                isFavorite={favoriteIds.includes(item.id)}
+                isTogglingFavorite={!!favoritesToggling[item.id]}
+                onToggleFavorite={handleToggleFavorite}
                 onAdd={() => {
                   if (hasVariants || hasAddons) {
                     setCustomizingItem(item);

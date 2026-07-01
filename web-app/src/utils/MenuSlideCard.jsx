@@ -7,13 +7,15 @@ const formatRupees = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2,
 });
 
-export function MenuSlideCard({ item, onAdd, subtitle }) {
+export function MenuSlideCard({
+  item,
+  onAdd,
+  subtitle,
+  onToggleFavorite,
+  isFavorite = false,
+  isTogglingFavorite = false,
+}) {
   const [showDetailsPopup, setShowDetailsPopup] = useState(false);
-
-  // const price =
-  //   item.discountPrice != null && item.discountPrice > 0
-  //     ? item.discountPrice
-  //     : item.price;
 
   const badge = item.foodType === "NON_VEG" ? "Non-veg" : "Veg";
 
@@ -25,11 +27,43 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
         ) : (
           <div className="menu-slide-placeholder" aria-hidden />
         )}
+
+        {/* Food type badge — top-left */}
         <span
           className={`menu-slide-badge menu-slide-badge--${item.foodType === "NON_VEG" ? "nv" : "veg"}`}
         >
           {badge}
         </span>
+
+        {/* Heart / favorite button — top-right, only when handler is provided */}
+        {onToggleFavorite ? (
+          <button
+            type="button"
+            className={`menu-slide-fav-btn${isFavorite ? " is-favorite" : ""}`}
+            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            aria-pressed={isFavorite}
+            disabled={isTogglingFavorite}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(item);
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              strokeWidth="2"
+              stroke="currentColor"
+              fill={isFavorite ? "currentColor" : "none"}
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+              />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       <div className="menu-slide-body">
@@ -112,9 +146,7 @@ export function MenuSlideCard({ item, onAdd, subtitle }) {
             </span>
           )}
           {item.rating != null ? (
-            <span className="menu-slide-rating">
-              ★ {item.rating.toFixed(1)}
-            </span>
+            <span className="menu-slide-rating">★ {item.rating.toFixed(1)}</span>
           ) : null}
         </div>
 
