@@ -7,6 +7,7 @@ import menuReducer from './slices/menuSlice';
 import paymentReducer from './slices/paymentSlice';
 import orderReducer from './slices/orderSlice';
 import addressReducer from './slices/addressSlice';
+import favoritesReducer, { clearFavorites } from './slices/favoritesSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     payments: paymentReducer,
     orders: orderReducer,
     addresses: addressReducer,
+    favorites: favoritesReducer,
   },
 });
 
@@ -33,6 +35,7 @@ setUnauthorizedHandler(({ token } = {}) => {
   const currentToken = store.getState().auth?.token;
 
   if (!token || token === currentToken) {
+    store.dispatch(clearFavorites());
     store.dispatch(logout());
   }
 });

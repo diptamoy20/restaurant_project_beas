@@ -4472,3 +4472,80 @@ body.modal-open {
     }
   }
 }
+
+
+/* ==========================================================================
+   FAVORITES — Heart Button on MenuSlideCard
+   ========================================================================== */
+
+/* Heart button sits in the top-right corner of the card image */
+.menu-slide-fav-btn {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.88);
+  color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease,
+    box-shadow 0.18s ease;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.menu-slide-fav-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.menu-slide-fav-btn:hover:not(:disabled) {
+  background: #fff;
+  color: #e11d48;
+  transform: scale(1.12);
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.22);
+}
+
+/* Filled state — item is a favorite */
+.menu-slide-fav-btn.is-favorite {
+  background: #fff0f3;
+  color: #e11d48;
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.2);
+}
+
+.menu-slide-fav-btn.is-favorite:hover:not(:disabled) {
+  background: #ffe4ea;
+  transform: scale(1.12);
+}
+
+/* Disabled while the API call is in-flight */
+.menu-slide-fav-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==========================================================================
+   FAVORITES PAGE
+   ========================================================================== */
+
+/* Empty state icon in Favorites */
+.favorites-empty-icon {
+  display: block;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  opacity: 0.3;
+  color: #94a3b8;
+}

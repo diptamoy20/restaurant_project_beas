@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import { fetchCart } from '../store/slices/cartSlice';
+import { clearFavorites, fetchFavorites } from '../store/slices/favoritesSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { NavbarRestaurantSearch } from './NavbarRestaurantSearch.jsx';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
@@ -31,14 +32,22 @@ export function Layout({ children }) {
   const cartPath = '/cart';
   const profilePath = '/profile';
   const ordersPath = '/orders';
+  const favoritesPath = '/favorites';
   const userDisplayName = useMemo(() => getUserDisplayName(user), [user]);
 
   const handleLogout = () => {
     signOutFromFirebase();
+    dispatch(clearFavorites());
     dispatch(logout());
     setProfileMenuOpen(false);
     navigate('/login', { replace: true });
   };
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchFavorites());
+    }
+  }, [dispatch, token]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -151,6 +160,12 @@ export function Layout({ children }) {
                   to={ordersPath}
                 >
                   Orders
+                </Link>
+                <Link
+                  className={location.pathname === '/favorites' ? 'active' : ''}
+                  to={favoritesPath}
+                >
+                  Favorites
                 </Link>
                 <Link
                   className={location.pathname === '/cart' ? 'active' : ''}
@@ -320,6 +335,12 @@ export function Layout({ children }) {
                 to={ordersPath}
               >
                 Orders
+              </Link>
+              <Link
+                className={location.pathname === '/favorites' ? 'active' : ''}
+                to={favoritesPath}
+              >
+                Favorites
               </Link>
               <Link
                 className={location.pathname === '/cart' ? 'active' : ''}

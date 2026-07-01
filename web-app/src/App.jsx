@@ -12,6 +12,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { OrdersPage } from './pages/OrdersPage';
+import { FavoritesPage } from './pages/FavoritesPage';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/payment/:orderId" element={<PaymentPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
         </Route>
       </Routes>
     </Layout>
