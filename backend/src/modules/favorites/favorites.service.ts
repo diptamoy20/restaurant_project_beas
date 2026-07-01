@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { MenuService } from '../menu/menu.service';
 
 @Injectable()
 export class FavoritesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly menuService: MenuService,
+  ) {}
 
   async addFavorite(userId: number, menuItemId: number) {
     const menuItem = await this.prisma.menuItem.findUnique({
@@ -29,6 +33,9 @@ export class FavoritesService {
       data: { userId, menuItemId },
       include: { menuItem: true },
     });
+
+    // Bust per-user menu cache so next GET /menu reflects isFavorite = true.
+    await this.menuService.clearUserMenuCache(menuItem.restaurantId, userId);
 
     return {
       success: true,
@@ -66,6 +73,7 @@ export class FavoritesService {
       where: {
         userId_menuItemId: { userId, menuItemId },
       },
+      include: { menuItem: true },
     });
 
     if (!favorite) {
@@ -75,6 +83,9 @@ export class FavoritesService {
     await this.prisma.favoriteMenuItem.delete({
       where: { id: favorite.id },
     });
+
+    // Bust per-user menu cache so next GET /menu reflects isFavorite = false.
+    await this.menuService.clearUserMenuCache(favorite.menuItem.restaurantId, userId);
 
     return {
       success: true,

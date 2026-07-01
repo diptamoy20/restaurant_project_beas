@@ -911,6 +911,18 @@ export class MenuService {
     await this.cache.delete(globalKey);
   }
 
+  /**
+   * Clears all cached menu responses for a specific user across all
+   * restaurants. Called when a user adds or removes a favorite so that
+   * the next menu fetch reflects the real isFavorite state from the DB.
+   */
+  async clearUserMenuCache(restaurantId: number, userId: number): Promise<void> {
+    // Remove every in-memory key that belongs to this restaurant + user combo.
+    this.cache.deleteMatching(
+      (key) => key.startsWith(`menu:${restaurantId}:`) && key.endsWith(`:${userId}`),
+    );
+  }
+
   private mapMenuCategories(
     categories: {
       id: number;
