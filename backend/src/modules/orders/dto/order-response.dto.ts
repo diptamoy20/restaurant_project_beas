@@ -515,6 +515,13 @@ export class OrderResponseDto {
     status: string;
     canDownload: boolean;
   } | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'True only for the single most-recently delivered order of the authenticated user. All other orders return false.',
+  })
+  isReOrder!: boolean;
 }
 
 export class PaginatedOrderResponseDto extends PaginationMetaDto {

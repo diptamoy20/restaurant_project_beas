@@ -90,7 +90,7 @@ export class OrdersService {
   ): Promise<PaginatedResult<OrderResponseDto>> {
     const pagination = normalizePagination(query, { limit: 20, maxLimit: 50 });
     const where: Prisma.OrderWhereInput = { userId };
-    const [total, orders] = await Promise.all([
+    const [total, orders, latestDelivered] = await Promise.all([
       this.prisma.order.count({ where }),
       this.prisma.order.findMany({
         where,
@@ -98,10 +98,17 @@ export class OrdersService {
         include: ORDER_INCLUDE,
         ...toPrismaPagination(pagination),
       }),
+      this.prisma.order.findFirst({
+        where: { userId, status: ORDER_STATUS.DELIVERED },
+        orderBy: { deliveredAt: 'desc' },
+        select: { id: true },
+      }),
     ]);
 
+    const reorderOrderId = latestDelivered?.id ?? null;
+
     return {
-      items: orders.map((order) => this.mapOrder(order)),
+      items: orders.map((order) => this.mapOrder(order, reorderOrderId)),
       ...buildPaginationMeta(total, pagination),
     };
   }
@@ -404,7 +411,76 @@ export class OrdersService {
       throw new ForbiddenException('You do not have permission to access this order');
     }
 
-    return this.mapOrder(order);
+    // Resolve reorderOrderId only for customer context (non-customer callers get isReOrder=false).
+    let reorderOrderId: number | null = null;
+
+    if (requester.role === Role.CUSTOMER && order.userId != null) {
+      const latestDelivered = await this.prisma.order.findFirst({
+        where: { userId: order.userId, status: ORDER_STATUS.DELIVERED },
+        orderBy: { deliveredAt: 'desc' },
+        select: { id: true },
+      });
+      reorderOrderId = latestDelivered?.id ?? null;
+    }
+
+    return this.mapOrder(order, reorderOrderId);
+  }
+
+  async reorder(orderId: number, userId: number): Promise<OrderResponseDto> {
+    // 1. Load the source order with all items and addons.
+    const source = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          include: {
+            addons: true,
+          },
+        },
+      },
+    });
+
+    if (!source) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (source.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to reorder this order');
+    }
+
+    if (source.status !== ORDER_STATUS.DELIVERED) {
+      throw new BadRequestException('Only delivered orders can be reordered');
+    }
+
+    // 2. Verify this order is actually the latest delivered one for this user.
+    const latestDelivered = await this.prisma.order.findFirst({
+      where: { userId, status: ORDER_STATUS.DELIVERED },
+      orderBy: { deliveredAt: 'desc' },
+      select: { id: true },
+    });
+
+    if (!latestDelivered || latestDelivered.id !== orderId) {
+      throw new BadRequestException('Only the latest delivered order can be reordered');
+    }
+
+    // 3. Rebuild the order through the normal creation pipeline so all validations
+    //    (pricing, availability, delivery charge, tax) are recalculated fresh.
+    return this.createOrder({
+      userId,
+      restaurantId: source.restaurantId,
+      addressId: source.addressId ?? undefined,
+      orderType: source.orderType,
+      paymentMethod: source.paymentMethod ?? undefined,
+      source: OrderSource.WEBSITE,
+      items: source.items.map((item) => ({
+        menuItemId: item.menuItemId,
+        variantId: item.variantId ?? undefined,
+        quantity: item.quantity,
+        addons: item.addons.map((addon) => ({
+          addonGroupId: addon.addonGroupId ?? 0,
+          addonOptionId: addon.addonOptionId ?? 0,
+        })),
+      })),
+    });
   }
 
   async createOrder(payload: CreateOrderType): Promise<OrderResponseDto> {
@@ -625,7 +701,7 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  private mapOrder(order: OrderWithRelations): OrderResponseDto {
+  private mapOrder(order: OrderWithRelations, reorderOrderId?: number | null): OrderResponseDto {
     const preparationMinutes = order.items
       .map((item) => item.menuItem?.preparationTime)
       .filter((value): value is number => typeof value === 'number' && value > 0);
@@ -775,6 +851,7 @@ export class OrdersService {
             canDownload: order.paymentStatus === 'PAID',
           }
         : null,
+      isReOrder: reorderOrderId != null && order.id === reorderOrderId,
     };
   }
 

@@ -13,6 +13,7 @@ import { OrderSource } from '@prisma/client';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderResponseDto, PaginatedOrderResponseDto } from './dto/order-response.dto';
+import { ReorderDto } from './dto/reorder.dto';
 import { OrdersService } from './orders.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -51,6 +52,28 @@ export class OrdersController {
     @Req() request: { user: AuthenticatedUser },
   ): Promise<OrderResponseDto> {
     return this.ordersService.getOrder(id, request.user);
+  }
+
+  @Roles(Role.CUSTOMER)
+  @Post('reorder')
+  @ApiOperation({
+    summary: 'Reorder the latest delivered order',
+    description:
+      "Creates a new order using the items from the authenticated user's most recently delivered order. " +
+      'Only the order with `isReOrder: true` in the orders listing is eligible. ' +
+      'All pricing, taxes, delivery charges, and item availability are recalculated fresh.',
+  })
+  @ApiBody({ type: ReorderDto })
+  @ApiCreatedResponse({
+    type: OrderResponseDto,
+    description: 'New order created from the previous delivery.',
+  })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  reorder(
+    @Body() body: ReorderDto,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<OrderResponseDto> {
+    return this.ordersService.reorder(body.orderId, request.user.id);
   }
 
   @Roles(Role.ADMIN, Role.CUSTOMER)
