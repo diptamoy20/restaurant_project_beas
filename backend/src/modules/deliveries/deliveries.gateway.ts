@@ -162,6 +162,7 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
         deliveryWithOrder?.status ?? DELIVERY_STATUS.ON_THE_WAY,
         result.tracking,
         deliveryWithOrder?.order?.restaurant,
+        deliveryWithOrder?.id,
       );
 
       const unifiedPayload = {
@@ -299,42 +300,19 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
    */
   static resolveLatestLocation(
     status: string,
-    trackingLog:
-      | {
-          id: number;
-          deliveryId: number;
-          latitude: number;
-          longitude: number;
-          speed?: number | null;
-          heading?: number | null;
-          recordedAt: Date;
-        }
-      | null
-      | undefined,
+    trackingLog: DeliveryTrackingLogDto | null | undefined,
     restaurant: { latitude: number; longitude: number; id: number } | null | undefined,
+    deliveryId?: number,
   ): DeliveryTrackingLogDto | null {
-    if (trackingLog) {
+    if (restaurant) {
       return {
-        id: trackingLog.id,
-        deliveryId: trackingLog.deliveryId,
-        latitude: trackingLog.latitude,
-        longitude: trackingLog.longitude,
-        speed: trackingLog.speed ?? null,
-        heading: trackingLog.heading ?? null,
-        recordedAt: trackingLog.recordedAt,
-        source: 'driver',
-      };
-    }
-
-    if (status === DELIVERY_STATUS.ON_THE_WAY && restaurant) {
-      return {
-        id: 0,
-        deliveryId: 0,
+        id: null,
+        deliveryId: deliveryId ?? 0,
         latitude: restaurant.latitude,
         longitude: restaurant.longitude,
         speed: null,
         heading: null,
-        recordedAt: new Date(),
+        recordedAt: null,
         source: 'restaurant',
       };
     }
