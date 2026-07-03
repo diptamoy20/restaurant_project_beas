@@ -53,6 +53,13 @@ export class CheckoutController {
       restaurantId: payload.restaurantId,
       userId: request.user.id,
       addressId: payload.addressId,
+      deliveryCoordinates:
+        payload.deliveryLat !== undefined && payload.deliveryLng !== undefined
+          ? {
+              lat: payload.deliveryLat,
+              lng: payload.deliveryLng,
+            }
+          : undefined,
       orderType: payload.orderType,
       couponCode: payload.couponCode,
       tipAmount: payload.tipAmount,

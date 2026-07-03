@@ -21,6 +21,10 @@ export type BillingQuoteInput = {
   restaurantId: number;
   userId?: number | null;
   addressId?: number | null;
+  deliveryCoordinates?: {
+    lat: number;
+    lng: number;
+  } | null;
   orderType?: string;
   items: BillingQuoteItemInput[];
   couponCode?: string | null;
@@ -241,9 +245,7 @@ export class BillingService {
       packagingCharge: deliveryFee.packagingCharge,
       deliveryDistanceKm: deliveryFee.deliveryDistanceKm,
       distanceKm: deliveryFee.deliveryDistanceKm,
-      estimatedDeliveryMinutes: this.calculateEstimatedDeliveryMinutes(
-        deliveryFee.deliveryDistanceKm,
-      ),
+      estimatedDeliveryMinutes: deliveryFee.estimatedDeliveryMinutes,
       freeDeliveryMinAmount: deliveryFee.deliveryFeeBreakdown.freeDeliveryMinAmount,
       minimumOrderAmount: deliveryFee.minimumOrderAmount ?? null,
       isDeliveryAvailable: deliveryFee.isDeliveryAvailable,
@@ -375,6 +377,7 @@ export class BillingService {
   ): Promise<
     ReturnType<typeof calculateDeliveryFee> & {
       minimumOrderAmount: number | null;
+      estimatedDeliveryMinutes: number;
     }
   > {
     if (input.orderType !== 'DELIVERY') {
@@ -397,6 +400,7 @@ export class BillingService {
           freeDeliveryMinAmount: null,
         },
         minimumOrderAmount: null,
+        estimatedDeliveryMinutes: 0,
       };
     }
 
@@ -413,10 +417,11 @@ export class BillingService {
       throw new BadRequestException('Selected address does not belong to this customer');
     }
 
+    const deliveryCoordinates = this.resolveDeliveryCoordinates(input.deliveryCoordinates, address);
     const deliveryQuote = await this.locationService.getRestaurantDeliveryQuote(
       input.restaurantId,
-      address.latitude,
-      address.longitude,
+      deliveryCoordinates.lat,
+      deliveryCoordinates.lng,
       {
         subtotalAmount,
         enforceMinimumOrderAmount: true,
@@ -431,11 +436,30 @@ export class BillingService {
       deliveryUnavailableReason: deliveryQuote.deliveryUnavailableReason ?? null,
       deliveryFeeBreakdown: deliveryQuote.deliveryFeeBreakdown as DeliveryFeeBreakdown,
       minimumOrderAmount: deliveryQuote.minimumOrderAmount ?? null,
+      estimatedDeliveryMinutes: deliveryQuote.estimatedDeliveryTimeMinutes,
     };
   }
 
-  private calculateEstimatedDeliveryMinutes(distanceKm: number | null): number {
-    return distanceKm === null ? 0 : 20 + Math.ceil(distanceKm * 3);
+  private resolveDeliveryCoordinates(
+    coordinates: BillingQuoteInput['deliveryCoordinates'],
+    fallbackAddress: { latitude: number; longitude: number },
+  ): { lat: number; lng: number } {
+    if (
+      coordinates &&
+      Number.isFinite(coordinates.lat) &&
+      Number.isFinite(coordinates.lng) &&
+      coordinates.lat >= -90 &&
+      coordinates.lat <= 90 &&
+      coordinates.lng >= -180 &&
+      coordinates.lng <= 180
+    ) {
+      return coordinates;
+    }
+
+    return {
+      lat: fallbackAddress.latitude,
+      lng: fallbackAddress.longitude,
+    };
   }
 
   private resolveSelectedAddons(

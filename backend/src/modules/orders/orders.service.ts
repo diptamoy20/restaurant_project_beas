@@ -541,6 +541,13 @@ export class OrdersService {
           restaurantId: payload.restaurantId,
           userId: payload.userId,
           addressId: payload.addressId,
+          deliveryCoordinates:
+            payload.deliveryLat !== undefined && payload.deliveryLng !== undefined
+              ? {
+                  lat: payload.deliveryLat,
+                  lng: payload.deliveryLng,
+                }
+              : undefined,
           orderType: payload.orderType,
           items: payload.items,
           couponCode: payload.couponCode,

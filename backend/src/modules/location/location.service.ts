@@ -12,7 +12,7 @@ const GEO_CACHE_TTL_SECONDS = 300;
 type RestaurantRouteData = {
   drivingDistanceKm: number;
   estimatedDurationMinutes: number | null;
-  routeSource: 'OSRM' | 'POSTGIS_FALLBACK';
+  routeSource: 'OSRM' | 'AIR_DISTANCE_FALLBACK';
 };
 
 type NearbyRestaurantRow = {
@@ -127,9 +127,7 @@ export class LocationService {
   ) {}
 
   /**
-   * Enriches restaurant rows with OSRM driving distance and duration.
-   * Falls back to PostGIS distance if OSRM fails.
-   * Uses caching to avoid redundant API calls.
+   * Enriches restaurant rows with the same route metrics used by delivery quotes.
    */
   private async enrichWithOsrmDistance(
     restaurants: Array<{
@@ -144,30 +142,14 @@ export class LocationService {
     const result = new Map<number, RestaurantRouteData>();
 
     const promises = restaurants.map(async (restaurant) => {
-      try {
-        const routeData = await this.routing.getShortestRoute(
-          { latitude: userLat, longitude: userLng },
+      result.set(
+        restaurant.id,
+        await this.resolveRestaurantRouteData(
+          restaurant.id,
           { latitude: restaurant.latitude, longitude: restaurant.longitude },
-        );
-
-        result.set(restaurant.id, {
-          drivingDistanceKm: routeData.distanceKm,
-          estimatedDurationMinutes: routeData.durationMinutes,
-          routeSource: routeData.source === 'ROUTE' ? 'OSRM' : 'POSTGIS_FALLBACK',
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(
-          `Failed to get OSRM route for restaurant ${restaurant.id}: ${message}. Using PostGIS distance.`,
-        );
-
-        // Fallback to PostGIS distance
-        result.set(restaurant.id, {
-          drivingDistanceKm: restaurant.distanceKm,
-          estimatedDurationMinutes: Math.ceil(20 + restaurant.distanceKm * 3),
-          routeSource: 'POSTGIS_FALLBACK',
-        });
-      }
+          { latitude: userLat, longitude: userLng },
+        ),
+      );
     });
 
     await Promise.all(promises);
@@ -367,7 +349,7 @@ export class LocationService {
       const route = osrmRoutes.get(row.id) || {
         drivingDistanceKm: row.distanceKm,
         estimatedDurationMinutes: Math.ceil(20 + row.distanceKm * 3),
-        routeSource: 'POSTGIS_FALLBACK' as const,
+        routeSource: 'AIR_DISTANCE_FALLBACK' as const,
       };
 
       // Use OSRM driving distance for delivery fee calculation
@@ -642,24 +624,14 @@ export class LocationService {
       throw new NotFoundException('Restaurant not found');
     }
 
-    let drivingDistanceKm = row.distanceKm;
-    let estimatedDurationMinutes = Math.ceil(20 + row.distanceKm * 3);
-
-    try {
-      const actualRoute = await this.routing.getShortestRoute(
-        { latitude: lat, longitude: lng },
-        { latitude: restaurant.latitude, longitude: restaurant.longitude },
-      );
-      drivingDistanceKm = actualRoute.distanceKm;
-      estimatedDurationMinutes =
-        actualRoute.durationMinutes ?? Math.ceil(20 + actualRoute.distanceKm * 3);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Failed to get OSRM route for restaurant ${restaurantId}: ${message}. Using PostGIS distance.`,
-      );
-      // Continue with PostGIS distance
-    }
+    const route = await this.resolveRestaurantRouteData(
+      restaurantId,
+      { latitude: restaurant.latitude, longitude: restaurant.longitude },
+      { latitude: lat, longitude: lng },
+    );
+    const drivingDistanceKm = route.drivingDistanceKm;
+    const estimatedDurationMinutes =
+      route.estimatedDurationMinutes ?? Math.ceil(20 + route.drivingDistanceKm * 3);
 
     const delivery = this.computeDeliveryQuote({ ...row, distanceKm: drivingDistanceKm }, options);
 
@@ -739,8 +711,40 @@ export class LocationService {
     lng: number,
     parts: (string | number)[],
   ): string {
-    const normalizedLat = lat.toFixed(4);
-    const normalizedLng = lng.toFixed(4);
+    const normalizedLat = this.formatCoordinate(lat);
+    const normalizedLng = this.formatCoordinate(lng);
     return `${prefix}:${normalizedLat}:${normalizedLng}:${parts.join(':')}`;
+  }
+
+  private async resolveRestaurantRouteData(
+    restaurantId: number,
+    restaurantLocation: { latitude: number; longitude: number },
+    userLocation: { latitude: number; longitude: number },
+  ): Promise<RestaurantRouteData> {
+    try {
+      const routeData = await this.routing.getShortestRoute(userLocation, restaurantLocation);
+
+      return {
+        drivingDistanceKm: routeData.distanceKm,
+        estimatedDurationMinutes: routeData.durationMinutes,
+        routeSource: routeData.source === 'ROUTE' ? 'OSRM' : 'AIR_DISTANCE_FALLBACK',
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to resolve route for restaurant ${restaurantId}: ${message}. Using air-distance fallback.`,
+      );
+      const fallback = this.routing.buildFallbackRoute(userLocation, restaurantLocation);
+
+      return {
+        drivingDistanceKm: fallback.distanceKm,
+        estimatedDurationMinutes: fallback.durationMinutes,
+        routeSource: 'AIR_DISTANCE_FALLBACK',
+      };
+    }
+  }
+
+  private formatCoordinate(coordinate: number): string {
+    return String(coordinate);
   }
 }

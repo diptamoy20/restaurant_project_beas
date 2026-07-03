@@ -95,6 +95,24 @@ export class CreateOrderDto {
   @IsInt()
   addressId?: number;
 
+  @ApiPropertyOptional({
+    example: 12.9716,
+    description: 'Delivery latitude used for route pricing. Falls back to address coordinates.',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  deliveryLat?: number;
+
+  @ApiPropertyOptional({
+    example: 77.5946,
+    description: 'Delivery longitude used for route pricing. Falls back to address coordinates.',
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber()
+  deliveryLng?: number;
+
   @ApiPropertyOptional({ enum: OrderSource, example: OrderSource.WEBSITE })
   @IsOptional()
   @IsIn(Object.values(OrderSource))
