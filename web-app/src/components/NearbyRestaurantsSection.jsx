@@ -100,7 +100,7 @@ export function NearbyRestaurantsSection({
                 <p className="restaurant-address">{restaurant.address}</p>
 
                 <div className="restaurant-stats">
-                  <span>📍 {restaurant.distanceKm?.toFixed?.(1)} km</span>
+                  <span>📍 {restaurant.distanceKm} km</span>
 
                   <span>
                     🕒 {restaurant.estimatedDeliveryTimeMinutes ?? "-"} min
