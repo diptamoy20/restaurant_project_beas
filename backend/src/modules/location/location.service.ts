@@ -1,12 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { AddressValidationResponseDto, DeliveryQuoteDto } from './dto/location-response.dto';
 import { GeoCacheService } from '../../common/cache/geo-cache.service';
+import { RoutingService } from '../../common/routing/routing.service';
 import { calculateDeliveryFee, DeliveryFeeBreakdown } from '../../common/utils/delivery-fee.util';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const GEO_CACHE_TTL_SECONDS = 300;
+
+type RestaurantRouteData = {
+  drivingDistanceKm: number;
+  estimatedDurationMinutes: number | null;
+  routeSource: 'OSRM' | 'POSTGIS_FALLBACK';
+};
 
 type NearbyRestaurantRow = {
   id: number;
@@ -109,10 +116,61 @@ type DeliveryQuoteComputationOptions = {
 
 @Injectable()
 export class LocationService {
+  private readonly logger = new Logger(LocationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: GeoCacheService,
+    private readonly routing: RoutingService,
   ) {}
+
+  /**
+   * Enriches restaurant rows with OSRM driving distance and duration.
+   * Falls back to PostGIS distance if OSRM fails.
+   * Uses caching to avoid redundant API calls.
+   */
+  private async enrichWithOsrmDistance(
+    restaurants: Array<{
+      id: number;
+      latitude: number;
+      longitude: number;
+      distanceKm: number;
+    }>,
+    userLat: number,
+    userLng: number,
+  ): Promise<Map<number, RestaurantRouteData>> {
+    const result = new Map<number, RestaurantRouteData>();
+
+    const promises = restaurants.map(async (restaurant) => {
+      try {
+        const routeData = await this.routing.getShortestRoute(
+          { latitude: userLat, longitude: userLng },
+          { latitude: restaurant.latitude, longitude: restaurant.longitude },
+        );
+
+        result.set(restaurant.id, {
+          drivingDistanceKm: routeData.distanceKm,
+          estimatedDurationMinutes: routeData.durationMinutes,
+          routeSource: routeData.source === 'ROUTE' ? 'OSRM' : 'POSTGIS_FALLBACK',
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Failed to get OSRM route for restaurant ${restaurant.id}: ${message}. Using PostGIS distance.`,
+        );
+
+        // Fallback to PostGIS distance
+        result.set(restaurant.id, {
+          drivingDistanceKm: restaurant.distanceKm,
+          estimatedDurationMinutes: Math.ceil(20 + restaurant.distanceKm * 3),
+          routeSource: 'POSTGIS_FALLBACK',
+        });
+      }
+    });
+
+    await Promise.all(promises);
+    return result;
+  }
 
   async findNearbyRestaurants(params: {
     lat: number;
@@ -300,14 +358,30 @@ export class LocationService {
           ])
         : [[], []];
 
+    // Enrich rows with OSRM driving distances
+    const osrmRoutes = await this.enrichWithOsrmDistance(rows, params.lat, params.lng);
+
     const result = rows.map((row) => {
-      const delivery = this.computeDeliveryQuote(row, {
-        subtotalAmount: 0,
-        enforceMinimumOrderAmount: false,
-      });
+      const route = osrmRoutes.get(row.id) || {
+        drivingDistanceKm: row.distanceKm,
+        estimatedDurationMinutes: Math.ceil(20 + row.distanceKm * 3),
+        routeSource: 'POSTGIS_FALLBACK' as const,
+      };
+
+      // Use OSRM driving distance for delivery fee calculation
+      const delivery = this.computeDeliveryQuote(
+        { ...row, distanceKm: route.drivingDistanceKm },
+        {
+          subtotalAmount: 0,
+          enforceMinimumOrderAmount: false,
+        },
+      );
 
       return {
         ...row,
+        distanceKm: route.drivingDistanceKm,
+        estimatedDeliveryTimeMinutes:
+          route.estimatedDurationMinutes ?? Math.ceil(20 + route.drivingDistanceKm * 3),
         deliveryAvailable: delivery.isDeliveryAvailable,
         deliveryFee: delivery.deliveryCharge,
         minimumOrderAmount: row.minimumOrderAmount,
@@ -555,19 +629,49 @@ export class LocationService {
     }
 
     const row = rows[0];
-    const delivery = this.computeDeliveryQuote(row, options);
+
+    // Query restaurant details to get coordinates for OSRM
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { latitude: true, longitude: true },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    let drivingDistanceKm = row.distanceKm;
+    let estimatedDurationMinutes = Math.ceil(20 + row.distanceKm * 3);
+
+    try {
+      const actualRoute = await this.routing.getShortestRoute(
+        { latitude: lat, longitude: lng },
+        { latitude: restaurant.latitude, longitude: restaurant.longitude },
+      );
+      drivingDistanceKm = actualRoute.distanceKm;
+      estimatedDurationMinutes =
+        actualRoute.durationMinutes ?? Math.ceil(20 + actualRoute.distanceKm * 3);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to get OSRM route for restaurant ${restaurantId}: ${message}. Using PostGIS distance.`,
+      );
+      // Continue with PostGIS distance
+    }
+
+    const delivery = this.computeDeliveryQuote({ ...row, distanceKm: drivingDistanceKm }, options);
 
     return {
       restaurantId: row.restaurantId,
       deliveryAvailable: delivery.isDeliveryAvailable,
-      distanceKm: row.distanceKm,
+      distanceKm: drivingDistanceKm,
       deliveryFee: delivery.deliveryCharge,
       packagingCharge: delivery.packagingCharge,
       freeDeliveryMinAmount: row.freeDeliveryMinAmount,
       deliveryUnavailableReason: delivery.deliveryUnavailableReason,
       deliveryFeeBreakdown: delivery.deliveryFeeBreakdown,
       minimumOrderAmount: row.minimumOrderAmount,
-      estimatedDeliveryTimeMinutes: row.estimatedDeliveryTimeMinutes,
+      estimatedDeliveryTimeMinutes: Math.ceil(estimatedDurationMinutes),
     };
   }
 

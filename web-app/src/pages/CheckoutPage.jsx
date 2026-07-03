@@ -643,9 +643,24 @@ export function CheckoutPage() {
                 {formatCurrency.format(quote?.subtotalAmount ?? subtotal)}
               </strong>
             </div>
+
+            {/* Menu/item-level discount */}
+            {quote?.menuDiscountAmount ? (
+              <div className="bill-row bill-row-discount">
+                <span>Item discount</span>
+                <i aria-hidden="true" />
+                <strong>
+                  -{formatCurrency.format(quote.menuDiscountAmount)}
+                </strong>
+              </div>
+            ) : null}
+
+            {/* Coupon discount */}
             {quote?.couponDiscountAmount ? (
               <div className="bill-row bill-row-discount">
-                <span>Coupon</span>
+                <span>
+                  {quote.couponCode ? `Coupon (${quote.couponCode})` : "Coupon"}
+                </span>
                 <i aria-hidden="true" />
                 <strong>
                   -{formatCurrency.format(quote.couponDiscountAmount)}
@@ -653,6 +668,18 @@ export function CheckoutPage() {
               </div>
             ) : null}
 
+            {/* Manual discount (admin) */}
+            {quote?.manualDiscountAmount ? (
+              <div className="bill-row bill-row-discount">
+                <span>Discount</span>
+                <i aria-hidden="true" />
+                <strong>
+                  -{formatCurrency.format(quote.manualDiscountAmount)}
+                </strong>
+              </div>
+            ) : null}
+
+            {/* Delivery charge */}
             {quote?.deliveryCharge != null ? (
               <div className="bill-row">
                 <span>Delivery</span>
@@ -664,6 +691,8 @@ export function CheckoutPage() {
                 </strong>
               </div>
             ) : null}
+
+            {/* Packaging charge */}
             {quote?.packagingCharge ? (
               <div className="bill-row">
                 <span>Packaging</span>
@@ -671,6 +700,8 @@ export function CheckoutPage() {
                 <strong>{formatCurrency.format(quote.packagingCharge)}</strong>
               </div>
             ) : null}
+
+            {/* Tip */}
             {quote?.tipAmount ? (
               <div className="bill-row">
                 <span>Tip</span>
@@ -678,33 +709,63 @@ export function CheckoutPage() {
                 <strong>{formatCurrency.format(quote.tipAmount)}</strong>
               </div>
             ) : null}
-            <div className="bill-row">
-              <span>Taxes</span>
-              <i aria-hidden="true" />
-              <strong>{formatCurrency.format(quote?.taxAmount ?? 0)}</strong>
-            </div>
+
+            {/* Taxes — with breakdown */}
             {quote?.taxAmount ? (
-              <div className="bill-tax-breakup">
-                <div className="bill-row bill-row-muted">
-                  <span>
-                    CGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ""}
-                  </span>
+              <>
+                <div className="bill-row">
+                  <span>Taxes</span>
                   <i aria-hidden="true" />
-                  <strong>
-                    {formatCurrency.format(quote?.cgstAmount ?? 0)}
-                  </strong>
+                  <strong>{formatCurrency.format(quote.taxAmount)}</strong>
                 </div>
-                <div className="bill-row bill-row-muted">
-                  <span>
-                    SGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ""}
-                  </span>
-                  <i aria-hidden="true" />
-                  <strong>
-                    {formatCurrency.format(quote?.sgstAmount ?? 0)}
-                  </strong>
+                <div className="bill-tax-breakup">
+                  {Number(quote?.cgstAmount) > 0 && (
+                    <div className="bill-row bill-row-muted">
+                      <span>
+                        CGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ""}
+                      </span>
+                      <i aria-hidden="true" />
+                      <strong>
+                        {formatCurrency.format(quote?.cgstAmount ?? 0)}
+                      </strong>
+                    </div>
+                  )}
+                  {Number(quote?.sgstAmount) > 0 && (
+                    <div className="bill-row bill-row-muted">
+                      <span>
+                        SGST {quote?.gstRate ? `(${quote.gstRate / 2}%)` : ""}
+                      </span>
+                      <i aria-hidden="true" />
+                      <strong>
+                        {formatCurrency.format(quote?.sgstAmount ?? 0)}
+                      </strong>
+                    </div>
+                  )}
+                  {Number(quote?.igstAmount) > 0 && (
+                    <div className="bill-row bill-row-muted">
+                      <span>
+                        IGST {quote?.gstRate ? `(${quote.gstRate}%)` : ""}
+                      </span>
+                      <i aria-hidden="true" />
+                      <strong>
+                        {formatCurrency.format(quote?.igstAmount ?? 0)}
+                      </strong>
+                    </div>
+                  )}
                 </div>
+              </>
+            ) : null}
+
+            {/* Platform fee (if applicable) */}
+            {quote?.platformFee ? (
+              <div className="bill-row">
+                <span>Platform fee</span>
+                <i aria-hidden="true" />
+                <strong>{formatCurrency.format(quote.platformFee)}</strong>
               </div>
             ) : null}
+
+            {/* Grand total / Final payable amount */}
             <div className="bill-row bill-row-payable">
               <span>Payable</span>
               <i aria-hidden="true" />
