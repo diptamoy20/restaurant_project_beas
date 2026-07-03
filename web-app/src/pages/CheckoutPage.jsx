@@ -10,6 +10,7 @@ import {
   resolveRestaurantId,
   resolveTableId,
 } from "../lib/tableSession";
+import { getCachedUserLocation } from "../hooks/useUserLocation";
 import { clearCart, setLastOrderId } from "../store/slices/cartSlice";
 import { createOrder } from "../store/slices/orderSlice";
 
@@ -69,6 +70,7 @@ export function CheckoutPage() {
         needsDeliveryAddress && selectedAddressId
           ? Number(selectedAddressId)
           : undefined,
+      ...(needsDeliveryAddress ? buildDeliveryCoordinatePayload() : {}),
       orderType,
       couponCode: couponCode || undefined,
       tipAmount,
@@ -328,6 +330,7 @@ export function CheckoutPage() {
         needsDeliveryAddress && selectedAddressId
           ? Number(selectedAddressId)
           : undefined,
+      ...(needsDeliveryAddress ? buildDeliveryCoordinatePayload() : {}),
       orderType,
       couponCode: appliedCouponCode || undefined,
       tipAmount,
@@ -858,4 +861,17 @@ export function CheckoutPage() {
       ) : null}
     </section>
   );
+}
+
+function buildDeliveryCoordinatePayload() {
+  const location = getCachedUserLocation();
+
+  if (!location) {
+    return {};
+  }
+
+  return {
+    deliveryLat: location.lat,
+    deliveryLng: location.lng,
+  };
 }

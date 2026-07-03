@@ -24,6 +24,10 @@ export type CreateOrderType = {
 
   addressId?: number;
 
+  deliveryLat?: number;
+
+  deliveryLng?: number;
+
   source: OrderSource;
 
   orderType: string;

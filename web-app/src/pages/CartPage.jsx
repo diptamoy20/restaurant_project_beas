@@ -16,6 +16,7 @@ import {
 } from "../lib/tableSession";
 import { fetchAddresses } from "../store/slices/addressSlice";
 import { checkoutApi } from "../services/checkoutApi";
+import { getCachedUserLocation } from "../hooks/useUserLocation";
 
 const formatCurrency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -144,6 +145,7 @@ useEffect(() => {
           restaurantId: Number(restaurantId),
           orderType: tableId ? "DINE_IN" : "DELIVERY",
           addressId: !tableId && defaultAddress ? Number(defaultAddress.id) : undefined,
+          ...(!tableId ? buildDeliveryCoordinatePayload() : {}),
           items: items.map((item) => ({
             menuItemId: item.menuItemId || item.id,
             variantId: item.variantId || undefined,
@@ -539,4 +541,17 @@ useEffect(() => {
 
 export function calculateTotal(subtotal, taxesAndFees = 0) {
   return subtotal + taxesAndFees;
+}
+
+function buildDeliveryCoordinatePayload() {
+  const location = getCachedUserLocation();
+
+  if (!location) {
+    return {};
+  }
+
+  return {
+    deliveryLat: location.lat,
+    deliveryLng: location.lng,
+  };
 }

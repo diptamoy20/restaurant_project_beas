@@ -136,15 +136,19 @@ export class RoutingService {
     };
   }
 
+  buildFallbackRoute(origin: RouteLocation, destination: RouteLocation): RouteDistanceResult {
+    return this.buildAirDistanceFallback(this.getAirDistanceKm(origin, destination));
+  }
+
   private buildCacheKey(origin: RouteLocation, destination: RouteLocation): string {
     return [
       'route',
       this.routingProvider,
       this.routingProfile,
-      origin.latitude.toFixed(4),
-      origin.longitude.toFixed(4),
-      destination.latitude.toFixed(4),
-      destination.longitude.toFixed(4),
+      this.formatCoordinate(origin.latitude),
+      this.formatCoordinate(origin.longitude),
+      this.formatCoordinate(destination.latitude),
+      this.formatCoordinate(destination.longitude),
     ].join(':');
   }
 
@@ -168,5 +172,9 @@ export class RoutingService {
   private roundTo(value: number, digits: number): number {
     const factor = 10 ** digits;
     return Math.round((value + Number.EPSILON) * factor) / factor;
+  }
+
+  private formatCoordinate(coordinate: number): string {
+    return String(coordinate);
   }
 }
