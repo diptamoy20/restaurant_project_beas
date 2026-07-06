@@ -1,10 +1,34 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { resolveTrackingSocketUrl } from "./resolve-socket-origin.mjs";
 
-const distDir = path.join(process.cwd(), "web-app", "dist", "assets");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+function resolveDistAssetsDir() {
+  const candidates = [
+    path.join(repoRoot, "web-app", "dist", "assets"),
+    path.join(process.cwd(), "dist", "assets"),
+    path.join(process.cwd(), "web-app", "dist", "assets"),
+  ];
+
+  for (const dir of candidates) {
+    if (fs.existsSync(dir)) {
+      return dir;
+    }
+  }
+
+  return candidates[0];
+}
+
+const distDir = resolveDistAssetsDir();
+
+if (!fs.existsSync(distDir)) {
+  console.error(`Build verification failed: dist assets directory not found at ${distDir}`);
+  process.exit(1);
+}
 const expectedUrl = resolveTrackingSocketUrl({
   apiBaseUrl: process.env.VITE_API_BASE_URL ?? process.env.PUBLIC_API_BASE_URL,
   socketUrl: process.env.VITE_SOCKET_URL ?? process.env.PUBLIC_SOCKET_URL,
