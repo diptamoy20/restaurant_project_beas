@@ -2,9 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDate, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class DeliveryTrackingLogDto {
-  @ApiProperty({ example: 2 })
+  @ApiProperty({ example: 2, nullable: true })
+  @IsOptional()
   @IsNumber()
-  id!: number;
+  id!: number | null;
 
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -28,9 +29,10 @@ export class DeliveryTrackingLogDto {
   @IsNumber()
   heading?: number | null;
 
-  @ApiProperty({ example: '2026-04-17T09:45:00.000Z' })
+  @ApiProperty({ example: '2026-04-17T09:45:00.000Z', nullable: true })
+  @IsOptional()
   @IsDate()
-  recordedAt!: Date;
+  recordedAt!: Date | null;
 
   @ApiPropertyOptional({
     example: 'driver',

@@ -307,6 +307,7 @@ export class DeliveriesService {
       updated.status,
       updated.trackingLogs[0],
       updated.order.restaurant,
+      updated.id,
     );
 
     this.deliveriesGateway.emitOrderUpdated(orderId, {
@@ -408,6 +409,7 @@ export class DeliveriesService {
       updated.status,
       updated.trackingLogs[0],
       updated.order.restaurant,
+      updated.id,
     );
 
     this.deliveriesGateway.emitOrderUpdated(orderId, {
