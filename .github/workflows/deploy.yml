@@ -34,8 +34,6 @@ env:
   WEB_PM2_APP_NAME: ${{ vars.WEB_PM2_APP_NAME != '' && vars.WEB_PM2_APP_NAME || 'restaurant-web-app' }}
   ADMIN_PM2_APP_NAME: ${{ vars.ADMIN_PM2_APP_NAME != '' && vars.ADMIN_PM2_APP_NAME || 'restaurant-admin-panel' }}
   QR_PM2_APP_NAME: ${{ vars.QR_PM2_APP_NAME != '' && vars.QR_PM2_APP_NAME || 'restaurant-qr-ordering' }}
-  PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
-  PUBLIC_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL }}
   WEB_APP_PORT: ${{ vars.WEB_APP_PORT != '' && vars.WEB_APP_PORT || '7002' }}
   ADMIN_PANEL_PORT: ${{ vars.ADMIN_PANEL_PORT != '' && vars.ADMIN_PANEL_PORT || '7003' }}
   QR_ORDERING_PORT: ${{ vars.QR_ORDERING_PORT != '' && vars.QR_ORDERING_PORT || '7004' }}
@@ -46,18 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_db?schema=restaurant_management
-      VITE_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
-      VITE_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL != '' && vars.PUBLIC_SOCKET_URL || '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Validate required frontend API URL
-        run: |
-          if [ -z "${VITE_API_BASE_URL}" ]; then
-            echo "PUBLIC_API_BASE_URL GitHub variable is required"
-            exit 1
-          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,14 +79,12 @@ jobs:
         working-directory: ${{ env.WEB_APP_DIR }}
         run: npm ci
 
-      - name: Resolve web-app socket env
+      - name: Prepare web-app .env for CI
+        working-directory: ${{ env.WEB_APP_DIR }}
         run: |
-          while IFS= read -r line; do
-            echo "$line" >> "$GITHUB_ENV"
-          done < <(node scripts/print-vite-socket-env.mjs)
-        env:
-          PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
-          PUBLIC_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL }}
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
 
       - name: Build web-app
         working-directory: ${{ env.WEB_APP_DIR }}
@@ -105,9 +92,6 @@ jobs:
 
       - name: Verify web-app tracking socket URL in build
         run: node scripts/verify-web-socket-build.mjs
-        env:
-          PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
-          PUBLIC_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL }}
 
       - name: Install admin-panel dependencies
         working-directory: ${{ env.ADMIN_PANEL_DIR }}
@@ -143,8 +127,6 @@ jobs:
           WEB_PM2_APP_NAME: ${{ env.WEB_PM2_APP_NAME }}
           ADMIN_PM2_APP_NAME: ${{ env.ADMIN_PM2_APP_NAME }}
           QR_PM2_APP_NAME: ${{ env.QR_PM2_APP_NAME }}
-          PUBLIC_API_BASE_URL: ${{ env.PUBLIC_API_BASE_URL }}
-          PUBLIC_SOCKET_URL: ${{ env.PUBLIC_SOCKET_URL }}
           WEB_APP_PORT: ${{ env.WEB_APP_PORT }}
           ADMIN_PANEL_PORT: ${{ env.ADMIN_PANEL_PORT }}
           QR_ORDERING_PORT: ${{ env.QR_ORDERING_PORT }}
@@ -154,7 +136,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
-          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,PUBLIC_API_BASE_URL,PUBLIC_SOCKET_URL,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT
+          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT
           script: |
             set -e
 
@@ -221,11 +203,10 @@ jobs:
             fi
 
             cd "$APP_DIR/web-app"
-            while IFS= read -r line; do
-              export "$line"
-            done < <(node "$APP_DIR/scripts/print-vite-socket-env.mjs")
-            export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
-            echo "Web app socket env: VITE_SOCKET_URL=$VITE_SOCKET_URL VITE_TRACKING_SOCKET_URL=$VITE_TRACKING_SOCKET_URL"
+            if [ ! -f .env ]; then
+              echo "Missing $APP_DIR/web-app/.env — create it on the server before deploying."
+              exit 1
+            fi
             npm ci --include=dev
             npm run build
             node "$APP_DIR/scripts/verify-web-socket-build.mjs"
@@ -236,11 +217,10 @@ jobs:
             pm2 serve "$APP_DIR/web-app/dist" "$WEB_APP_PORT" --name "$WEB_PM2_APP_NAME" --spa
 
             cd "$APP_DIR/admin-panel"
-            while IFS= read -r line; do
-              export "$line"
-            done < <(node "$APP_DIR/scripts/print-vite-socket-env.mjs")
-            export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
-            echo "Admin panel socket env: VITE_SOCKET_URL=$VITE_SOCKET_URL"
+            if [ ! -f .env ]; then
+              echo "Missing $APP_DIR/admin-panel/.env — create it on the server before deploying."
+              exit 1
+            fi
             npm ci --include=dev
             npm run build
 
@@ -250,7 +230,10 @@ jobs:
             pm2 serve "$APP_DIR/admin-panel/dist" "$ADMIN_PANEL_PORT" --name "$ADMIN_PM2_APP_NAME" --spa
 
             cd "$APP_DIR/qr-ordering-frontend"
-            export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
+            if [ ! -f .env ]; then
+              echo "Missing $APP_DIR/qr-ordering-frontend/.env — create it on the server before deploying."
+              exit 1
+            fi
             npm ci --include=dev
             npm run build
 

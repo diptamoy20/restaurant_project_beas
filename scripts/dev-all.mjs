@@ -36,30 +36,21 @@ const services = [
     cwd: path.join(rootDir, 'web-app'),
     command: npmCommand,
     args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', frontendPort],
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
-    },
+    env: process.env,
   },
   {
     name: 'admin-panel',
     cwd: path.join(rootDir, 'admin-panel'),
     command: npmCommand,
     args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', adminPanelPort],
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
-    },
+    env: process.env,
   },
   {
     name: 'qr-ordering-frontend',
     cwd: path.join(rootDir, 'qr-ordering-frontend'),
     command: npmCommand,
     args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', qrOrderingPort],
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
-    },
+    env: process.env,
   },
 ];
 
