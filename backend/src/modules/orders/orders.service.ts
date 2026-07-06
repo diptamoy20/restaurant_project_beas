@@ -178,10 +178,17 @@ export class OrdersService {
 
     const mapped = this.mapOrder(order);
 
+    const latestLocation = DeliveriesGateway.resolveLatestLocation(
+      ORDER_STATUS.ACCEPTED,
+      order.delivery?.trackingLogs?.[0],
+      order.restaurant,
+    );
+
     this.deliveriesGateway.emitOrderUpdated(order.id, {
       type: 'ORDER_ACCEPTED',
       status: 'ACCEPTED',
       order: mapped,
+      latestLocation,
     });
 
     // Targeted per-order event only — no global broadcast needed.

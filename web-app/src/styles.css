@@ -4549,3 +4549,645 @@ body.modal-open {
   opacity: 0.3;
   color: #94a3b8;
 }
+
+/* ==========================================================================
+   TRACK ORDER
+   ========================================================================== */
+
+.order-card-track {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+.track-order-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #255b37 100%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 800;
+  box-shadow: 0 12px 26px rgba(16, 48, 28, 0.18);
+}
+
+.track-order-button:hover,
+.track-order-button:focus-visible {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-strong) 0%,
+    var(--color-primary) 100%
+  );
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(16, 48, 28, 0.24);
+}
+
+.track-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(16, 48, 28, 0.52);
+  backdrop-filter: blur(8px);
+  animation: track-modal-fade-in 0.22s ease;
+}
+
+.track-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1080px, 100%);
+  max-height: min(88vh, 900px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-card);
+  animation: track-modal-slide-up 0.28s ease;
+}
+
+.track-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(250, 249, 246, 0.96);
+}
+
+.track-modal-header-copy {
+  min-width: 0;
+}
+
+.track-modal-header h2 {
+  margin: 0.15rem 0 0.35rem;
+  font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+  line-height: 1.1;
+}
+
+.track-modal-subtitle {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.track-modal-close {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(26, 71, 42, 0.08);
+  color: var(--color-primary-strong);
+  font-size: 1.6rem;
+  line-height: 1;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.track-modal-close:hover,
+.track-modal-close:focus-visible {
+  background: rgba(26, 71, 42, 0.14);
+  transform: none;
+  box-shadow: none;
+}
+
+.track-modal-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.track-modal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  min-height: min(72vh, 760px);
+}
+
+.track-modal-map-panel {
+  display: grid;
+  grid-template-rows: minmax(320px, 1fr) auto;
+  gap: 0;
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+  background: rgba(26, 71, 42, 0.03);
+}
+
+.track-modal-map {
+  position: relative;
+  min-height: 320px;
+  background: rgba(26, 71, 42, 0.06);
+}
+
+.track-modal-map-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.track-open-maps {
+  min-height: 2.75rem;
+  padding-inline: 1.1rem;
+}
+
+.track-open-maps--disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.track-map-shell,
+.track-map-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.track-map-shell {
+  position: relative;
+}
+
+.track-map-empty {
+  position: absolute;
+  inset: auto 1.25rem 1.25rem;
+  max-width: 28rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-copy-muted);
+  font-size: 0.84rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.track-map-marker {
+  position: relative;
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.track-map-marker-dot {
+  position: absolute;
+  inset: 0.2rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(16, 48, 28, 0.35);
+}
+
+.track-map-marker-pulse {
+  position: absolute;
+  inset: -0.35rem;
+  border-radius: 999px;
+  background: rgba(26, 71, 42, 0.2);
+  animation: track-marker-pulse 1.8s ease-out infinite;
+}
+
+.track-map-rider-marker {
+  width: 3.25rem;
+  height: 3.25rem;
+  transform-origin: center center;
+  transition: transform 0.25s ease;
+}
+
+.track-map-rider-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 16px rgba(16, 48, 28, 0.28));
+  pointer-events: none;
+}
+
+.track-map-pin {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px 999px 999px 0;
+  transform: rotate(-45deg);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(16, 48, 28, 0.22);
+}
+
+.track-map-pin span {
+  transform: rotate(45deg);
+}
+
+.track-map-pin--restaurant {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #255b37 100%);
+}
+
+.track-map-pin--destination {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #c58c2f 100%);
+}
+
+.track-modal-details {
+  min-width: 0;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: #fff;
+}
+
+.track-modal-details-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.track-panel {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(250, 249, 246, 0.72);
+  box-shadow: var(--shadow-soft);
+}
+
+.track-panel--timeline {
+  padding: 1.1rem 1.15rem 1.25rem;
+}
+
+.track-rider {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.track-rider--empty {
+  grid-template-columns: auto 1fr;
+}
+
+.track-rider-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid rgba(26, 71, 42, 0.1);
+}
+
+.track-rider-avatar--initials,
+.track-rider-avatar--placeholder {
+  display: grid;
+  place-items: center;
+  background: rgba(26, 71, 42, 0.08);
+  color: var(--color-primary-strong);
+  font-weight: 800;
+}
+
+.track-rider-avatar--placeholder {
+  background: rgba(26, 71, 42, 0.05);
+}
+
+.track-rider-name {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--color-primary-strong);
+}
+
+.track-rider-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.86rem;
+  color: var(--color-copy-muted);
+}
+
+.track-rider-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  text-decoration: none;
+}
+
+.track-rider-call svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.track-order-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.track-order-summary-main {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.track-order-bag {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(212, 168, 83, 0.16);
+  color: #8b6a33;
+}
+
+.track-order-bag svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.track-order-summary-title {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-copy);
+}
+
+.track-order-amount {
+  text-align: right;
+}
+
+.track-order-amount-label {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-copy-muted);
+}
+
+.track-order-amount-value {
+  margin: 0.2rem 0 0;
+  font-family: "Inter", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-primary-strong);
+}
+
+.track-live-status {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.track-live-status-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgba(26, 71, 42, 0.1);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.track-live-status-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.track-live-status-title {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-primary-strong);
+}
+
+.track-live-status-copy {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-copy-muted);
+}
+
+.track-timeline-title {
+  margin: 0 0 1rem;
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-primary-strong);
+}
+
+.track-timeline-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.track-timeline-item {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.track-timeline-rail {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.track-timeline-node {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+}
+
+.track-timeline-node svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.track-timeline-connector {
+  flex: 1;
+  height: 3px;
+  margin-right: -0.35rem;
+  border-radius: 999px;
+  background: rgba(26, 71, 42, 0.12);
+}
+
+.track-timeline-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-copy-muted);
+  line-height: 1.3;
+}
+
+.track-timeline-item--completed .track-timeline-node {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #255b37 100%);
+  color: #fff;
+}
+
+.track-timeline-item--completed .track-timeline-connector {
+  background: linear-gradient(90deg, var(--color-primary) 0%, #255b37 100%);
+}
+
+.track-timeline-item--completed .track-timeline-label {
+  color: var(--color-primary);
+}
+
+.track-timeline-item--active .track-timeline-node {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #c58c2f 100%);
+  color: #fff;
+  border-color: rgba(212, 168, 83, 0.35);
+  box-shadow: 0 0 0 4px rgba(212, 168, 83, 0.18);
+}
+
+.track-timeline-item--active .track-timeline-label {
+  color: #8b6a33;
+}
+
+.track-timeline-item--active .track-timeline-connector {
+  background: rgba(26, 71, 42, 0.12);
+}
+
+.track-timeline-item--pending .track-timeline-node {
+  background: rgba(26, 71, 42, 0.06);
+  color: rgba(26, 71, 42, 0.28);
+  border-color: rgba(26, 71, 42, 0.08);
+}
+
+.track-modal-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.track-modal-spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 3px solid rgba(26, 71, 42, 0.12);
+  border-top-color: var(--color-primary);
+  border-radius: 999px;
+  animation: track-spin 0.8s linear infinite;
+}
+
+.track-socket-banner {
+  margin: 0;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.track-socket-banner--live {
+  color: #166534;
+}
+
+@keyframes track-modal-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes track-modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes track-marker-pulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.8;
+  }
+
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes track-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .track-modal-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .track-modal-map-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .track-modal-map {
+    min-height: 280px;
+  }
+
+  .track-modal-details {
+    padding: 1.1rem 1.15rem 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .track-modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .track-modal {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .track-modal-header {
+    padding: 1rem 1.1rem;
+  }
+
+  .track-modal-map {
+    min-height: 240px;
+  }
+
+  .track-order-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .track-order-amount {
+    text-align: left;
+  }
+
+  .track-rider {
+    grid-template-columns: auto 1fr;
+  }
+
+  .track-rider-call {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .track-timeline-label {
+    font-size: 0.64rem;
+  }
+}

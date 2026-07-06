@@ -26,6 +26,7 @@ import { DeliveriesService } from './deliveries.service';
 import { UpdateMyDeliveryLocationDto } from './dto';
 import { DeliveryTrackingLogDto } from './dto/delivery-tracking-log.dto';
 import { DELIVERY_STATUS } from '../../common/constants/delivery-status';
+import { ORDER_STATUS } from '../../common/constants/order-status';
 import { Role } from '../../common/enums/role.enum';
 import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/auth.types';
@@ -288,7 +289,7 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
    *
    * Priority:
    *  1. Most recent driver tracking log  → source: 'driver'
-   *  2. Restaurant coordinates when status is ON_THE_WAY → source: 'restaurant'
+   *  2. Restaurant coordinates for active order statuses → source: 'restaurant'
    *  3. null for all other cases
    */
   static resolveLatestLocation(
@@ -320,7 +321,14 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
       };
     }
 
-    if (status === DELIVERY_STATUS.ON_THE_WAY && restaurant) {
+    const restaurantFallbackStatuses = new Set<string>([
+      ORDER_STATUS.ACCEPTED,
+      ORDER_STATUS.PREPARING,
+      ORDER_STATUS.ON_THE_WAY,
+      DELIVERY_STATUS.ON_THE_WAY,
+    ]);
+
+    if (restaurantFallbackStatuses.has(status) && restaurant) {
       return {
         id: 0,
         deliveryId: 0,

@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { IsArray, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 import { DeliveryAgentDto } from './delivery-agent.dto';
-import { DeliveryBoyCustomerDto } from './delivery-boy-response.dto';
+import { DeliveryBoyCustomerDto, DeliveryBoyRestaurantDto } from './delivery-boy-response.dto';
 import { DeliveryTrackingLogDto } from './delivery-tracking-log.dto';
 import { OrderSummaryDto } from './order-summary.dto';
 
@@ -50,4 +50,13 @@ export class DeliveryTrackingResponseDto {
   @ValidateNested()
   @Type(() => DeliveryBoyCustomerDto)
   customer!: DeliveryBoyCustomerDto | null;
+
+  @ApiPropertyOptional({
+    type: () => DeliveryBoyRestaurantDto,
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeliveryBoyRestaurantDto)
+  restaurant!: DeliveryBoyRestaurantDto | null;
 }

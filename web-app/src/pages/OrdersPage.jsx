@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { orderApi } from "../services/orderApi";
 import { formatDateTime } from "../utils/date";
+import { isOrderTrackable } from "../utils/trackOrder";
+
+const TrackOrderModal = lazy(() =>
+  import("../components/TrackOrder/TrackOrderModal").then((module) => ({
+    default: module.TrackOrderModal,
+  })),
+);
 
 const STATUS_THEME = {
   PENDING: { label: 'Pending', className: 'order-chip order-chip--pending' },
@@ -157,6 +164,7 @@ export function OrdersPage() {
   const [downloadError, setDownloadError] = useState("");
   // Track which order cards have the breakdown expanded
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [trackOrder, setTrackOrder] = useState(null);
 
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
@@ -203,6 +211,25 @@ export function OrdersPage() {
       ),
     [orders],
   );
+
+  const handleTrackedOrderUpdate = useCallback((updatedOrder) => {
+    if (!updatedOrder?.id) {
+      return;
+    }
+
+    setOrders((previous) =>
+      previous.map((entry) =>
+        entry.id === updatedOrder.id
+          ? {
+              ...entry,
+              ...updatedOrder,
+              status: updatedOrder.status ?? entry.status,
+              paymentStatus: updatedOrder.paymentStatus ?? entry.paymentStatus,
+            }
+          : entry,
+      ),
+    );
+  }, []);
 
   return (
     <section className="orders-page stack">
@@ -301,6 +328,18 @@ export function OrdersPage() {
                 {isExpanded && <OrderPricingBreakdown order={order} />}
               </div>
 
+              {isOrderTrackable(order) ? (
+                <div className="order-card-track">
+                  <button
+                    type="button"
+                    className="track-order-button"
+                    onClick={() => setTrackOrder(order)}
+                  >
+                    Track Order
+                  </button>
+                </div>
+              ) : null}
+
               {/* ── Meta footer ───────────────────────────────────── */}
               <footer className="order-card-footer">
                 <div>
@@ -364,6 +403,15 @@ export function OrdersPage() {
       {downloadError ? (
         <div className="order-status-banner error">{downloadError}</div>
       ) : null}
+
+      <Suspense fallback={null}>
+        <TrackOrderModal
+          open={Boolean(trackOrder)}
+          order={trackOrder}
+          onClose={() => setTrackOrder(null)}
+          onOrderUpdated={handleTrackedOrderUpdate}
+        />
+      </Suspense>
     </section>
   );
 }

@@ -662,6 +662,8 @@ export class DeliveriesService {
         latestLocation: null,
 
         trackingHistory: [],
+
+        restaurant: order.restaurant ? this.mapTrackingRestaurant(order.restaurant) : null,
       };
     }
 
@@ -752,19 +754,9 @@ export class DeliveriesService {
 
       latestLocation: delivery.trackingLogs[0]
         ? this.mapTrackingLog(delivery.trackingLogs[0])
-        : delivery.status === DELIVERY_STATUS.ON_THE_WAY && order.restaurant
-          ? {
-              id: 0,
-              deliveryId: delivery.id,
-              latitude: order.restaurant.latitude,
-              longitude: order.restaurant.longitude,
-              speed: null,
-              heading: null,
-              recordedAt: new Date(),
-              source: 'restaurant' as const,
-            }
-          : null,
+        : DeliveriesGateway.resolveLatestLocation(delivery.order.status, null, order.restaurant),
       trackingHistory: delivery.trackingLogs.map((log) => this.mapTrackingLog(log)),
+      restaurant: order.restaurant ? this.mapTrackingRestaurant(order.restaurant) : null,
     };
   }
 
@@ -1299,6 +1291,24 @@ export class DeliveriesService {
       nextStop.latitude,
       nextStop.longitude,
     );
+  }
+
+  private mapTrackingRestaurant(restaurant: {
+    id: number;
+    name: string;
+    address: string;
+    city: string | null;
+    latitude: number;
+    longitude: number;
+  }) {
+    return {
+      id: restaurant.id,
+      name: restaurant.name,
+      address: restaurant.address,
+      city: restaurant.city,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+    };
   }
 
   private mapTrackingLog(log: {
