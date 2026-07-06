@@ -18,7 +18,7 @@ export function TrackOrderModal({ open, order, onClose, onOrderUpdated }) {
   const [mapFocusSignal, setMapFocusSignal] = useState(0);
 
   const orderStatus = resolveOrderStatus(tracking, order);
-  const markerLocation = resolveMarkerLocation(tracking, orderStatus);
+  const markerLocation = resolveMarkerLocation(tracking);
   const destination = tracking?.customer?.address ?? null;
   const itemsSummary = tracking?.order?.itemsSummary;
   const itemCount = itemsSummary?.itemCount ?? order?.items?.length ?? 0;

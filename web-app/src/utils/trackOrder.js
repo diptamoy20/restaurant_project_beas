@@ -61,45 +61,39 @@ export function resolveRestaurantLocation(tracking) {
     return restaurant;
   }
 
+  return null;
+}
+
+/**
+ * Rider marker coordinates — always sourced from latestLocation.
+ */
+export function resolveMarkerLocation(tracking) {
   const latest = tracking?.latestLocation;
 
-  if (
-    latest?.source === "restaurant" &&
-    isValidCoordinate(latest.latitude, latest.longitude)
-  ) {
-    return {
-      latitude: Number(latest.latitude),
-      longitude: Number(latest.longitude),
-      name: restaurant?.name ?? "Restaurant",
-    };
+  if (latest && isValidCoordinate(latest.latitude, latest.longitude)) {
+    return latest;
   }
 
   return null;
 }
 
-/**
- * Resolves coordinates for the animated rider marker.
- * Only active during ON_THE_WAY (restaurant fallback until first GPS, then driver GPS).
- */
-export function resolveMarkerLocation(tracking, orderStatus) {
-  const latest = tracking?.latestLocation;
-
-  if (
-    latest?.source === "driver" &&
-    isValidCoordinate(latest.latitude, latest.longitude)
-  ) {
-    return latest;
+function isNewerOrEqualLocation(current, incoming) {
+  if (!incoming) {
+    return false;
   }
 
-  if (
-    orderStatus === "ON_THE_WAY" &&
-    latest?.source === "restaurant" &&
-    isValidCoordinate(latest.latitude, latest.longitude)
-  ) {
-    return latest;
+  if (!current) {
+    return true;
   }
 
-  return null;
+  const incomingTime = Date.parse(incoming.recordedAt);
+  const currentTime = Date.parse(current.recordedAt);
+
+  if (Number.isFinite(incomingTime) && Number.isFinite(currentTime)) {
+    return incomingTime >= currentTime;
+  }
+
+  return true;
 }
 
 export function shouldDrawDeliveryRoute(orderStatus) {
@@ -145,11 +139,11 @@ export function mergeTrackingSocketUpdate(tracking, payload) {
 
   let nextLatestLocation = tracking.latestLocation;
 
-  if (payload.type === "DELIVERY_LOCATION_UPDATED") {
-    if (payload.latestLocation) {
-      nextLatestLocation = payload.latestLocation;
-    }
-  } else if (payload.latestLocation != null) {
+  if (
+    payload.latestLocation &&
+    isValidCoordinate(payload.latestLocation.latitude, payload.latestLocation.longitude) &&
+    isNewerOrEqualLocation(tracking.latestLocation, payload.latestLocation)
+  ) {
     nextLatestLocation = payload.latestLocation;
   }
 

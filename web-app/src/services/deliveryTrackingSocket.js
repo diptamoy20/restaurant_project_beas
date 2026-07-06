@@ -1,21 +1,10 @@
 import { io } from "socket.io-client";
 
+import {
+  isTrackingSocketDebugEnabled,
+  resolveTrackingSocketUrl,
+} from "../config/trackingSocket";
 import { loadUserFromStorage } from "./authStorage";
-
-function resolveSocketUrl() {
-  const socketOrigin = import.meta.env.VITE_SOCKET_URL;
-
-  if (socketOrigin && socketOrigin !== "undefined") {
-    return `${socketOrigin.replace(/\/$/, "")}/delivery-tracking`;
-  }
-
-  const apiBase = (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api"
-  ).replace(/\/$/, "");
-
-  const origin = apiBase.replace(/\/api$/, "");
-  return `${origin}/delivery-tracking`;
-}
 
 function resolveAccessToken() {
   const token = loadUserFromStorage()?.token ?? null;
@@ -48,7 +37,13 @@ class DeliveryTrackingSocketManager {
     }
 
     if (!this.socket) {
-      this.socket = io(resolveSocketUrl(), {
+      const socketUrl = resolveTrackingSocketUrl();
+
+      if (isTrackingSocketDebugEnabled()) {
+        console.info("[tracking] connecting to", socketUrl);
+      }
+
+      this.socket = io(socketUrl, {
         autoConnect: false,
         transports: ["polling", "websocket"],
         path: "/socket.io",
