@@ -35,6 +35,7 @@ env:
   ADMIN_PM2_APP_NAME: ${{ vars.ADMIN_PM2_APP_NAME != '' && vars.ADMIN_PM2_APP_NAME || 'restaurant-admin-panel' }}
   QR_PM2_APP_NAME: ${{ vars.QR_PM2_APP_NAME != '' && vars.QR_PM2_APP_NAME || 'restaurant-qr-ordering' }}
   PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
+  PUBLIC_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL }}
   WEB_APP_PORT: ${{ vars.WEB_APP_PORT != '' && vars.WEB_APP_PORT || '7002' }}
   ADMIN_PANEL_PORT: ${{ vars.ADMIN_PANEL_PORT != '' && vars.ADMIN_PANEL_PORT || '7003' }}
   QR_ORDERING_PORT: ${{ vars.QR_ORDERING_PORT != '' && vars.QR_ORDERING_PORT || '7004' }}
@@ -46,6 +47,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_db?schema=restaurant_management
       VITE_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
+      VITE_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL != '' && vars.PUBLIC_SOCKET_URL || '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -127,6 +129,7 @@ jobs:
           ADMIN_PM2_APP_NAME: ${{ env.ADMIN_PM2_APP_NAME }}
           QR_PM2_APP_NAME: ${{ env.QR_PM2_APP_NAME }}
           PUBLIC_API_BASE_URL: ${{ env.PUBLIC_API_BASE_URL }}
+          PUBLIC_SOCKET_URL: ${{ env.PUBLIC_SOCKET_URL }}
           WEB_APP_PORT: ${{ env.WEB_APP_PORT }}
           ADMIN_PANEL_PORT: ${{ env.ADMIN_PANEL_PORT }}
           QR_ORDERING_PORT: ${{ env.QR_ORDERING_PORT }}
@@ -136,7 +139,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
-          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,PUBLIC_API_BASE_URL,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT
+          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,PUBLIC_API_BASE_URL,PUBLIC_SOCKET_URL,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT
           script: |
             set -e
 
@@ -203,7 +206,10 @@ jobs:
             fi
 
             cd "$APP_DIR/web-app"
+            SOCKET_ORIGIN="${PUBLIC_SOCKET_URL:-${PUBLIC_API_URL:-${PUBLIC_API_BASE_URL%/api}}}"
             export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
+            export VITE_SOCKET_URL="$SOCKET_ORIGIN"
+            export VITE_TRACKING_SOCKET_URL="${SOCKET_ORIGIN}/delivery-tracking"
             npm ci --include=dev
             npm run build
 
@@ -213,7 +219,9 @@ jobs:
             pm2 serve "$APP_DIR/web-app/dist" "$WEB_APP_PORT" --name "$WEB_PM2_APP_NAME" --spa
 
             cd "$APP_DIR/admin-panel"
+            SOCKET_ORIGIN="${PUBLIC_SOCKET_URL:-${PUBLIC_API_URL:-${PUBLIC_API_BASE_URL%/api}}}"
             export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
+            export VITE_SOCKET_URL="$SOCKET_ORIGIN"
             npm ci --include=dev
             npm run build
 

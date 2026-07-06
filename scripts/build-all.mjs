@@ -4,7 +4,32 @@ import process from 'node:process';
 
 const rootDir = process.cwd();
 const backendPort = process.env.PORT ?? '4000';
+function resolveSocketOriginFromApiBase(apiBaseUrl) {
+  const normalized = String(apiBaseUrl ?? "").replace(/\/$/, "");
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.endsWith("/api")) {
+    return normalized.slice(0, -4);
+  }
+
+  return normalized;
+}
+
+function resolveSocketOrigin(apiBaseUrl, socketUrl) {
+  if (socketUrl) {
+    return socketUrl.replace(/\/$/, "");
+  }
+
+  return resolveSocketOriginFromApiBase(apiBaseUrl);
+}
+
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? `http://localhost:${backendPort}/api`;
+const socketOrigin = resolveSocketOrigin(apiBaseUrl, process.env.VITE_SOCKET_URL);
+const trackingSocketUrl =
+  process.env.VITE_TRACKING_SOCKET_URL ??
+  `${socketOrigin}/delivery-tracking`;
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const projects = [
@@ -22,6 +47,8 @@ const projects = [
     env: {
       ...process.env,
       VITE_API_BASE_URL: apiBaseUrl,
+      VITE_SOCKET_URL: socketOrigin,
+      VITE_TRACKING_SOCKET_URL: trackingSocketUrl,
     },
   },
   {
@@ -30,6 +57,7 @@ const projects = [
     env: {
       ...process.env,
       VITE_API_BASE_URL: apiBaseUrl,
+      VITE_SOCKET_URL: socketOrigin,
     },
   },
   {
