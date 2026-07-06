@@ -28,6 +28,13 @@ export function resolveTrackingSocketUrl() {
       : `${origin}${TRACKING_NAMESPACE}`;
   }
 
+  const apiBase = normalizeUrl(import.meta.env.VITE_API_BASE_URL);
+
+  if (apiBase) {
+    const origin = apiBase.endsWith("/api") ? apiBase.slice(0, -4) : apiBase;
+    return `${origin}${TRACKING_NAMESPACE}`;
+  }
+
   return `http://localhost:4000${TRACKING_NAMESPACE}`;
 }
 

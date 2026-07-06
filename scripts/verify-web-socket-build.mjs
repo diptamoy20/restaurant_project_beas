@@ -3,6 +3,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { resolveTrackingUrlFromEnv } from "./resolve-tracking-url-from-env.mjs";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const webAppEnvPath = path.join(repoRoot, "web-app", ".env");
 
@@ -44,16 +46,13 @@ if (!fs.existsSync(webAppEnvPath)) {
 }
 
 const env = parseEnvFile(webAppEnvPath);
-const expectedUrl =
-  env.VITE_TRACKING_SOCKET_URL?.trim() ||
-  (env.VITE_SOCKET_URL
-    ? `${env.VITE_SOCKET_URL.replace(/\/$/, "")}/delivery-tracking`
-    : "");
+const expectedUrl = resolveTrackingUrlFromEnv(env);
 
 if (!expectedUrl) {
-  console.error(
-    "Build verification failed: set VITE_TRACKING_SOCKET_URL or VITE_SOCKET_URL in web-app/.env",
-  );
+  const keys = Object.keys(env).filter((key) => key.startsWith("VITE_"));
+  console.error("Build verification failed: could not resolve a tracking socket URL from web-app/.env");
+  console.error("Set at least one of: VITE_TRACKING_SOCKET_URL, VITE_SOCKET_URL, VITE_API_BASE_URL");
+  console.error(`Found VITE_* keys: ${keys.length ? keys.join(", ") : "(none)"}`);
   process.exit(1);
 }
 

@@ -207,6 +207,7 @@ jobs:
               echo "Missing $APP_DIR/web-app/.env — create it on the server before deploying."
               exit 1
             fi
+            node "$APP_DIR/scripts/ensure-web-app-socket-env.mjs"
             npm ci --include=dev
             npm run build
             node "$APP_DIR/scripts/verify-web-socket-build.mjs"
