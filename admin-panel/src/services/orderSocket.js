@@ -1,4 +1,6 @@
 import { io } from "socket.io-client";
+
+import { getSocketOrigin } from "../config/env";
 import { loadPersistedAuth } from "../utils/auth";
 
 let socket = null;
@@ -17,12 +19,11 @@ let socket = null;
  * VITE_SOCKET_URL must be the bare server origin, e.g. http://localhost:4000
  */
 export function connectOrderSocket(onOrderUpdated) {
-  const socketOrigin = import.meta.env.VITE_SOCKET_URL;
+  const socketOrigin = getSocketOrigin();
 
-  if (!socketOrigin || socketOrigin === "undefined") {
+  if (!socketOrigin) {
     console.error(
-      "[orderSocket] VITE_SOCKET_URL is not defined. " +
-        "Add VITE_SOCKET_URL=http://localhost:4000 to your .env and restart Vite.",
+      "[orderSocket] Socket URL is not configured. Add VITE_DEV_SOCKET_URL or VITE_SOCKET_URL to admin-panel/.env",
     );
     return null;
   }
@@ -46,7 +47,8 @@ export function connectOrderSocket(onOrderUpdated) {
   console.debug("[orderSocket] Connecting to", url);
 
   socket = io(url, {
-    transports: ["websocket"],
+    transports: ["polling", "websocket"],
+    path: "/socket.io",
     auth: { token },
     // Prevent socket.io from reconnecting indefinitely on auth failure.
     reconnectionAttempts: 5,

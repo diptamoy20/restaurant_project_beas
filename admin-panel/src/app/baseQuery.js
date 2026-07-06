@@ -1,5 +1,6 @@
 import { fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+import { getApiBaseUrl } from "../config/env";
 import { logout } from "../features/auth/authSlice";
 import { loadPersistedAuth } from "../utils/auth";
 
@@ -13,9 +14,7 @@ function getAuthToken(state) {
 }
 
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: (
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:4001/api"
-  ).replace(/\/$/, ""),
+  baseUrl: getApiBaseUrl(),
   prepareHeaders: (headers, { arg, getState }) => {
     const token = getAuthToken(getState());
 

@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { setAuthRefreshHandler, setAuthTokenGetter, setUnauthorizedHandler } from '../lib/api';
+import { setAuthTokenResolver } from '../services/authToken';
 import authReducer from './slices/authSlice';
 import { logout, refreshSession } from './slices/authSlice';
 import cartReducer from './slices/cartSlice';
@@ -22,6 +23,18 @@ export const store = configureStore({
 });
 
 setAuthTokenGetter(() => store.getState().auth?.token ?? null);
+setAuthTokenResolver({
+  getToken: () => store.getState().auth?.token ?? null,
+  refreshToken: async () => {
+    const result = await store.dispatch(refreshSession());
+
+    if (refreshSession.fulfilled.match(result)) {
+      return result.payload.token;
+    }
+
+    return null;
+  },
+});
 setAuthRefreshHandler(async () => {
   const result = await store.dispatch(refreshSession());
 

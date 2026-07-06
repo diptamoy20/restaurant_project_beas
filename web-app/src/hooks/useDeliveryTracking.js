@@ -22,6 +22,7 @@ export function useDeliveryTracking(orderId, open) {
     }
 
     let cancelled = false;
+    let unsubscribe = () => {};
 
     const loadTracking = async () => {
       setLoading(true);
@@ -37,19 +38,19 @@ export function useDeliveryTracking(orderId, open) {
       } catch (requestError) {
         if (!cancelled) {
           setError(requestError.message ?? "Unable to load tracking.");
+          setSocketState("error");
         }
+        return;
       } finally {
         if (!cancelled) {
           setLoading(false);
         }
       }
-    };
 
-    loadTracking();
+      if (cancelled) {
+        return;
+      }
 
-    let unsubscribe = () => {};
-
-    try {
       unsubscribe = deliveryTrackingSocket.subscribe(orderId, {
         onSnapshot: (snapshot) => {
           if (!cancelled) {
@@ -80,12 +81,9 @@ export function useDeliveryTracking(orderId, open) {
           }
         },
       });
-    } catch (subscriptionError) {
-      if (!cancelled) {
-        setError(subscriptionError.message ?? "Unable to connect to live tracking.");
-        setSocketState("error");
-      }
-    }
+    };
+
+    loadTracking();
 
     return () => {
       cancelled = true;

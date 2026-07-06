@@ -1,12 +1,10 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 
 import { baseQueryWithAuth } from "../app/baseQuery";
+import { getApiBaseUrl } from "../config/env";
 import { loadPersistedAuth } from "../utils/auth";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:4001/api").replace(
-  /\/$/,
-  "",
-);
+const API_BASE_URL = getApiBaseUrl();
 
 function getStoredToken() {
   const auth = loadPersistedAuth();

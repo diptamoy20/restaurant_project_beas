@@ -15,6 +15,7 @@ import {
   useGetRestaurantTablesQuery,
   useUpdateRestaurantTableMutation,
 } from '../services/restaurantApi';
+import { getApiBaseUrl } from '../config/env';
 import { loadPersistedAuth } from '../utils/auth';
 
 const tableStatusOptions = [
@@ -22,7 +23,7 @@ const tableStatusOptions = [
   { label: 'INACTIVE', value: 'INACTIVE' },
 ];
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001/api').replace(/\/$/, '');
+const apiBaseUrl = getApiBaseUrl();
 
 function getAuthToken() {
   const auth = loadPersistedAuth();

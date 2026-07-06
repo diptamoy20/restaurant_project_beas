@@ -4,17 +4,10 @@ import {
   isTrackingSocketDebugEnabled,
   resolveTrackingSocketUrl,
 } from "../config/trackingSocket";
-import { loadUserFromStorage } from "./authStorage";
-
-function resolveAccessToken() {
-  const token = loadUserFromStorage()?.token ?? null;
-
-  if (!token || token === "undefined" || token === "null") {
-    return null;
-  }
-
-  return token.trim();
-}
+import {
+  getValidAccessToken,
+  isAuthTokenError,
+} from "./authToken";
 
 class DeliveryTrackingSocketManager {
   constructor() {
@@ -24,27 +17,47 @@ class DeliveryTrackingSocketManager {
     this.joinedRooms = new Set();
     this.globalHandlersAttached = false;
     this.connectionListeners = new Set();
+    this.connectPromise = null;
+    this.authRetryUsed = false;
+    this.onReconnectAttempt = async () => {
+      const token = await getValidAccessToken({ forceRefresh: true });
+
+      if (token && this.socket) {
+        this.socket.auth = { token };
+      }
+    };
   }
 
-  ensureConnected() {
-    const token = resolveAccessToken();
+  async ensureConnected() {
+    const token = await getValidAccessToken();
 
     if (!token) {
       throw new Error("Sign in again to track your delivery.");
     }
 
     if (this.socket?.connected) {
+      this.socket.auth = { token };
       return this.socket;
     }
 
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    this.connectPromise = this.openSocket(token).finally(() => {
+      this.connectPromise = null;
+    });
+
+    return this.connectPromise;
+  }
+
+  async openSocket(token) {
     if (!this.socket) {
       const socketUrl = resolveTrackingSocketUrl();
 
       if (isTrackingSocketDebugEnabled()) {
         console.info("[tracking] connecting to", socketUrl, {
-          api: import.meta.env.VITE_API_BASE_URL,
-          socket: import.meta.env.VITE_SOCKET_URL,
-          tracking: import.meta.env.VITE_TRACKING_SOCKET_URL,
+          dev: import.meta.env.DEV,
           mode: import.meta.env.MODE,
         });
       }
@@ -68,7 +81,49 @@ class DeliveryTrackingSocketManager {
     }
 
     if (!this.socket.connected) {
-      this.socket.connect();
+      await new Promise((resolve, reject) => {
+        const socket = this.socket;
+        let settled = false;
+
+        const cleanup = () => {
+          socket.off("connect", onConnect);
+          socket.off("connect_error", onConnectError);
+          socket.off("tracking:error", onTrackingError);
+        };
+
+        const finish = (callback) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          cleanup();
+          callback();
+        };
+
+        const onConnect = () => {
+          finish(resolve);
+        };
+
+        const onConnectError = (error) => {
+          finish(() => {
+            reject(error);
+          });
+        };
+
+        const onTrackingError = (payload) => {
+          if (isAuthTokenError(payload?.message)) {
+            finish(() => {
+              reject(new Error(payload.message ?? "Tracking authentication failed"));
+            });
+          }
+        };
+
+        socket.once("connect", onConnect);
+        socket.once("connect_error", onConnectError);
+        socket.once("tracking:error", onTrackingError);
+        socket.connect();
+      });
     }
 
     return this.socket;
@@ -81,7 +136,10 @@ class DeliveryTrackingSocketManager {
 
     this.globalHandlersAttached = true;
 
+    this.socket.io.on("reconnect_attempt", this.onReconnectAttempt);
+
     this.socket.on("connect", () => {
+      this.authRetryUsed = false;
       this.notifyConnection("connected");
       this.rejoinActiveRooms();
     });
@@ -90,7 +148,7 @@ class DeliveryTrackingSocketManager {
       this.notifyConnection("disconnected", reason);
     });
 
-    this.socket.on("connect_error", (error) => {
+    this.socket.on("connect_error", async (error) => {
       const message = error?.message ?? "Connection failed";
 
       if (isTrackingSocketDebugEnabled()) {
@@ -98,6 +156,17 @@ class DeliveryTrackingSocketManager {
           url: this.lastSocketUrl ?? resolveTrackingSocketUrl(),
           message,
         });
+      }
+
+      if (!this.authRetryUsed && isAuthTokenError(message)) {
+        this.authRetryUsed = true;
+        const refreshed = await getValidAccessToken({ forceRefresh: true });
+
+        if (refreshed && this.socket) {
+          this.socket.auth = { token: refreshed };
+          this.socket.connect();
+          return;
+        }
       }
 
       this.notifyConnection("error", message);
@@ -122,14 +191,43 @@ class DeliveryTrackingSocketManager {
       }
     });
 
-    this.socket.on("tracking:error", (payload) => {
-      this.notifyConnection("error", payload?.message ?? "Tracking error");
+    this.socket.on("tracking:error", async (payload) => {
+      const message = payload?.message ?? "Tracking error";
+
+      if (!this.authRetryUsed && isAuthTokenError(message)) {
+        this.authRetryUsed = true;
+        const refreshed = await getValidAccessToken({ forceRefresh: true });
+
+        if (refreshed && this.socket) {
+          this.teardownSocketOnly();
+          try {
+            await this.ensureConnected();
+            this.rejoinActiveRooms();
+            return;
+          } catch {
+            // fall through to error reporting
+          }
+        }
+      }
+
+      this.notifyConnection("error", message);
       this.subscriptions.forEach((listeners) => {
         listeners.forEach((listener) => {
-          listener.onError?.(payload?.message ?? "Tracking error");
+          listener.onError?.(message);
         });
       });
     });
+  }
+
+  teardownSocketOnly() {
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.io.off("reconnect_attempt", this.onReconnectAttempt);
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
+    this.globalHandlersAttached = false;
   }
 
   rejoinActiveRooms() {
@@ -188,15 +286,20 @@ class DeliveryTrackingSocketManager {
 
     this.subscriptions.get(roomKey).add(listener);
 
-    const socket = this.ensureConnected();
-
     if (!this.joinedRooms.has(roomKey)) {
       this.joinedRooms.add(roomKey);
     }
 
-    if (socket.connected) {
-      this.emitTrackJoin(orderId);
-    }
+    void this.ensureConnected()
+      .then((socket) => {
+        if (socket.connected) {
+          this.emitTrackJoin(orderId);
+        }
+      })
+      .catch((error) => {
+        listener.onError?.(error?.message ?? "Unable to connect to live tracking.");
+        listener.onConnectionChange?.("error", error?.message);
+      });
 
     return () => this.unsubscribe(orderId, listener);
   }
@@ -222,14 +325,9 @@ class DeliveryTrackingSocketManager {
   }
 
   teardown() {
-    if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
-    }
-
-    this.globalHandlersAttached = false;
+    this.teardownSocketOnly();
     this.joinedRooms.clear();
+    this.authRetryUsed = false;
     this.notifyConnection("disconnected");
   }
 }

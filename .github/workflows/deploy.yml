@@ -222,6 +222,7 @@ jobs:
               echo "Missing $APP_DIR/admin-panel/.env — create it on the server before deploying."
               exit 1
             fi
+            node "$APP_DIR/scripts/ensure-admin-env.mjs"
             npm ci --include=dev
             npm run build
 
