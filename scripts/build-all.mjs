@@ -2,20 +2,8 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
-import { resolveWebAppSocketEnv } from './resolve-socket-origin.mjs';
-
 const rootDir = process.cwd();
 const backendPort = process.env.PORT ?? '4000';
-const apiBaseUrl = process.env.VITE_API_BASE_URL ?? `http://localhost:${backendPort}/api`;
-const webSocketEnv = resolveWebAppSocketEnv({
-  apiBaseUrl,
-  socketUrl: process.env.VITE_SOCKET_URL,
-  trackingSocketUrl: process.env.VITE_TRACKING_SOCKET_URL,
-  publicApiUrl: process.env.PUBLIC_API_URL,
-  backendPort,
-});
-const socketOrigin = webSocketEnv.VITE_SOCKET_URL;
-const trackingSocketUrl = webSocketEnv.VITE_TRACKING_SOCKET_URL;
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const projects = [
@@ -30,29 +18,17 @@ const projects = [
   {
     name: 'web-app',
     cwd: path.join(rootDir, 'web-app'),
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
-      VITE_SOCKET_URL: socketOrigin,
-      VITE_TRACKING_SOCKET_URL: trackingSocketUrl,
-    },
+    env: process.env,
   },
   {
     name: 'admin-panel',
     cwd: path.join(rootDir, 'admin-panel'),
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
-      VITE_SOCKET_URL: socketOrigin,
-    },
+    env: process.env,
   },
   {
     name: 'qr-ordering-frontend',
     cwd: path.join(rootDir, 'qr-ordering-frontend'),
-    env: {
-      ...process.env,
-      VITE_API_BASE_URL: apiBaseUrl,
-    },
+    env: process.env,
   },
 ];
 

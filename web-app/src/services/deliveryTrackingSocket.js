@@ -2,7 +2,6 @@ import { io } from "socket.io-client";
 
 import {
   isTrackingSocketDebugEnabled,
-  resolveTrackingSocketSource,
   resolveTrackingSocketUrl,
 } from "../config/trackingSocket";
 import { loadUserFromStorage } from "./authStorage";
@@ -43,7 +42,9 @@ class DeliveryTrackingSocketManager {
 
       if (isTrackingSocketDebugEnabled()) {
         console.info("[tracking] connecting to", socketUrl, {
-          source: resolveTrackingSocketSource(),
+          api: import.meta.env.VITE_API_BASE_URL,
+          socket: import.meta.env.VITE_SOCKET_URL,
+          tracking: import.meta.env.VITE_TRACKING_SOCKET_URL,
           mode: import.meta.env.MODE,
         });
       }
@@ -92,11 +93,12 @@ class DeliveryTrackingSocketManager {
     this.socket.on("connect_error", (error) => {
       const message = error?.message ?? "Connection failed";
 
-      console.error("[tracking] connection failed", {
-        url: this.lastSocketUrl ?? resolveTrackingSocketUrl(),
-        source: resolveTrackingSocketSource(),
-        message,
-      });
+      if (isTrackingSocketDebugEnabled()) {
+        console.error("[tracking] connection failed", {
+          url: this.lastSocketUrl ?? resolveTrackingSocketUrl(),
+          message,
+        });
+      }
 
       this.notifyConnection("error", message);
     });
