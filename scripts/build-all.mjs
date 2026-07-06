@@ -2,34 +2,20 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
+import { resolveWebAppSocketEnv } from './resolve-socket-origin.mjs';
+
 const rootDir = process.cwd();
 const backendPort = process.env.PORT ?? '4000';
-function resolveSocketOriginFromApiBase(apiBaseUrl) {
-  const normalized = String(apiBaseUrl ?? "").replace(/\/$/, "");
-  if (!normalized) {
-    return null;
-  }
-
-  if (normalized.endsWith("/api")) {
-    return normalized.slice(0, -4);
-  }
-
-  return normalized;
-}
-
-function resolveSocketOrigin(apiBaseUrl, socketUrl) {
-  if (socketUrl) {
-    return socketUrl.replace(/\/$/, "");
-  }
-
-  return resolveSocketOriginFromApiBase(apiBaseUrl);
-}
-
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? `http://localhost:${backendPort}/api`;
-const socketOrigin = resolveSocketOrigin(apiBaseUrl, process.env.VITE_SOCKET_URL);
-const trackingSocketUrl =
-  process.env.VITE_TRACKING_SOCKET_URL ??
-  `${socketOrigin}/delivery-tracking`;
+const webSocketEnv = resolveWebAppSocketEnv({
+  apiBaseUrl,
+  socketUrl: process.env.VITE_SOCKET_URL,
+  trackingSocketUrl: process.env.VITE_TRACKING_SOCKET_URL,
+  publicApiUrl: process.env.PUBLIC_API_URL,
+  backendPort,
+});
+const socketOrigin = webSocketEnv.VITE_SOCKET_URL;
+const trackingSocketUrl = webSocketEnv.VITE_TRACKING_SOCKET_URL;
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const projects = [

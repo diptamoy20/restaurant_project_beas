@@ -90,9 +90,24 @@ jobs:
         working-directory: ${{ env.WEB_APP_DIR }}
         run: npm ci
 
+      - name: Resolve web-app socket env
+        run: |
+          while IFS= read -r line; do
+            echo "$line" >> "$GITHUB_ENV"
+          done < <(node scripts/print-vite-socket-env.mjs)
+        env:
+          PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
+          PUBLIC_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL }}
+
       - name: Build web-app
         working-directory: ${{ env.WEB_APP_DIR }}
         run: npm run build
+
+      - name: Verify web-app tracking socket URL in build
+        run: node scripts/verify-web-socket-build.mjs
+        env:
+          PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
+          PUBLIC_SOCKET_URL: ${{ vars.PUBLIC_SOCKET_URL }}
 
       - name: Install admin-panel dependencies
         working-directory: ${{ env.ADMIN_PANEL_DIR }}
@@ -206,12 +221,14 @@ jobs:
             fi
 
             cd "$APP_DIR/web-app"
-            SOCKET_ORIGIN="${PUBLIC_SOCKET_URL:-${PUBLIC_API_URL:-${PUBLIC_API_BASE_URL%/api}}}"
+            while IFS= read -r line; do
+              export "$line"
+            done < <(node "$APP_DIR/scripts/print-vite-socket-env.mjs")
             export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
-            export VITE_SOCKET_URL="$SOCKET_ORIGIN"
-            export VITE_TRACKING_SOCKET_URL="${SOCKET_ORIGIN}/delivery-tracking"
+            echo "Web app socket env: VITE_SOCKET_URL=$VITE_SOCKET_URL VITE_TRACKING_SOCKET_URL=$VITE_TRACKING_SOCKET_URL"
             npm ci --include=dev
             npm run build
+            node "$APP_DIR/scripts/verify-web-socket-build.mjs"
 
             if pm2 describe "$WEB_PM2_APP_NAME" >/dev/null 2>&1; then
               pm2 delete "$WEB_PM2_APP_NAME"
@@ -219,9 +236,11 @@ jobs:
             pm2 serve "$APP_DIR/web-app/dist" "$WEB_APP_PORT" --name "$WEB_PM2_APP_NAME" --spa
 
             cd "$APP_DIR/admin-panel"
-            SOCKET_ORIGIN="${PUBLIC_SOCKET_URL:-${PUBLIC_API_URL:-${PUBLIC_API_BASE_URL%/api}}}"
+            while IFS= read -r line; do
+              export "$line"
+            done < <(node "$APP_DIR/scripts/print-vite-socket-env.mjs")
             export VITE_API_BASE_URL="$PUBLIC_API_BASE_URL"
-            export VITE_SOCKET_URL="$SOCKET_ORIGIN"
+            echo "Admin panel socket env: VITE_SOCKET_URL=$VITE_SOCKET_URL"
             npm ci --include=dev
             npm run build
 

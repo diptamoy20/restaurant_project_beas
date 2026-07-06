@@ -37,11 +37,15 @@ export function deriveSocketOriginFromApiBase(apiBaseUrl) {
 /**
  * Resolves the Socket.IO namespace URL for delivery tracking.
  *
+ * `/delivery-tracking` is a Socket.IO namespace (not a custom HTTP path).
+ * The client still polls at `{origin}/socket.io/` while joining namespace `/delivery-tracking`.
+ *
  * Priority:
  * 1. VITE_TRACKING_SOCKET_URL — full URL including namespace
- * 2. VITE_SOCKET_URL — server origin; namespace is appended
- * 3. VITE_API_BASE_URL — origin derived by stripping /api
- * 4. Local development fallback
+ * 2. VITE_SOCKET_PORT + API host — when REST API is proxied on a different port
+ * 3. VITE_SOCKET_URL — server origin; namespace is appended
+ * 4. VITE_API_BASE_URL — origin derived by stripping /api
+ * 5. Local development fallback
  *
  * Production safety: if VITE_SOCKET_URL points to localhost but the API base
  * URL is remote, localhost is ignored so deploy builds never target local sockets.
@@ -54,6 +58,19 @@ export function resolveTrackingSocketUrl() {
   }
 
   const apiOrigin = deriveSocketOriginFromApiBase(import.meta.env.VITE_API_BASE_URL);
+  const socketPort = import.meta.env.VITE_SOCKET_PORT;
+
+  if (socketPort && socketPort !== "undefined" && apiOrigin) {
+    try {
+      const base = apiOrigin.startsWith("http") ? apiOrigin : `http://${apiOrigin}`;
+      const url = new URL(base);
+      url.port = String(socketPort);
+      return `${normalizeUrl(url.origin)}${TRACKING_NAMESPACE}`;
+    } catch {
+      // fall through to other resolvers
+    }
+  }
+
   const socketOrigin = import.meta.env.VITE_SOCKET_URL;
 
   if (socketOrigin && socketOrigin !== "undefined") {
@@ -94,6 +111,10 @@ export function resolveTrackingSocketSource() {
 
   if (explicitSocketUrl && explicitSocketUrl !== "undefined") {
     return "VITE_TRACKING_SOCKET_URL";
+  }
+
+  if (import.meta.env.VITE_SOCKET_PORT && import.meta.env.VITE_SOCKET_PORT !== "undefined") {
+    return "VITE_SOCKET_PORT";
   }
 
   const socketOrigin = import.meta.env.VITE_SOCKET_URL;
