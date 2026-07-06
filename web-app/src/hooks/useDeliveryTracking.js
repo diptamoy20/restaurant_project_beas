@@ -51,35 +51,35 @@ export function useDeliveryTracking(orderId, open) {
 
     try {
       unsubscribe = deliveryTrackingSocket.subscribe(orderId, {
-      onSnapshot: (snapshot) => {
-        if (!cancelled) {
-          applyTracking(snapshot);
-          setError(null);
-        }
-      },
-      onOrderUpdated: (payload) => {
-        if (!cancelled) {
-          setTracking((current) => {
-            const merged = mergeTrackingSocketUpdate(
-              current ?? trackingRef.current,
-              payload,
-            );
-            trackingRef.current = merged;
-            return merged;
-          });
-        }
-      },
-      onConnectionChange: (state) => {
-        if (!cancelled) {
-          setSocketState(state);
-        }
-      },
-      onError: (message) => {
-        if (!cancelled) {
-          setError(message);
-        }
-      },
-    });
+        onSnapshot: (snapshot) => {
+          if (!cancelled) {
+            applyTracking(snapshot);
+            setError(null);
+          }
+        },
+        onOrderUpdated: (payload) => {
+          if (!cancelled) {
+            setTracking((current) => {
+              const merged = mergeTrackingSocketUpdate(
+                current ?? trackingRef.current,
+                payload,
+              );
+              trackingRef.current = merged;
+              return merged;
+            });
+          }
+        },
+        onConnectionChange: (state) => {
+          if (!cancelled) {
+            setSocketState(state);
+          }
+        },
+        onError: (message) => {
+          if (!cancelled) {
+            setError(message);
+          }
+        },
+      });
     } catch (subscriptionError) {
       if (!cancelled) {
         setError(subscriptionError.message ?? "Unable to connect to live tracking.");
