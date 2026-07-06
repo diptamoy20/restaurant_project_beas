@@ -20,6 +20,7 @@ function resolveAccessToken() {
 class DeliveryTrackingSocketManager {
   constructor() {
     this.socket = null;
+    this.lastSocketUrl = null;
     this.subscriptions = new Map();
     this.joinedRooms = new Set();
     this.globalHandlersAttached = false;
@@ -46,6 +47,8 @@ class DeliveryTrackingSocketManager {
           mode: import.meta.env.MODE,
         });
       }
+
+      this.lastSocketUrl = socketUrl;
 
       this.socket = io(socketUrl, {
         autoConnect: false,
@@ -87,7 +90,15 @@ class DeliveryTrackingSocketManager {
     });
 
     this.socket.on("connect_error", (error) => {
-      this.notifyConnection("error", error?.message ?? "Connection failed");
+      const message = error?.message ?? "Connection failed";
+
+      console.error("[tracking] connection failed", {
+        url: this.lastSocketUrl ?? resolveTrackingSocketUrl(),
+        source: resolveTrackingSocketSource(),
+        message,
+      });
+
+      this.notifyConnection("error", message);
     });
 
     this.socket.on("tracking:connected", () => {
