@@ -2,6 +2,7 @@ import { io } from "socket.io-client";
 
 import {
   isTrackingSocketDebugEnabled,
+  resolveTrackingSocketSource,
   resolveTrackingSocketUrl,
 } from "../config/trackingSocket";
 import { loadUserFromStorage } from "./authStorage";
@@ -40,7 +41,10 @@ class DeliveryTrackingSocketManager {
       const socketUrl = resolveTrackingSocketUrl();
 
       if (isTrackingSocketDebugEnabled()) {
-        console.info("[tracking] connecting to", socketUrl);
+        console.info("[tracking] connecting to", socketUrl, {
+          source: resolveTrackingSocketSource(),
+          mode: import.meta.env.MODE,
+        });
       }
 
       this.socket = io(socketUrl, {

@@ -85,3 +85,26 @@ export function resolveTrackingSocketUrl() {
 export function isTrackingSocketDebugEnabled() {
   return import.meta.env.VITE_DEBUG_SOCKET === "true";
 }
+
+/**
+ * Describes which env variable selected the socket URL (for debug logging).
+ */
+export function resolveTrackingSocketSource() {
+  const explicitSocketUrl = import.meta.env.VITE_TRACKING_SOCKET_URL;
+
+  if (explicitSocketUrl && explicitSocketUrl !== "undefined") {
+    return "VITE_TRACKING_SOCKET_URL";
+  }
+
+  const socketOrigin = import.meta.env.VITE_SOCKET_URL;
+
+  if (socketOrigin && socketOrigin !== "undefined") {
+    return "VITE_SOCKET_URL";
+  }
+
+  if (deriveSocketOriginFromApiBase(import.meta.env.VITE_API_BASE_URL)) {
+    return "VITE_API_BASE_URL";
+  }
+
+  return "fallback";
+}
