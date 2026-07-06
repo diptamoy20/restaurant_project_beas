@@ -299,7 +299,7 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
     restaurant: { latitude: number; longitude: number; id: number } | null | undefined,
     deliveryId?: number,
   ): DeliveryTrackingLogDto | null {
-    if (restaurant) {
+    if (trackingLog) {
       return {
         id: trackingLog.id,
         deliveryId: trackingLog.deliveryId,
@@ -308,7 +308,7 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
         speed: trackingLog.speed ?? null,
         heading: trackingLog.heading ?? null,
         recordedAt: trackingLog.recordedAt,
-        source: 'driver',
+        source: trackingLog.source ?? 'driver',
       };
     }
 
@@ -322,12 +322,12 @@ export class DeliveriesGateway implements OnGatewayConnection, OnGatewayInit {
     if (restaurantFallbackStatuses.has(status) && restaurant) {
       return {
         id: 0,
-        deliveryId: 0,
+        deliveryId: deliveryId ?? 0,
         latitude: restaurant.latitude,
         longitude: restaurant.longitude,
         speed: null,
         heading: null,
-        recordedAt: null,
+        recordedAt: new Date(),
         source: 'restaurant',
       };
     }
