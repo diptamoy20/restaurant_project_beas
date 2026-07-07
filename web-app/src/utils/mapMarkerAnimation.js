@@ -1,6 +1,5 @@
 const MIN_DURATION_MS = 450;
 const MAX_DURATION_MS = 1400;
-const DEFAULT_DURATION_MS = 900;
 
 function lerp(start, end, progress) {
   return start + (end - start) * progress;
@@ -49,17 +48,28 @@ export function createMarkerAnimator(marker) {
     }
   };
 
+  const getSettledPosition = () => settledPosition;
+
+  const getCurrentPosition = () => {
+    if (!marker.getElement().isConnected) {
+      return settledPosition;
+    }
+
+    return toLngLatArray(marker.getLngLat());
+  };
+
   const setImmediate = (coordinates, map) => {
     cancel();
 
     if (!coordinates) {
       marker.remove();
       settledPosition = null;
-      return;
+      return 0;
     }
 
     marker.setLngLat(coordinates).addTo(map);
     settledPosition = coordinates;
+    return 0;
   };
 
   const animateTo = (targetCoordinates, map) => {
@@ -67,23 +77,21 @@ export function createMarkerAnimator(marker) {
       cancel();
       marker.remove();
       settledPosition = null;
-      return;
+      return 0;
     }
 
     if (!settledPosition) {
       setImmediate(targetCoordinates, map);
-      return;
+      return 0;
     }
 
-    const startCoordinates = marker.getElement().isConnected
-      ? toLngLatArray(marker.getLngLat())
-      : settledPosition;
+    const startCoordinates = getCurrentPosition() ?? settledPosition;
 
     if (coordinatesEqual(startCoordinates, targetCoordinates)) {
       cancel();
       settledPosition = targetCoordinates;
       marker.setLngLat(targetCoordinates);
-      return;
+      return 0;
     }
 
     cancel();
@@ -109,11 +117,14 @@ export function createMarkerAnimator(marker) {
     };
 
     animationFrameId = requestAnimationFrame(step);
+    return durationMs;
   };
 
   return {
     animateTo,
     cancel,
     setImmediate,
+    getSettledPosition,
+    getCurrentPosition,
   };
 }

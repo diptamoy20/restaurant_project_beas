@@ -4754,7 +4754,6 @@ body.modal-open {
   width: 3.25rem;
   height: 3.25rem;
   transform-origin: center center;
-  transition: transform 0.25s ease;
 }
 
 .track-map-rider-marker img {
