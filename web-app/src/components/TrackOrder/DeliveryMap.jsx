@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import riderMarkerUrl from "../../assets/delivery-rider-marker.png";
 import { fetchRouteGeometry } from "../../utils/deliveryRoute";
+import { createHeadingAnimator, resolveMarkerHeading } from "../../utils/markerHeading";
 import { createMarkerAnimator } from "../../utils/mapMarkerAnimation";
 import {
   resolveRestaurantLocation,
@@ -72,6 +73,8 @@ export function DeliveryMap({
   const mapRef = useRef(null);
   const riderMarkerRef = useRef(null);
   const riderAnimatorRef = useRef(null);
+  const headingAnimatorRef = useRef(null);
+  const lastHeadingRef = useRef(null);
   const restaurantMarkerRef = useRef(null);
   const destinationMarkerRef = useRef(null);
   const routeRequestRef = useRef(0);
@@ -116,6 +119,9 @@ export function DeliveryMap({
       anchor: "center",
     });
     riderAnimatorRef.current = createMarkerAnimator(riderMarkerRef.current);
+    headingAnimatorRef.current = createHeadingAnimator(
+      riderMarkerRef.current.getElement(),
+    );
 
     restaurantMarkerRef.current = new maplibregl.Marker({
       element: createPinElement("track-map-pin track-map-pin--restaurant", "R"),
@@ -135,6 +141,7 @@ export function DeliveryMap({
       }
 
       riderAnimatorRef.current?.cancel();
+      headingAnimatorRef.current?.cancel();
       riderMarkerRef.current?.remove();
       restaurantMarkerRef.current?.remove();
       destinationMarkerRef.current?.remove();
@@ -142,6 +149,8 @@ export function DeliveryMap({
       mapRef.current = null;
       riderMarkerRef.current = null;
       riderAnimatorRef.current = null;
+      headingAnimatorRef.current = null;
+      lastHeadingRef.current = null;
       restaurantMarkerRef.current = null;
       destinationMarkerRef.current = null;
     };
@@ -267,29 +276,38 @@ export function DeliveryMap({
     const map = mapRef.current;
     const riderMarker = riderMarkerRef.current;
     const riderAnimator = riderAnimatorRef.current;
+    const headingAnimator = headingAnimatorRef.current;
 
-    if (!map || !riderMarker || !riderAnimator) {
+    if (!map || !riderMarker || !riderAnimator || !headingAnimator) {
       return;
     }
 
-    const riderElement = riderMarker.getElement();
     const nextCoordinates = toCoordinates(markerLocation);
 
     if (!nextCoordinates) {
       riderAnimator.setImmediate(null, map);
-      riderElement.style.transform = "";
+      headingAnimator.setImmediate(null);
+      lastHeadingRef.current = null;
       return;
     }
 
-    const heading = Number(markerLocation?.heading);
+    const previousCoordinates =
+      riderAnimator.getCurrentPosition() ?? riderAnimator.getSettledPosition();
+    const targetHeading = resolveMarkerHeading({
+      previousCoordinates,
+      nextCoordinates,
+      backendHeading: markerLocation?.heading,
+      lastHeading: lastHeadingRef.current,
+    });
 
-    if (Number.isFinite(heading)) {
-      riderElement.style.transform = `rotate(${heading}deg)`;
-    } else {
-      riderElement.style.transform = "";
+    const movementDurationMs = riderAnimator.animateTo(nextCoordinates, map);
+
+    if (targetHeading != null) {
+      lastHeadingRef.current = targetHeading;
+      headingAnimator.animateTo(targetHeading, {
+        durationMs: movementDurationMs > 0 ? movementDurationMs : undefined,
+      });
     }
-
-    riderAnimator.animateTo(nextCoordinates, map);
   }, [markerLocation?.heading, markerLocation?.latitude, markerLocation?.longitude]);
 
   useEffect(() => {
