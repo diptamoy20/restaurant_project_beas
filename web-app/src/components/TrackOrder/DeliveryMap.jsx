@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import riderMarkerUrl from "../../assets/delivery-rider-marker.png";
 import { fetchRouteGeometry } from "../../utils/deliveryRoute";
+import { createMarkerAnimator } from "../../utils/mapMarkerAnimation";
 import {
   resolveRestaurantLocation,
   shouldDrawDeliveryRoute,
@@ -11,17 +12,9 @@ import {
 } from "../../utils/trackOrder";
 
 const DEFAULT_CENTER = [88.3639, 22.5726];
-const ANIMATION_MS = 900;
 const ROUTE_SOURCE_ID = "delivery-route";
 const ROUTE_LAYER_ID = "delivery-route-line";
-
-function lerp(start, end, progress) {
-  return start + (end - start) * progress;
-}
-
-function easeOutCubic(progress) {
-  return 1 - (1 - progress) ** 3;
-}
+const ROUTE_DEBOUNCE_MS = 600;
 
 function createPinElement(className, label) {
   const element = document.createElement("div");
@@ -69,6 +62,7 @@ function fitMapToPoints(map, coordinates) {
 
 export function DeliveryMap({
   markerLocation,
+  routeOrigin,
   tracking,
   destination,
   orderStatus,
@@ -77,11 +71,11 @@ export function DeliveryMap({
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const riderMarkerRef = useRef(null);
+  const riderAnimatorRef = useRef(null);
   const restaurantMarkerRef = useRef(null);
   const destinationMarkerRef = useRef(null);
-  const animationRef = useRef(null);
-  const markerPositionRef = useRef(null);
   const routeRequestRef = useRef(0);
+  const routeDebounceRef = useRef(null);
   const restaurant = resolveRestaurantLocation(tracking);
   const showRoute = shouldDrawDeliveryRoute(orderStatus);
 
@@ -121,6 +115,7 @@ export function DeliveryMap({
       element: createRiderElement(),
       anchor: "center",
     });
+    riderAnimatorRef.current = createMarkerAnimator(riderMarkerRef.current);
 
     restaurantMarkerRef.current = new maplibregl.Marker({
       element: createPinElement("track-map-pin track-map-pin--restaurant", "R"),
@@ -135,19 +130,20 @@ export function DeliveryMap({
     mapRef.current = map;
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      if (routeDebounceRef.current) {
+        clearTimeout(routeDebounceRef.current);
       }
 
+      riderAnimatorRef.current?.cancel();
       riderMarkerRef.current?.remove();
       restaurantMarkerRef.current?.remove();
       destinationMarkerRef.current?.remove();
       map.remove();
       mapRef.current = null;
       riderMarkerRef.current = null;
+      riderAnimatorRef.current = null;
       restaurantMarkerRef.current = null;
       destinationMarkerRef.current = null;
-      markerPositionRef.current = null;
     };
   }, []);
 
@@ -188,21 +184,25 @@ export function DeliveryMap({
       return undefined;
     }
 
+    const clearRoute = () => {
+      if (map.getLayer(ROUTE_LAYER_ID)) {
+        map.removeLayer(ROUTE_LAYER_ID);
+      }
+      if (map.getSource(ROUTE_SOURCE_ID)) {
+        map.removeSource(ROUTE_SOURCE_ID);
+      }
+    };
+
     const updateRoute = async () => {
       const requestId = routeRequestRef.current + 1;
       routeRequestRef.current = requestId;
 
-      if (!showRoute) {
-        if (map.getLayer(ROUTE_LAYER_ID)) {
-          map.removeLayer(ROUTE_LAYER_ID);
-        }
-        if (map.getSource(ROUTE_SOURCE_ID)) {
-          map.removeSource(ROUTE_SOURCE_ID);
-        }
+      if (!showRoute || !routeOrigin) {
+        clearRoute();
         return;
       }
 
-      const routeFeature = await fetchRouteGeometry(restaurant, destination);
+      const routeFeature = await fetchRouteGeometry(routeOrigin, destination);
 
       if (requestId !== routeRequestRef.current || !mapRef.current) {
         return;
@@ -235,28 +235,40 @@ export function DeliveryMap({
       }
     };
 
-    if (map.isStyleLoaded()) {
-      updateRoute();
-    } else {
-      map.once("load", updateRoute);
+    if (routeDebounceRef.current) {
+      clearTimeout(routeDebounceRef.current);
     }
+
+    routeDebounceRef.current = setTimeout(() => {
+      if (map.isStyleLoaded()) {
+        updateRoute();
+      } else {
+        map.once("load", updateRoute);
+      }
+    }, ROUTE_DEBOUNCE_MS);
 
     return () => {
       routeRequestRef.current += 1;
+
+      if (routeDebounceRef.current) {
+        clearTimeout(routeDebounceRef.current);
+        routeDebounceRef.current = null;
+      }
     };
   }, [
     destination?.latitude,
     destination?.longitude,
-    restaurant?.latitude,
-    restaurant?.longitude,
+    routeOrigin?.latitude,
+    routeOrigin?.longitude,
     showRoute,
   ]);
 
   useEffect(() => {
     const map = mapRef.current;
     const riderMarker = riderMarkerRef.current;
+    const riderAnimator = riderAnimatorRef.current;
 
-    if (!map || !riderMarker) {
+    if (!map || !riderMarker || !riderAnimator) {
       return;
     }
 
@@ -264,8 +276,7 @@ export function DeliveryMap({
     const nextCoordinates = toCoordinates(markerLocation);
 
     if (!nextCoordinates) {
-      riderMarker.remove();
-      markerPositionRef.current = null;
+      riderAnimator.setImmediate(null, map);
       riderElement.style.transform = "";
       return;
     }
@@ -278,45 +289,7 @@ export function DeliveryMap({
       riderElement.style.transform = "";
     }
 
-    const startCoordinates = markerPositionRef.current ?? nextCoordinates;
-
-    if (!markerPositionRef.current) {
-      riderMarker.setLngLat(nextCoordinates).addTo(map);
-      markerPositionRef.current = nextCoordinates;
-      return;
-    }
-
-    if (
-      startCoordinates[0] === nextCoordinates[0] &&
-      startCoordinates[1] === nextCoordinates[1]
-    ) {
-      return;
-    }
-
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
-
-    const startedAt = performance.now();
-
-    const animate = (timestamp) => {
-      const progress = Math.min((timestamp - startedAt) / ANIMATION_MS, 1);
-      const eased = easeOutCubic(progress);
-      const longitude = lerp(startCoordinates[0], nextCoordinates[0], eased);
-      const latitude = lerp(startCoordinates[1], nextCoordinates[1], eased);
-
-      riderMarker.setLngLat([longitude, latitude]);
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      markerPositionRef.current = nextCoordinates;
-      animationRef.current = null;
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
+    riderAnimator.animateTo(nextCoordinates, map);
   }, [markerLocation?.heading, markerLocation?.latitude, markerLocation?.longitude]);
 
   useEffect(() => {
@@ -327,30 +300,20 @@ export function DeliveryMap({
     }
 
     const focusCoordinates = [];
+    const restaurantCoordinates = toCoordinates(restaurant);
+    const destinationCoordinates = toCoordinates(destination);
+    const riderCoordinates = toCoordinates(markerLocation);
 
-    if (showRoute) {
-      const restaurantCoordinates = toCoordinates(restaurant);
-      const destinationCoordinates = toCoordinates(destination);
-      const riderCoordinates = toCoordinates(markerLocation);
+    if (restaurantCoordinates) {
+      focusCoordinates.push(restaurantCoordinates);
+    }
 
-      if (restaurantCoordinates) {
-        focusCoordinates.push(restaurantCoordinates);
-      }
-      if (destinationCoordinates) {
-        focusCoordinates.push(destinationCoordinates);
-      }
-      if (riderCoordinates) {
-        focusCoordinates.push(riderCoordinates);
-      }
-    } else {
-      const riderCoordinates = toCoordinates(markerLocation);
-      const restaurantCoordinates = toCoordinates(restaurant);
+    if (destinationCoordinates) {
+      focusCoordinates.push(destinationCoordinates);
+    }
 
-      if (riderCoordinates) {
-        focusCoordinates.push(riderCoordinates);
-      } else if (restaurantCoordinates) {
-        focusCoordinates.push(restaurantCoordinates);
-      }
+    if (riderCoordinates) {
+      focusCoordinates.push(riderCoordinates);
     }
 
     if (focusCoordinates.length === 0) {
@@ -374,20 +337,9 @@ export function DeliveryMap({
     showRoute,
   ]);
 
-  const showWaitingMessage =
-    orderStatus === "ON_THE_WAY" && !markerLocation;
-
   return (
     <div className="track-map-shell">
       <div ref={containerRef} className="track-map-canvas" aria-label="Delivery map" />
-      {showWaitingMessage ? (
-        <div className="track-map-empty">
-          <p>
-            Waiting for the rider&apos;s live GPS signal. Restaurant, destination, and route are
-            shown on the map.
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 }

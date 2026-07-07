@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { useDeliveryTracking } from "../../hooks/useDeliveryTracking";
 import {
-  resolveMarkerLocation,
-  resolveOrderStatus,
-} from "../../utils/trackOrder";
+  resolveRiderMarkerLocation,
+  resolveRouteOrigin,
+} from "../../utils/driverLocation";
+import { resolveOrderStatus, resolveRestaurantLocation } from "../../utils/trackOrder";
 import { DeliveryMap } from "./DeliveryMap";
 import { DeliveryStatus } from "./DeliveryStatus";
 import { OrderTimeline } from "./OrderTimeline";
@@ -12,13 +13,21 @@ import { formatCurrency, RiderInfo } from "./RiderInfo";
 
 export function TrackOrderModal({ open, order, onClose, onOrderUpdated }) {
   const orderId = order?.id ?? null;
-  const { tracking, loading, error, socketState, isReconnecting } =
+  const { tracking, driverLocation, hasLiveDriverGps, loading, error, socketState, isReconnecting } =
     useDeliveryTracking(orderId, open);
   const mapPanelRef = useRef(null);
   const [mapFocusSignal, setMapFocusSignal] = useState(0);
 
   const orderStatus = resolveOrderStatus(tracking, order);
-  const markerLocation = resolveMarkerLocation(tracking);
+  const restaurant = resolveRestaurantLocation(tracking);
+  const trackingContext = {
+    driverLocation,
+    hasLiveDriverGps,
+    orderStatus,
+    restaurant,
+  };
+  const markerLocation = resolveRiderMarkerLocation(trackingContext);
+  const routeOrigin = resolveRouteOrigin(trackingContext);
   const destination = tracking?.customer?.address ?? null;
   const itemsSummary = tracking?.order?.itemsSummary;
   const itemCount = itemsSummary?.itemCount ?? order?.items?.length ?? 0;
@@ -110,6 +119,7 @@ export function TrackOrderModal({ open, order, onClose, onOrderUpdated }) {
               <div className="track-modal-map">
                 <DeliveryMap
                   markerLocation={markerLocation}
+                  routeOrigin={routeOrigin}
                   tracking={tracking}
                   destination={destination}
                   orderStatus={orderStatus}
