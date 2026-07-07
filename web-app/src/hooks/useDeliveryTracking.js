@@ -2,19 +2,87 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { deliveryTrackingApi } from "../services/deliveryTrackingApi";
 import { deliveryTrackingSocket } from "../services/deliveryTrackingSocket";
-import { mergeTrackingSocketUpdate } from "../utils/trackOrder";
+import {
+  isLiveDriverGpsLocation,
+  mergeDriverLocation,
+} from "../utils/driverLocation";
+import {
+  mergeTrackingSocketUpdate,
+  resolveOrderStatus,
+} from "../utils/trackOrder";
+
+function mergeTrackingSnapshot(current, snapshot) {
+  if (!snapshot) {
+    return current;
+  }
+
+  if (!current) {
+    return snapshot;
+  }
+
+  return {
+    ...current,
+    ...snapshot,
+    order: snapshot.order
+      ? {
+          ...current.order,
+          ...snapshot.order,
+          itemsSummary: current.order?.itemsSummary ?? snapshot.order?.itemsSummary,
+          items: current.order?.items ?? snapshot.order?.items,
+        }
+      : current.order,
+    restaurant: snapshot.restaurant ?? current.restaurant,
+    customer: snapshot.customer ?? current.customer,
+    agent: snapshot.agent ?? current.agent,
+    trackingHistory: snapshot.trackingHistory ?? current.trackingHistory,
+    status: snapshot.status ?? current.status,
+  };
+}
+
+function seedLiveGpsFromLocation(location, applyLiveDriverLocation) {
+  if (!isLiveDriverGpsLocation(location)) {
+    return;
+  }
+
+  applyLiveDriverLocation(location);
+}
 
 export function useDeliveryTracking(orderId, open) {
   const [tracking, setTracking] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
+  const [hasLiveDriverGps, setHasLiveDriverGps] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [socketState, setSocketState] = useState("idle");
   const trackingRef = useRef(null);
+  const hasLiveDriverGpsRef = useRef(false);
+  const unsubscribeRef = useRef(() => {});
+  const trackingStoppedRef = useRef(false);
+
+  const applyLiveDriverLocation = useCallback((incoming) => {
+    if (!isLiveDriverGpsLocation(incoming)) {
+      return;
+    }
+
+    hasLiveDriverGpsRef.current = true;
+    setHasLiveDriverGps(true);
+    setDriverLocation((current) => {
+      const next = mergeDriverLocation(current, incoming);
+      return next === current ? current : next;
+    });
+  }, []);
 
   const applyTracking = useCallback((nextTracking) => {
     trackingRef.current = nextTracking;
     setTracking(nextTracking);
   }, []);
+
+  const applySocketLocation = useCallback(
+    (incoming) => {
+      applyLiveDriverLocation(incoming);
+    },
+    [applyLiveDriverLocation],
+  );
 
   useEffect(() => {
     if (!open || !orderId) {
@@ -22,7 +90,10 @@ export function useDeliveryTracking(orderId, open) {
     }
 
     let cancelled = false;
-    let unsubscribe = () => {};
+    hasLiveDriverGpsRef.current = false;
+    trackingStoppedRef.current = false;
+    setDriverLocation(null);
+    setHasLiveDriverGps(false);
 
     const loadTracking = async () => {
       setLoading(true);
@@ -34,6 +105,7 @@ export function useDeliveryTracking(orderId, open) {
 
         if (!cancelled) {
           applyTracking(snapshot);
+          seedLiveGpsFromLocation(snapshot?.latestLocation ?? null, applyLiveDriverLocation);
         }
       } catch (requestError) {
         if (!cancelled) {
@@ -51,24 +123,34 @@ export function useDeliveryTracking(orderId, open) {
         return;
       }
 
-      unsubscribe = deliveryTrackingSocket.subscribe(orderId, {
+      const unsubscribe = deliveryTrackingSocket.subscribe(orderId, {
         onSnapshot: (snapshot) => {
-          if (!cancelled) {
-            applyTracking(snapshot);
-            setError(null);
+          if (cancelled) {
+            return;
           }
+
+          setTracking((current) => {
+            const merged = mergeTrackingSnapshot(current ?? trackingRef.current, snapshot);
+            trackingRef.current = merged;
+            return merged;
+          });
+          setError(null);
+          applySocketLocation(snapshot?.latestLocation ?? null);
         },
         onOrderUpdated: (payload) => {
-          if (!cancelled) {
-            setTracking((current) => {
-              const merged = mergeTrackingSocketUpdate(
-                current ?? trackingRef.current,
-                payload,
-              );
-              trackingRef.current = merged;
-              return merged;
-            });
+          if (cancelled) {
+            return;
           }
+
+          setTracking((current) => {
+            const merged = mergeTrackingSocketUpdate(
+              current ?? trackingRef.current,
+              payload,
+            );
+            trackingRef.current = merged;
+            return merged;
+          });
+          applySocketLocation(payload?.latestLocation ?? null);
         },
         onConnectionChange: (state) => {
           if (!cancelled) {
@@ -81,19 +163,37 @@ export function useDeliveryTracking(orderId, open) {
           }
         },
       });
+
+      unsubscribeRef.current = unsubscribe;
     };
 
     loadTracking();
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      unsubscribeRef.current();
+      unsubscribeRef.current = () => {};
       setSocketState("idle");
     };
-  }, [applyTracking, open, orderId]);
+  }, [applyLiveDriverLocation, applySocketLocation, applyTracking, open, orderId]);
+
+  useEffect(() => {
+    const orderStatus = resolveOrderStatus(tracking, null);
+
+    if (!tracking || orderStatus !== "DELIVERED" || trackingStoppedRef.current) {
+      return;
+    }
+
+    trackingStoppedRef.current = true;
+    unsubscribeRef.current();
+    unsubscribeRef.current = () => {};
+    setSocketState("idle");
+  }, [tracking, tracking?.order?.status, tracking?.status]);
 
   return {
     tracking,
+    driverLocation,
+    hasLiveDriverGps,
     loading,
     error,
     socketState,

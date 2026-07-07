@@ -65,7 +65,8 @@ export function resolveRestaurantLocation(tracking) {
 }
 
 /**
- * Rider marker coordinates — always sourced from latestLocation.
+ * Raw latestLocation from tracking payload (API or socket).
+ * Prefer `driverLocation` from `useDeliveryTracking` for map rendering.
  */
 export function resolveMarkerLocation(tracking) {
   const latest = tracking?.latestLocation;
