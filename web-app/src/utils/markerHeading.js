@@ -123,7 +123,8 @@ export function resolveMarkerHeading({
 }
 
 /**
- * Smoothly rotates a marker element to the target heading.
+ * MapLibre positions markers via transform on the root element.
+ * Rotation must be applied to an inner element so it is not overwritten.
  */
 export function createHeadingAnimator(element) {
   let animationFrameId = null;

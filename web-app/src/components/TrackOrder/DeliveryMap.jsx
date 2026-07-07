@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import riderMarkerUrl from "../../assets/delivery-rider-marker.png";
 import { fetchRouteGeometry } from "../../utils/deliveryRoute";
-import { createHeadingAnimator, resolveMarkerHeading } from "../../utils/markerHeading";
+import { createHeadingAnimator, normalizeHeading, resolveMarkerHeading } from "../../utils/markerHeading";
 import { createMarkerAnimator } from "../../utils/mapMarkerAnimation";
 import {
   resolveRestaurantLocation,
@@ -24,15 +24,21 @@ function createPinElement(className, label) {
   return element;
 }
 
-function createRiderElement() {
-  const element = document.createElement("div");
-  element.className = "track-map-rider-marker";
+function createRiderMarkerElements() {
+  const root = document.createElement("div");
+  root.className = "track-map-rider-marker";
+
+  const rotationLayer = document.createElement("div");
+  rotationLayer.className = "track-map-rider-marker__rotate";
+
   const image = document.createElement("img");
   image.src = riderMarkerUrl;
   image.alt = "Delivery rider";
   image.draggable = false;
-  element.appendChild(image);
-  return element;
+  rotationLayer.appendChild(image);
+  root.appendChild(rotationLayer);
+
+  return { root, rotationLayer };
 }
 
 function fitMapToPoints(map, coordinates) {
@@ -114,14 +120,14 @@ export function DeliveryMap({
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
+    const { root: riderRoot, rotationLayer } = createRiderMarkerElements();
+
     riderMarkerRef.current = new maplibregl.Marker({
-      element: createRiderElement(),
+      element: riderRoot,
       anchor: "center",
     });
     riderAnimatorRef.current = createMarkerAnimator(riderMarkerRef.current);
-    headingAnimatorRef.current = createHeadingAnimator(
-      riderMarkerRef.current.getElement(),
-    );
+    headingAnimatorRef.current = createHeadingAnimator(rotationLayer);
 
     restaurantMarkerRef.current = new maplibregl.Marker({
       element: createPinElement("track-map-pin track-map-pin--restaurant", "R"),
@@ -293,20 +299,43 @@ export function DeliveryMap({
 
     const previousCoordinates =
       riderAnimator.getCurrentPosition() ?? riderAnimator.getSettledPosition();
+    const backendHeading = markerLocation?.heading;
+    const hasBackendHeading = normalizeHeading(backendHeading) != null;
     const targetHeading = resolveMarkerHeading({
       previousCoordinates,
       nextCoordinates,
-      backendHeading: markerLocation?.heading,
+      backendHeading,
       lastHeading: lastHeadingRef.current,
     });
 
-    const movementDurationMs = riderAnimator.animateTo(nextCoordinates, map);
+    const movementDurationMs = riderAnimator.animateTo(nextCoordinates, map, {
+      onProgress: (currentCoordinates, startCoordinates) => {
+        if (hasBackendHeading) {
+          return;
+        }
+
+        const progressHeading = resolveMarkerHeading({
+          previousCoordinates: startCoordinates,
+          nextCoordinates: currentCoordinates,
+          backendHeading: null,
+          lastHeading: lastHeadingRef.current,
+        });
+
+        if (progressHeading != null) {
+          headingAnimator.setImmediate(progressHeading);
+          lastHeadingRef.current = progressHeading;
+        }
+      },
+    });
 
     if (targetHeading != null) {
       lastHeadingRef.current = targetHeading;
-      headingAnimator.animateTo(targetHeading, {
-        durationMs: movementDurationMs > 0 ? movementDurationMs : undefined,
-      });
+
+      if (hasBackendHeading || movementDurationMs === 0) {
+        headingAnimator.animateTo(targetHeading, {
+          durationMs: movementDurationMs > 0 ? movementDurationMs : undefined,
+        });
+      }
     }
   }, [markerLocation?.heading, markerLocation?.latitude, markerLocation?.longitude]);
 

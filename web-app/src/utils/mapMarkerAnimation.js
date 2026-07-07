@@ -72,7 +72,7 @@ export function createMarkerAnimator(marker) {
     return 0;
   };
 
-  const animateTo = (targetCoordinates, map) => {
+  const animateTo = (targetCoordinates, map, options = {}) => {
     if (!targetCoordinates) {
       cancel();
       marker.remove();
@@ -91,6 +91,7 @@ export function createMarkerAnimator(marker) {
       cancel();
       settledPosition = targetCoordinates;
       marker.setLngLat(targetCoordinates);
+      options.onProgress?.(targetCoordinates, startCoordinates, 1);
       return 0;
     }
 
@@ -104,8 +105,10 @@ export function createMarkerAnimator(marker) {
       const eased = easeOutCubic(progress);
       const longitude = lerp(startCoordinates[0], targetCoordinates[0], eased);
       const latitude = lerp(startCoordinates[1], targetCoordinates[1], eased);
+      const currentCoordinates = [longitude, latitude];
 
-      marker.setLngLat([longitude, latitude]);
+      marker.setLngLat(currentCoordinates);
+      options.onProgress?.(currentCoordinates, startCoordinates, eased);
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(step);
@@ -114,6 +117,7 @@ export function createMarkerAnimator(marker) {
 
       settledPosition = targetCoordinates;
       animationFrameId = null;
+      options.onProgress?.(targetCoordinates, startCoordinates, 1);
     };
 
     animationFrameId = requestAnimationFrame(step);
