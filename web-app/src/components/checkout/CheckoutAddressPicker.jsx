@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   clearAddressStatus,
@@ -7,18 +7,14 @@ import {
 } from '../../store/slices/addressSlice';
 import { AddressDialog } from '../account/AddressDialog';
 
-function formatAddress(address) {
-  return [address.label, address.address, address.city, address.state]
-    .filter(Boolean)
-    .join(' - ');
+function formatAddressMeta(address) {
+  return [address.city, address.state].filter(Boolean).join(', ');
 }
 
 export function CheckoutAddressPicker({ selectedAddressId, onSelectAddress }) {
   const dispatch = useDispatch();
   const { items, loading, saving, error, message } = useSelector((state) => state.addresses);
   const [formOpen, setFormOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
   const normalizedSelectedAddressId = selectedAddressId ? String(selectedAddressId) : '';
 
   useEffect(() => {
@@ -28,28 +24,6 @@ export function CheckoutAddressPicker({ selectedAddressId, onSelectAddress }) {
       dispatch(clearAddressStatus());
     };
   }, [dispatch]);
-
-  useEffect(() => {
-    const handlePointerDown = (event) => {
-      if (!dropdownRef.current?.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, []);
 
   const selectedAddress = useMemo(
     () => items.find((address) => String(address.id) === normalizedSelectedAddressId),
@@ -76,84 +50,73 @@ export function CheckoutAddressPicker({ selectedAddressId, onSelectAddress }) {
     }
   };
 
-  const handleSelectAddress = (addressId) => {
-    onSelectAddress(addressId);
-    setDropdownOpen(false);
-  };
-
   return (
     <div className="checkout-address-picker">
-      <div className="checkout-address-row">
-        <div className="address-dropdown-field" ref={dropdownRef}>
-          <span className="address-dropdown-label">Saved addresses</span>
-          <button
-            type="button"
-            className="address-dropdown-trigger"
-            aria-haspopup="listbox"
-            aria-expanded={dropdownOpen}
-            disabled={loading || items.length === 0}
-            onClick={() => setDropdownOpen((current) => !current)}
-          >
-            <span>
-              {selectedAddress
-                ? formatAddress(selectedAddress)
-                : loading
-                  ? 'Loading addresses...'
-                  : 'Select an address'}
-            </span>
-            <span className="address-dropdown-chevron" aria-hidden="true">⌄</span>
-          </button>
+      <span className="checkout-address-list-label">Saved addresses</span>
 
-          {dropdownOpen ? (
-            <div className="address-dropdown-menu" role="listbox" aria-label="Saved addresses">
-              {items.map((address) => {
-                const isSelected = String(address.id) === normalizedSelectedAddressId;
+      {loading ? (
+        <div className="empty-state">Loading addresses...</div>
+      ) : items.length === 0 ? (
+        <div className="empty-state">No saved addresses yet. Add one to continue.</div>
+      ) : (
+        <div className="checkout-address-list" role="radiogroup" aria-label="Saved addresses">
+          {items.map((address) => {
+            const isSelected = String(address.id) === normalizedSelectedAddressId;
 
-                return (
-                  <button
-                    key={address.id}
-                    type="button"
-                    className={
-                      isSelected
-                        ? 'address-dropdown-option is-selected'
-                        : 'address-dropdown-option'
-                    }
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => handleSelectAddress(address.id)}
-                  >
-                    <span className="address-dropdown-option-title">
-                      <strong>{address.label}</strong>
-                      {isSelected ? <span className="address-badge">SELECTED</span> : null}
-                      {address.isDefault && !isSelected ? (
-                        <span className="address-badge">Default</span>
-                      ) : null}
-                    </span>
-                    <span className="address-dropdown-option-copy">{address.address}</span>
-                    {[address.city, address.state].filter(Boolean).join(', ') ? (
-                      <small>{[address.city, address.state].filter(Boolean).join(', ')}</small>
+            return (
+              <button
+                key={address.id}
+                type="button"
+                className={
+                  isSelected
+                    ? 'checkout-address-card is-selected'
+                    : 'checkout-address-card'
+                }
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => onSelectAddress(address.id)}
+              >
+                <span className="checkout-address-card-check" aria-hidden="true">
+                  {isSelected ? '✓' : ''}
+                </span>
+                <span className="checkout-address-card-body">
+                  <span className="checkout-address-card-title">
+                    <strong>{address.label}</strong>
+                    {isSelected ? <span className="address-badge">SELECTED</span> : null}
+                    {address.isDefault && !isSelected ? (
+                      <span className="address-badge">Default</span>
                     ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
+                  </span>
+                  <span className="checkout-address-card-line">{address.address}</span>
+                  {formatAddressMeta(address) ? (
+                    <span className="checkout-address-card-line checkout-address-card-meta">
+                      {formatAddressMeta(address)}
+                    </span>
+                  ) : null}
+                  {address.recipientName ? (
+                    <span className="checkout-address-card-line checkout-address-card-meta">
+                      {address.recipientName}
+                    </span>
+                  ) : null}
+                  {address.phone ? (
+                    <span className="checkout-address-card-line checkout-address-card-meta">
+                      {address.phone}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <button type="button" className="ghost-button" onClick={() => setFormOpen((value) => !value)}>
-          {formOpen ? 'Close' : 'Add address'}
-        </button>
-      </div>
+      )}
 
-      {selectedAddress ? (
-        <div className="selected-address-preview">
-          <span className="address-badge">SELECTED</span>
-          <strong>{selectedAddress.label}</strong>
-          <p>{selectedAddress.address}</p>
-          {[selectedAddress.city, selectedAddress.state].filter(Boolean).join(', ') ? (
-            <small>{[selectedAddress.city, selectedAddress.state].filter(Boolean).join(', ')}</small>
-          ) : null}
-        </div>
-      ) : null}
+      <button
+        type="button"
+        className="ghost-button checkout-add-address-button"
+        onClick={() => setFormOpen((value) => !value)}
+      >
+        {formOpen ? 'Close' : 'Add address'}
+      </button>
 
       {formOpen ? (
         <AddressDialog

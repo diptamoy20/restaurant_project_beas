@@ -3072,7 +3072,6 @@ h4 {
 }
 
 .address-manager-header,
-.checkout-address-row,
 .address-card,
 .address-card-title,
 .address-card-actions,
@@ -3096,15 +3095,12 @@ h4 {
 .address-manager-header p,
 .address-card p,
 .address-card span,
-.selected-address-preview p,
-.selected-address-preview small,
 .form-hint {
   margin: 0;
   color: var(--color-copy-muted);
 }
 
 .address-search,
-.checkout-address-row label,
 .address-form label,
 .address-type-field {
   display: grid;
@@ -3113,7 +3109,6 @@ h4 {
 }
 
 .address-search span,
-.checkout-address-row label span,
 .address-form label span,
 .address-type-field > span {
   color: var(--color-copy-muted);
@@ -3382,115 +3377,93 @@ h4 {
   gap: 1rem;
 }
 
-.checkout-address-row {
-  align-items: end;
-}
-
-.checkout-address-row label {
-  flex: 1;
-}
-
-.address-dropdown-field {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 0.4rem;
-}
-
-.address-dropdown-label {
+.checkout-address-list-label {
   color: var(--color-copy-muted);
   font-size: 0.9rem;
   font-weight: 800;
 }
 
-.address-dropdown-trigger {
+.checkout-address-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.6rem;
+  gap: 0.75rem;
+}
+
+.checkout-address-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.85rem;
   width: 100%;
-  min-height: 3.35rem;
-  padding: 0.75rem 0.85rem;
+  padding: 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: rgba(255, 255, 255, 0.82);
   color: var(--color-copy);
   text-align: left;
   box-shadow: none;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.address-dropdown-trigger > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.checkout-address-card:hover {
+  border-color: rgba(26, 71, 42, 0.28);
+  background: rgba(26, 71, 42, 0.04);
 }
 
-.address-dropdown-trigger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.checkout-address-card.is-selected {
+  border-color: rgba(26, 71, 42, 0.42);
+  background: rgba(26, 71, 42, 0.08);
+  box-shadow: 0 0 0 1px rgba(26, 71, 42, 0.12);
 }
 
-.address-dropdown-chevron {
-  color: var(--color-copy-muted);
-  font-size: 1.15rem;
+.checkout-address-card-check {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.1rem;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 900;
   line-height: 1;
+  flex-shrink: 0;
 }
 
-.address-dropdown-menu {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 0.45rem);
-  left: 0;
-  right: 0;
+.checkout-address-card.is-selected .checkout-address-card-check {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.checkout-address-card-body {
   display: grid;
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 0.45rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: #fff;
-  box-shadow: 0 22px 48px rgba(16, 48, 28, 0.16);
+  gap: 0.3rem;
+  min-width: 0;
 }
 
-.address-dropdown-option {
-  display: grid;
-  gap: 0.25rem;
-  width: 100%;
-  padding: 0.85rem;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-copy);
-  text-align: left;
-  box-shadow: none;
-}
-
-.address-dropdown-option:hover,
-.address-dropdown-option.is-selected {
-  background: rgba(26, 71, 42, 0.07);
-}
-
-.address-dropdown-option-title {
+.checkout-address-card-title {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
 }
 
-.address-dropdown-option-copy,
-.address-dropdown-option small {
-  color: var(--color-copy-muted);
-  font-size: 0.9rem;
+.checkout-address-card-line {
+  display: block;
   overflow-wrap: anywhere;
 }
 
-.selected-address-preview {
-  display: grid;
-  gap: 0.35rem;
-  padding: 1rem;
-  border: 1px solid rgba(26, 71, 42, 0.16);
-  border-radius: var(--radius-md);
-  background: rgba(26, 71, 42, 0.06);
+.checkout-address-card-meta {
+  color: var(--color-copy-muted);
+  font-size: 0.9rem;
+}
+
+.checkout-add-address-button {
+  justify-self: start;
 }
 
 .checkout-address-form-panel {
@@ -3568,7 +3541,6 @@ h4 {
   }
 
   .address-manager-header,
-  .checkout-address-row,
   .address-card,
   .address-card-actions,
   .address-form-actions {
@@ -3591,24 +3563,8 @@ h4 {
 
   .address-card-actions button,
   .address-form-actions button,
-  .checkout-address-row button,
-  .address-dropdown-trigger {
+  .checkout-add-address-button {
     width: 100%;
-  }
-
-  .address-dropdown-trigger {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .address-dropdown-trigger .address-badge {
-    justify-self: start;
-    grid-column: 1 / -1;
-  }
-
-  .address-dropdown-menu {
-    position: static;
-    max-height: 260px;
-    margin-top: 0.45rem;
   }
 
   .address-dialog-backdrop {
