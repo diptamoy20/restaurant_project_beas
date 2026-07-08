@@ -87,6 +87,28 @@ export class MenuService {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
+  async getMenuByRestaurantSlug(
+    slug: string,
+    options: MenuQueryOptions = {},
+    userId?: number,
+  ): Promise<MenuResponseDto> {
+    const restaurantId = await this.findRestaurantIdBySlug(slug);
+    return this.getMenuByRestaurant(restaurantId, options, userId);
+  }
+
+  async findRestaurantIdBySlug(slug: string): Promise<number> {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    return restaurant.id;
+  }
+
   async getMenuByRestaurant(
     restaurantId: number,
     options: MenuQueryOptions = {},
@@ -820,6 +842,7 @@ export class MenuService {
   private mapRestaurantSummary(restaurant: {
     id: number;
     name: string;
+    slug: string;
     address: string;
     city: string | null;
     imageUrl: string | null;
@@ -827,6 +850,7 @@ export class MenuService {
     return {
       id: restaurant.id,
       name: restaurant.name,
+      slug: restaurant.slug,
       address: restaurant.address,
       city: restaurant.city,
       imageUrl: restaurant.imageUrl,

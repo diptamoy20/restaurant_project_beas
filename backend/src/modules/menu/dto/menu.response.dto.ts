@@ -22,6 +22,10 @@ export class MenuRestaurantSummaryDto {
   @IsString()
   name!: string;
 
+  @ApiProperty({ example: 'downtown-spice-hub' })
+  @IsString()
+  slug!: string;
+
   @ApiProperty({ example: '45 Residency Road' })
   @IsString()
   address!: string;

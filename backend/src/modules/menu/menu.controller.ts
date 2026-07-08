@@ -48,6 +48,75 @@ export class MenuController {
     });
   }
 
+  @Get('restaurant/slug/:slug/frequent')
+  @AllowWeb()
+  @ApiOperation({ summary: 'Get frequently ordered menu items for a user at a restaurant by slug' })
+  @ApiParam({ name: 'slug', type: String, example: 'pizza-hut' })
+  @ApiOkResponse({ type: MenuItemDto, isArray: true })
+  async getFrequentBySlug(
+    @Param('slug') slug: string,
+    @Req() request: { user: AuthenticatedUser },
+  ): Promise<MenuItemDto[]> {
+    const userId = request.user?.id;
+    const restaurant = await this.menuService.findRestaurantIdBySlug(slug);
+    return this.menuService.getFrequentItems(restaurant, userId);
+  }
+
+  @Get('restaurant/slug/:slug')
+  @AllowWeb()
+  @ApiOperation({ summary: 'Get menu for a restaurant by slug' })
+  @ApiParam({ name: 'slug', type: String, example: 'pizza-hut' })
+  @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
+  @ApiQuery({ name: 'lng', required: false, type: Number, example: 88.3639 })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    type: Number,
+    description: 'Category id',
+    example: 2,
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: MenuResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  getMenuBySlug(
+    @Param('slug') slug: string,
+    @Query() query: PaginatedMenuQueryDto,
+    @Req()
+    request: {
+      user?: AuthenticatedUser;
+    },
+  ): Promise<MenuResponseDto> {
+    const hasCoordinates =
+      query.lat !== undefined ||
+      query.lng !== undefined ||
+      query.latitude !== undefined ||
+      query.longitude !== undefined;
+
+    if (!hasCoordinates) {
+      return this.menuService.getMenuByRestaurantSlug(
+        slug,
+        {
+          categoryId: query.categoryId,
+          limit: query.limit,
+          offset: query.offset,
+        },
+        request.user?.id,
+      );
+    }
+
+    return this.menuService.getMenuByRestaurantSlug(
+      slug,
+      {
+        coordinates: query.getCoordinates(),
+        categoryId: query.categoryId,
+        limit: query.limit,
+        offset: query.offset,
+      },
+      request.user?.id,
+    );
+  }
+
   @Get('restaurant/:restaurantId/frequent')
   @AllowWeb()
   @ApiOperation({ summary: 'Get frequently ordered menu items for a user at a restaurant' })

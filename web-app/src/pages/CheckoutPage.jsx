@@ -391,7 +391,7 @@ export function CheckoutPage() {
       );
       setStatusMessage("Checkout complete. Redirecting...");
       navigate(
-        createSessionAwarePath(`/payment/${order.id}`, tableId, restaurantId),
+        createSessionAwarePath(`/payment/${order.id}`, tableId),
         {
           replace: true,
         },
@@ -418,7 +418,7 @@ export function CheckoutPage() {
         </div>
         <Link
           className="text-link"
-          to={createSessionAwarePath("/cart", tableId, restaurantId)}
+          to={createSessionAwarePath("/cart", tableId)}
         >
           Edit cart
         </Link>

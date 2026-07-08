@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { buildMenuPath } from "../lib/restaurantPaths";
 
 const formatRupees = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -126,7 +127,7 @@ export function NearbyRestaurantsSection({
 
                   <Link
                     className="view-menu-btn"
-                    to={`/menu?restaurantId=${restaurant.id}`}
+                    to={buildMenuPath(restaurant.slug)}
                   >
                     View Menu →
                   </Link>

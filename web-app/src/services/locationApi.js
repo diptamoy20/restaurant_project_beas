@@ -30,6 +30,46 @@ export function getNearbyRestaurants({
   return api.get(`/v1/restaurants/nearby?${params.toString()}`, { signal });
 }
 
+export function getRestaurantBySlug(slug, { signal } = {}) {
+  return api.get(`/v1/restaurants/by-slug/${encodeURIComponent(slug)}`, { signal });
+}
+
+export function getRestaurantMenuBySlug({
+  slug,
+  lat,
+  lng,
+  categoryId,
+  limit,
+  offset,
+  signal,
+}) {
+  const params = new URLSearchParams();
+
+  if (lat !== undefined && lng !== undefined) {
+    params.set("lat", String(lat));
+    params.set("lng", String(lng));
+  }
+
+  if (categoryId !== undefined) {
+    params.set("categoryId", String(categoryId));
+  }
+
+  if (limit !== undefined) {
+    params.set("limit", String(limit));
+  }
+
+  if (offset !== undefined) {
+    params.set("offset", String(offset));
+  }
+
+  const query = params.toString();
+
+  return api.get(
+    `/menu/restaurant/slug/${encodeURIComponent(slug)}${query ? `?${query}` : ""}`,
+    { signal },
+  );
+}
+
 export function getRestaurantMenuWithLocation({
   restaurantId,
   lat,
