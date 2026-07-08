@@ -1716,9 +1716,49 @@ h4 {
   background: rgba(22, 101, 52, 0.06);
 }
 
-.checkout-offer-card.is-disabled {
+.checkout-offer-card.is-disabled,
+.checkout-offer-card.is-locked {
   border-color: rgba(100, 116, 139, 0.28);
   background: rgba(100, 116, 139, 0.06);
+  opacity: 0.92;
+}
+
+.checkout-offer-card.is-used {
+  border-color: rgba(148, 163, 184, 0.34);
+  background: rgba(148, 163, 184, 0.08);
+  opacity: 0.82;
+}
+
+.checkout-offer-message {
+  color: #475569;
+  font-weight: 700;
+}
+
+.checkout-offer-section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.checkout-offer-section h4 {
+  margin: 0;
+  color: var(--color-copy-muted);
+  font-family: "Inter", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.checkout-offer-section-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.checkout-offer-dialog-list {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .checkout-offer-card p,
@@ -1804,13 +1844,6 @@ h4 {
 .checkout-offer-dialog-close:hover,
 .checkout-offer-dialog-close:focus-visible {
   box-shadow: none;
-}
-
-.checkout-offer-dialog-list {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  overflow-y: auto;
 }
 
 .total-row-highlighted {

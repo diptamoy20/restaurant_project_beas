@@ -17,6 +17,7 @@ import {
 import { fetchAddresses } from "../store/slices/addressSlice";
 import { checkoutApi } from "../services/checkoutApi";
 import { getCachedUserLocation } from "../hooks/useUserLocation";
+import { getActionErrorMessage } from "../utils/actionErrors";
 
 const formatCurrency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -68,7 +69,7 @@ export function CartPage() {
 
   //better logic to determine restaurantId: if cart has items, use that restaurantId, else use the one from URL
   const urlRestaurantId = resolveRestaurantId(location.search);
-  const restaurantId = items.length > 0 ? cartRestaurantId : urlRestaurantId;
+  const restaurantId = cartRestaurantId || urlRestaurantId;
   const restaurantName =
     items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant
       ?.name ||
@@ -259,9 +260,27 @@ useEffect(() => {
     }
 
     try {
-      // Reload cart to verify with actual backend state
-      const result = await dispatch(fetchCart()).unwrap();
-      const latestItems = result?.cartItems || [];
+      let latestItems = items;
+
+      try {
+        const result = await dispatch(fetchCart()).unwrap();
+        latestItems = result?.cartItems || [];
+      } catch (error) {
+        const message = getActionErrorMessage(
+          error,
+          "Failed to verify cart status. Please try again.",
+        );
+        const shouldBlockCheckout =
+          /session expired|unauthorized|permission|forbidden/i.test(message) ||
+          items.length === 0;
+
+        if (shouldBlockCheckout) {
+          setErrorMessage(message);
+          return;
+        }
+
+        latestItems = items;
+      }
 
       if (latestItems.length === 0) {
         setErrorMessage("Your cart is empty.");
@@ -286,7 +305,7 @@ useEffect(() => {
 
       if (!targetRestaurantId) {
         setErrorMessage(
-          "Restaurant context is missing. Please scan table QR and open menu again.",
+          "Restaurant context is missing. Please open the menu and try again.",
         );
         return;
       }
@@ -294,7 +313,9 @@ useEffect(() => {
       // If the current restaurant ID doesn't match the items in the cart, block
       if (
         latestItems.some(
-          (item) => String(item.restaurantId) !== String(targetRestaurantId),
+          (item) =>
+            item.restaurantId &&
+            String(item.restaurantId) !== String(targetRestaurantId),
         )
       ) {
         setErrorMessage(
@@ -307,7 +328,10 @@ useEffect(() => {
       navigate(finalPath);
     } catch (error) {
       setErrorMessage(
-        error.message || "Failed to verify cart status. Please try again.",
+        getActionErrorMessage(
+          error,
+          "Failed to verify cart status. Please try again.",
+        ),
       );
     }
   };

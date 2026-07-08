@@ -214,7 +214,9 @@ export const fetchCart = createAsyncThunk(
     try {
       return await cartApi.getCart();
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error?.message || error?.toString?.() || 'Cart request failed',
+      );
     }
   },
 );
@@ -251,7 +253,9 @@ export const addToCartAsync = createAsyncThunk(
       };
       return await cartApi.addToCart(serverPayload);
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error?.message || error?.toString?.() || 'Cart request failed',
+      );
     }
   },
 );
@@ -289,7 +293,9 @@ export const updateCartItemAsync = createAsyncThunk(
         addOns: payload.addOns,
       });
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error?.message || error?.toString?.() || 'Cart request failed',
+      );
     }
   },
 );
@@ -315,7 +321,9 @@ export const removeFromCartAsync = createAsyncThunk(
     try {
       return await cartApi.removeFromCart(cartItemId);
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error?.message || error?.toString?.() || 'Cart request failed',
+      );
     }
   },
 );
@@ -338,7 +346,9 @@ export const clearCartAsync = createAsyncThunk(
     try {
       return await cartApi.clearCart();
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error?.message || error?.toString?.() || 'Cart request failed',
+      );
     }
   },
 );

@@ -4,6 +4,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CheckoutAddressPicker } from "../components/checkout/CheckoutAddressPicker.jsx";
 import { useRazorpayPayment } from "../hooks/useRazorpayPayment";
 import { checkoutApi } from "../services/checkoutApi";
+import {
+  canApplyCoupon,
+  getCouponCardClassName,
+  getCouponStatusMessage,
+  groupCouponsByCategory,
+  sortCoupons,
+} from "../utils/couponSections";
 import { paymentApi } from "../services/paymentApi";
 import {
   createSessionAwarePath,
@@ -174,7 +181,16 @@ export function CheckoutPage() {
     }
   };
 
-  const applyAvailableCoupon = async (code, closeDialog = false) => {
+  const applyAvailableCoupon = async (coupon, closeDialog = false) => {
+    if (!canApplyCoupon(coupon)) {
+      setErrorMessage(
+        getCouponStatusMessage(coupon) || "This coupon cannot be applied to your order.",
+      );
+      setStatusMessage("");
+      return;
+    }
+
+    const code = coupon.code;
     setCouponInput(code);
     const nextQuote = await refreshQuote(code);
     if (nextQuote) {
@@ -227,56 +243,67 @@ export function CheckoutPage() {
   }, [items.length, quote?.subtotalAmount, restaurantId, subtotal, user]);
 
   const sortedCoupons = useMemo(
-    () =>
-      [...availableCoupons].sort(
-        (a, b) =>
-          Number(b.eligible) - Number(a.eligible) ||
-          (b.estimatedDiscount ?? 0) - (a.estimatedDiscount ?? 0),
-      ),
+    () => sortCoupons(availableCoupons),
     [availableCoupons],
   );
-  const previewCoupons = sortedCoupons.slice(0, 2);
-
-  const renderCouponCard = (coupon, index, closeDialog = false) => (
-    <div
-      className={
-        coupon.eligible
-          ? "checkout-offer-card"
-          : "checkout-offer-card is-disabled"
-      }
-      key={coupon.id}
-    >
-      <div>
-        <div className="checkout-offer-title">
-          <strong>{coupon.code}</strong>
-          {index === 0 && coupon.eligible ? <span>Best offer</span> : null}
-        </div>
-        <p>
-          {coupon.discountType === "PERCENTAGE"
-            ? `${coupon.discountValue}% off${coupon.maxDiscountAmount ? ` up to ${formatCurrency.format(coupon.maxDiscountAmount)}` : ""}`
-            : `${formatCurrency.format(coupon.discountValue)} off`}
-        </p>
-        {coupon.minOrderAmount ? (
-          <small>
-            Min order {formatCurrency.format(coupon.minOrderAmount)}
-          </small>
-        ) : null}
-        {!coupon.eligible && coupon.reason ? (
-          <small>{coupon.reason}</small>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        className="text-link"
-        disabled={
-          !coupon.eligible || appliedCouponCode === coupon.code || quoteLoading
-        }
-        onClick={() => applyAvailableCoupon(coupon.code, closeDialog)}
-      >
-        {appliedCouponCode === coupon.code ? "Applied" : "Apply"}
-      </button>
-    </div>
+  const couponGroups = useMemo(
+    () => groupCouponsByCategory(sortedCoupons),
+    [sortedCoupons],
   );
+  const previewCoupons = couponGroups.available.slice(0, 2);
+
+  const renderCouponCard = (coupon, index, closeDialog = false) => {
+    const statusMessage = getCouponStatusMessage(coupon);
+    const isApplicable = canApplyCoupon(coupon);
+
+    return (
+      <div className={getCouponCardClassName(coupon)} key={coupon.id}>
+        <div>
+          <div className="checkout-offer-title">
+            <strong>{coupon.code}</strong>
+            {index === 0 && isApplicable ? <span>Best offer</span> : null}
+          </div>
+          <p>
+            {coupon.discountType === "PERCENTAGE"
+              ? `${coupon.discountValue}% off${coupon.maxDiscountAmount ? ` up to ${formatCurrency.format(coupon.maxDiscountAmount)}` : ""}`
+              : `${formatCurrency.format(coupon.discountValue)} off`}
+          </p>
+          {coupon.description ? <small>{coupon.description}</small> : null}
+          {coupon.minOrderAmount ? (
+            <small>Min order {formatCurrency.format(coupon.minOrderAmount)}</small>
+          ) : null}
+          {statusMessage ? (
+            <small className="checkout-offer-message">{statusMessage}</small>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="text-link"
+          disabled={
+            !isApplicable || appliedCouponCode === coupon.code || quoteLoading
+          }
+          onClick={() => applyAvailableCoupon(coupon, closeDialog)}
+        >
+          {appliedCouponCode === coupon.code ? "Applied" : "Apply"}
+        </button>
+      </div>
+    );
+  };
+
+  const renderCouponSection = (title, coupons, closeDialog = false) => {
+    if (!coupons.length) {
+      return null;
+    }
+
+    return (
+      <section className="checkout-offer-section">
+        <h4>{title}</h4>
+        <div className="checkout-offer-section-list">
+          {coupons.map((coupon, index) => renderCouponCard(coupon, index, closeDialog))}
+        </div>
+      </section>
+    );
+  };
 
   const submitCheckout = async () => {
     setErrorMessage("");
@@ -530,7 +557,7 @@ export function CheckoutPage() {
                 onChange={(event) =>
                   setCouponInput(event.target.value.toUpperCase())
                 }
-                placeholder="WELCOME50"
+                placeholder="Enter Coupon Code"
               />
               <button
                 type="button"
@@ -839,8 +866,8 @@ export function CheckoutPage() {
           >
             <div className="checkout-offer-dialog-header">
               <div>
-                <h3 id="checkout-offer-dialog-title">Available offers</h3>
-                <p>Choose the best coupon for this order.</p>
+                <h3 id="checkout-offer-dialog-title">All offers</h3>
+                <p>Available, locked, and used coupons for this order.</p>
               </div>
               <button
                 type="button"
@@ -852,9 +879,9 @@ export function CheckoutPage() {
               </button>
             </div>
             <div className="checkout-offer-dialog-list">
-              {sortedCoupons.map((coupon, index) =>
-                renderCouponCard(coupon, index, true),
-              )}
+              {renderCouponSection("Available coupons", couponGroups.available, true)}
+              {renderCouponSection("Locked / not eligible", couponGroups.locked, true)}
+              {renderCouponSection("Used / limit reached", couponGroups.used, true)}
             </div>
           </div>
         </div>

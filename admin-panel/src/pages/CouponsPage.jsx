@@ -466,7 +466,7 @@ export function CouponsPage() {
                 label="Coupon Code"
                 value={form.code}
                 onChange={(event) => setCouponField('code', event.target.value.toUpperCase().replace(/\s+/g, ''))}
-                placeholder="WELCOME50"
+                placeholder="Enter coupon code"
                 required
               />
               {editingCoupon ? (

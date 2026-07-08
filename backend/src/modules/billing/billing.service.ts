@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import {
+  buildCouponApplyErrorMessage,
+  evaluateCouponForCheckout,
+} from '../../common/coupon/coupon-checkout.util';
 import { calculateDeliveryFee, DeliveryFeeBreakdown } from '../../common/utils/delivery-fee.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
@@ -297,41 +301,60 @@ export class BillingService {
     const now = new Date();
 
     if (!coupon || !coupon.isActive) {
-      throw new BadRequestException('Coupon is invalid or inactive');
+      throw new BadRequestException(
+        buildCouponApplyErrorMessage({
+          coupon: coupon ?? {
+            isActive: false,
+            startsAt: null,
+            expiresAt: null,
+            minOrderAmount: null,
+            usageLimitTotal: null,
+            usageLimitPerUser: null,
+          },
+          subtotalAmount,
+          userUsageCount: 0,
+          totalUsageCount: 0,
+          roundMoney: (value) => this.roundMoney(value),
+          invalidReason: 'NOT_FOUND',
+        }),
+      );
     }
     if (coupon.restaurantId && coupon.restaurantId !== input.restaurantId) {
-      throw new BadRequestException('Coupon is not valid for this restaurant');
-    }
-    if (coupon.startsAt && coupon.startsAt > now) {
-      throw new BadRequestException('Coupon is not active yet');
-    }
-    if (coupon.expiresAt && coupon.expiresAt < now) {
-      throw new BadRequestException('Coupon has expired');
-    }
-    if (
-      coupon.minOrderAmount !== null &&
-      coupon.minOrderAmount !== undefined &&
-      subtotalAmount < coupon.minOrderAmount
-    ) {
       throw new BadRequestException(
-        `Minimum order amount for this coupon is Rs. ${coupon.minOrderAmount}`,
+        buildCouponApplyErrorMessage({
+          coupon,
+          subtotalAmount,
+          userUsageCount: 0,
+          totalUsageCount: 0,
+          roundMoney: (value) => this.roundMoney(value),
+          invalidReason: 'RESTAURANT_MISMATCH',
+        }),
       );
     }
 
-    if (coupon.usageLimitTotal) {
-      const totalUsage = await client.couponUsage.count({ where: { couponId: coupon.id } });
-      if (totalUsage >= coupon.usageLimitTotal) {
-        throw new BadRequestException('Coupon usage limit reached');
-      }
-    }
+    const totalUsage = coupon.usageLimitTotal
+      ? await client.couponUsage.count({ where: { couponId: coupon.id } })
+      : 0;
+    const userUsage =
+      coupon.usageLimitPerUser && input.userId
+        ? await client.couponUsage.count({
+            where: { couponId: coupon.id, userId: input.userId },
+          })
+        : 0;
 
-    if (coupon.usageLimitPerUser && input.userId) {
-      const userUsage = await client.couponUsage.count({
-        where: { couponId: coupon.id, userId: input.userId },
-      });
-      if (userUsage >= coupon.usageLimitPerUser) {
-        throw new BadRequestException('You have already used this coupon');
-      }
+    const evaluation = evaluateCouponForCheckout({
+      coupon,
+      subtotalAmount,
+      userUsageCount: userUsage,
+      totalUsageCount: totalUsage,
+      roundMoney: (value) => this.roundMoney(value),
+      now,
+    });
+
+    if (!evaluation.eligible) {
+      throw new BadRequestException(
+        evaluation.message ?? 'This coupon cannot be applied to your order.',
+      );
     }
 
     return coupon;
