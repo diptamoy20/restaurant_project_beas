@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+import { LocationPicker } from "@shared/location";
+import "@shared/location/location-picker.css";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -315,18 +317,18 @@ export function RestaurantsPage() {
     }
 
     if (!form.address.trim()) {
-      newErrors.address = "Address is required";
+      newErrors.address = "Select a restaurant location on the map";
     }
 
     const lat = parseFloat(form.latitude);
     const lng = parseFloat(form.longitude);
 
     if (!form.latitude || isNaN(lat) || lat < -90 || lat > 90) {
-      newErrors.latitude = "Valid latitude is required (-90 to 90)";
+      newErrors.latitude = "Select a valid location on the map";
     }
 
     if (!form.longitude || isNaN(lng) || lng < -180 || lng > 180) {
-      newErrors.longitude = "Valid longitude is required (-180 to 180)";
+      newErrors.longitude = "Select a valid location on the map";
     }
 
     const radius = parseFloat(form.deliveryRadiusKm);
@@ -390,6 +392,30 @@ export function RestaurantsPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const handleLocationChange = (location) => {
+    setForm((prev) => ({
+      ...prev,
+      address: location.address ?? prev.address,
+      city: location.city ?? prev.city,
+      latitude:
+        location.latitude === "" || location.latitude == null
+          ? ""
+          : String(location.latitude),
+      longitude:
+        location.longitude === "" || location.longitude == null
+          ? ""
+          : String(location.longitude),
+    }));
+
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.address;
+      delete next.latitude;
+      delete next.longitude;
+      return next;
+    });
   };
 
   const handleAddNew = () => {
@@ -777,44 +803,35 @@ export function RestaurantsPage() {
             value={form.name}
           />
 
-          <TextField
-            error={errors.address}
-            label="Address *"
-            name="address"
-            onChange={handleInputChange}
-            placeholder="e.g., 45 Residency Road"
-            value={form.address}
-          />
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-900">Restaurant location *</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Search for an address or pick a point on the map. Address and coordinates are filled
+                automatically.
+              </p>
+            </div>
 
-          <TextField
-            label="City"
-            name="city"
-            onChange={handleInputChange}
-            placeholder="e.g., Bangalore"
-            value={form.city}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <TextField
-              error={errors.latitude}
-              label="Latitude *"
-              name="latitude"
-              onChange={handleInputChange}
-              placeholder="e.g., 12.9663"
-              step="any"
-              type="number"
-              value={form.latitude}
-            />
-
-            <TextField
-              error={errors.longitude}
-              label="Longitude *"
-              name="longitude"
-              onChange={handleInputChange}
-              placeholder="e.g., 77.6012"
-              step="any"
-              type="number"
-              value={form.longitude}
+            <LocationPicker
+              key={editingId ?? "new-restaurant"}
+              value={{
+                address: form.address,
+                city: form.city,
+                state: "",
+                latitude: form.latitude,
+                longitude: form.longitude,
+              }}
+              onChange={handleLocationChange}
+              showStateField={false}
+              showCoordinates
+              addressLabel="Restaurant address"
+              requestCurrentLocationOnMount={!editingId}
+              error={
+                errors.address ||
+                errors.latitude ||
+                errors.longitude ||
+                ""
+              }
             />
           </div>
 
