@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { MenuService } from '../menu/menu.service';
+
+type FavoriteWithMenuItem = Prisma.FavoriteMenuItemGetPayload<{
+  include: { menuItem: true };
+}>;
 
 @Injectable()
 export class FavoritesService {
@@ -10,7 +15,10 @@ export class FavoritesService {
     private readonly menuService: MenuService,
   ) {}
 
-  async addFavorite(userId: number, menuItemId: number) {
+  async addFavorite(
+    userId: number,
+    menuItemId: number,
+  ): Promise<{ success: true; message: string; data: FavoriteWithMenuItem }> {
     const menuItem = await this.prisma.menuItem.findUnique({
       where: { id: menuItemId },
     });
@@ -44,7 +52,13 @@ export class FavoritesService {
     };
   }
 
-  async getFavorites(userId: number) {
+  async getFavorites(userId: number): Promise<{
+    success: true;
+    total: number;
+    data: Prisma.MenuItemGetPayload<{
+      include: { category: true; variants: true; addonGroups: { include: { options: true } } };
+    }>[];
+  }> {
     const favorites = await this.prisma.favoriteMenuItem.findMany({
       where: { userId },
       include: {
@@ -68,7 +82,10 @@ export class FavoritesService {
     };
   }
 
-  async removeFavorite(userId: number, menuItemId: number) {
+  async removeFavorite(
+    userId: number,
+    menuItemId: number,
+  ): Promise<{ success: true; message: string }> {
     const favorite = await this.prisma.favoriteMenuItem.findUnique({
       where: {
         userId_menuItemId: { userId, menuItemId },

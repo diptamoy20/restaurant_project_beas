@@ -68,7 +68,7 @@ export class FavoritesController {
   async addFavorite(
     @Req() request: { user: AuthenticatedUser },
     @Param('menuItemId', ParseIntPipe) menuItemId: number,
-  ) {
+  ): ReturnType<FavoritesService['addFavorite']> {
     return this.favoritesService.addFavorite(request.user.id, menuItemId);
   }
 
@@ -120,7 +120,9 @@ export class FavoritesController {
       },
     },
   })
-  async getFavorites(@Req() request: { user: AuthenticatedUser }) {
+  async getFavorites(
+    @Req() request: { user: AuthenticatedUser },
+  ): ReturnType<FavoritesService['getFavorites']> {
     return this.favoritesService.getFavorites(request.user.id);
   }
 
@@ -146,7 +148,7 @@ export class FavoritesController {
   async removeFavorite(
     @Req() request: { user: AuthenticatedUser },
     @Param('menuItemId', ParseIntPipe) menuItemId: number,
-  ) {
+  ): ReturnType<FavoritesService['removeFavorite']> {
     return this.favoritesService.removeFavorite(request.user.id, menuItemId);
   }
 }

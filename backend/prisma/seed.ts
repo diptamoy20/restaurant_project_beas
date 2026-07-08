@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { OrderSource, PrismaClient } from '@prisma/client';
 import { hash } from 'bcryptjs';
 
+import { slugifyRestaurantName } from '../src/common/utils/restaurant-slug.util';
 import { createPrismaClientOptions } from '../src/prisma/prisma-client-options';
 
 const { options, pool } = createPrismaClientOptions();
@@ -149,6 +150,7 @@ async function ensureQrDemoMenu(): Promise<void> {
     create: {
       id: 1,
       name: 'Foodyply Demo Restaurant',
+      slug: slugifyRestaurantName('Foodyply Demo Restaurant'),
       address: '12 Demo Street',
       city: 'Bengaluru',
       latitude: 12.9716,
@@ -539,6 +541,7 @@ async function main(): Promise<void> {
     (await prisma.restaurant.create({
       data: {
         name: 'Downtown Spice Hub',
+        slug: slugifyRestaurantName('Downtown Spice Hub'),
         address: '45 Residency Road',
         city: 'Bengaluru',
         latitude: 12.9663,
@@ -568,6 +571,7 @@ async function main(): Promise<void> {
     (await prisma.restaurant.create({
       data: {
         name: 'Riverside Bites',
+        slug: slugifyRestaurantName('Riverside Bites'),
         address: '88 Indiranagar',
         city: 'Bengaluru',
         latitude: 12.9784,

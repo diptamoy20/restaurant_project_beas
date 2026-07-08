@@ -1302,7 +1302,14 @@ export class DeliveriesService {
     city: string | null;
     latitude: number;
     longitude: number;
-  }) {
+  }): {
+    id: number;
+    name: string;
+    address: string;
+    city: string | null;
+    latitude: number;
+    longitude: number;
+  } {
     return {
       id: restaurant.id,
       name: restaurant.name,
