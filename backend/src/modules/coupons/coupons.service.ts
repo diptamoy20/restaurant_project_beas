@@ -9,6 +9,10 @@ import {
   UpdateCouponDto,
 } from './dto/coupon.dto';
 import {
+  evaluateCouponForCheckout,
+  getCouponCategorySortOrder,
+} from '../../common/coupon/coupon-checkout.util';
+import {
   buildPaginationMeta,
   normalizePagination,
   PaginatedResult,
@@ -151,10 +155,6 @@ export class CouponsService {
       where: {
         isActive: true,
         OR: [{ restaurantId: params.restaurantId }, { restaurantId: null }],
-        AND: [
-          { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
-          { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] },
-        ],
       },
       include: {
         _count: { select: { usages: true } },
@@ -179,19 +179,14 @@ export class CouponsService {
 
     return effectiveCoupons
       .map((coupon) => {
-        let eligible = true;
-        let reason: string | null = null;
-
-        if (coupon.minOrderAmount && subtotalAmount < coupon.minOrderAmount) {
-          eligible = false;
-          reason = `Add Rs. ${this.billingService.roundMoney(coupon.minOrderAmount - subtotalAmount)} more to apply`;
-        } else if (coupon.usageLimitTotal && coupon._count.usages >= coupon.usageLimitTotal) {
-          eligible = false;
-          reason = 'Coupon usage limit reached';
-        } else if (coupon.usageLimitPerUser && coupon.usages.length >= coupon.usageLimitPerUser) {
-          eligible = false;
-          reason = 'You have already used this coupon';
-        }
+        const evaluation = evaluateCouponForCheckout({
+          coupon,
+          subtotalAmount,
+          userUsageCount: coupon.usages.length,
+          totalUsageCount: coupon._count.usages,
+          roundMoney: (value) => this.billingService.roundMoney(value),
+          now,
+        });
 
         return {
           id: coupon.id,
@@ -201,14 +196,23 @@ export class CouponsService {
           discountValue: coupon.discountValue,
           maxDiscountAmount: coupon.maxDiscountAmount,
           minOrderAmount: coupon.minOrderAmount,
-          eligible,
-          reason,
-          estimatedDiscount: eligible ? this.estimateDiscount(coupon, subtotalAmount) : 0,
+          status: evaluation.status,
+          category: evaluation.category,
+          eligible: evaluation.eligible,
+          message: evaluation.message,
+          reason: evaluation.message,
+          usageCount: evaluation.usageCount,
+          usageLimit: evaluation.usageLimit,
+          estimatedDiscount: evaluation.eligible
+            ? this.estimateDiscount(coupon, subtotalAmount)
+            : 0,
         };
       })
       .sort(
         (a, b) =>
-          Number(b.eligible) - Number(a.eligible) || b.estimatedDiscount - a.estimatedDiscount,
+          getCouponCategorySortOrder(a.category) - getCouponCategorySortOrder(b.category) ||
+          Number(b.eligible) - Number(a.eligible) ||
+          b.estimatedDiscount - a.estimatedDiscount,
       );
   }
 

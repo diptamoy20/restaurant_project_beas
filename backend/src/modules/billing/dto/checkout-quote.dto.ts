@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,6 +12,11 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
+import {
+  CouponCheckoutCategory,
+  CouponCheckoutStatus,
+} from '../../../common/coupon/coupon-checkout.util';
 
 export class CheckoutQuoteAddonDto {
   @ApiProperty({ example: 1 })
@@ -149,11 +155,31 @@ export class AvailableCouponResponseDto {
   @ApiPropertyOptional({ example: 299, nullable: true })
   minOrderAmount!: number | null;
 
+  @ApiProperty({ enum: CouponCheckoutStatus, example: CouponCheckoutStatus.AVAILABLE })
+  @IsEnum(CouponCheckoutStatus)
+  status!: CouponCheckoutStatus;
+
+  @ApiProperty({ enum: CouponCheckoutCategory, example: CouponCheckoutCategory.AVAILABLE })
+  @IsEnum(CouponCheckoutCategory)
+  category!: CouponCheckoutCategory;
+
   @ApiProperty({ example: true })
   eligible!: boolean;
 
+  @ApiPropertyOptional({
+    example: "You've already used this coupon 3 out of 3 times.",
+    nullable: true,
+  })
+  message!: string | null;
+
   @ApiPropertyOptional({ example: 'Add Rs. 99 more to apply', nullable: true })
   reason!: string | null;
+
+  @ApiPropertyOptional({ example: 3, nullable: true })
+  usageCount!: number | null;
+
+  @ApiPropertyOptional({ example: 3, nullable: true })
+  usageLimit!: number | null;
 
   @ApiProperty({ example: 40 })
   estimatedDiscount!: number;
