@@ -16,6 +16,7 @@ const DEFAULT_CENTER = [88.3639, 22.5726];
 const ROUTE_SOURCE_ID = "delivery-route";
 const ROUTE_LAYER_ID = "delivery-route-line";
 const ROUTE_DEBOUNCE_MS = 600;
+const AUTO_FOLLOW_RESUME_MS = 30_000;
 
 function createPinElement(className, label) {
   const element = document.createElement("div");
@@ -41,10 +42,12 @@ function createRiderMarkerElements() {
   return { root, rotationLayer };
 }
 
-function fitMapToPoints(map, coordinates) {
+function fitMapToPoints(map, coordinates, onProgrammaticMove) {
   if (!map || coordinates.length === 0) {
     return;
   }
+
+  onProgrammaticMove?.();
 
   if (coordinates.length === 1) {
     map.easeTo({
@@ -67,6 +70,19 @@ function fitMapToPoints(map, coordinates) {
   });
 }
 
+function easeMapToRider(map, coordinates, onProgrammaticMove) {
+  if (!map || !coordinates) {
+    return;
+  }
+
+  onProgrammaticMove?.();
+  map.easeTo({
+    center: coordinates,
+    zoom: Math.max(map.getZoom(), 14),
+    duration: 800,
+  });
+}
+
 export function DeliveryMap({
   markerLocation,
   routeOrigin,
@@ -85,6 +101,14 @@ export function DeliveryMap({
   const destinationMarkerRef = useRef(null);
   const routeRequestRef = useRef(0);
   const routeDebounceRef = useRef(null);
+  const followPausedRef = useRef(false);
+  const resumeFollowTimerRef = useRef(null);
+  const programmaticMoveRef = useRef(false);
+  const programmaticMoveEndHandlerRef = useRef(null);
+  const latestRiderCoordinatesRef = useRef(null);
+  const lastFocusSignalRef = useRef(focusSignal);
+  const hasInitialFitRef = useRef(false);
+  const markProgrammaticMoveRef = useRef(() => {});
   const restaurant = resolveRestaurantLocation(tracking);
   const showRoute = shouldDrawDeliveryRoute(orderStatus);
 
@@ -139,11 +163,100 @@ export function DeliveryMap({
       anchor: "bottom",
     });
 
+    const markProgrammaticMove = () => {
+      programmaticMoveRef.current = true;
+
+      if (programmaticMoveEndHandlerRef.current) {
+        map.off("moveend", programmaticMoveEndHandlerRef.current);
+      }
+
+      const handleMoveEnd = () => {
+        programmaticMoveRef.current = false;
+        programmaticMoveEndHandlerRef.current = null;
+      };
+
+      programmaticMoveEndHandlerRef.current = handleMoveEnd;
+      map.once("moveend", handleMoveEnd);
+    };
+
+    markProgrammaticMoveRef.current = markProgrammaticMove;
+
+    const clearResumeFollowTimer = () => {
+      if (resumeFollowTimerRef.current) {
+        clearTimeout(resumeFollowTimerRef.current);
+        resumeFollowTimerRef.current = null;
+      }
+    };
+
+    const resumeAutoFollow = () => {
+      followPausedRef.current = false;
+      clearResumeFollowTimer();
+
+      const riderCoordinates =
+        latestRiderCoordinatesRef.current ??
+        riderAnimatorRef.current?.getSettledPosition() ??
+        riderAnimatorRef.current?.getCurrentPosition();
+
+      if (!riderCoordinates) {
+        return;
+      }
+
+      easeMapToRider(map, riderCoordinates, markProgrammaticMove);
+    };
+
+    const pauseAutoFollow = () => {
+      if (programmaticMoveRef.current) {
+        return;
+      }
+
+      followPausedRef.current = true;
+      clearResumeFollowTimer();
+
+      resumeFollowTimerRef.current = setTimeout(() => {
+        resumeFollowTimerRef.current = null;
+        resumeAutoFollow();
+      }, AUTO_FOLLOW_RESUME_MS);
+    };
+
+    const handleUserMapInteraction = (event) => {
+      // User gestures include originalEvent. Programmatic easeTo/fitBounds do not.
+      if (event.type === "dragstart" || event.originalEvent) {
+        pauseAutoFollow();
+      }
+    };
+
+    const handleZoomControlClick = (event) => {
+      if (
+        event.target.closest(".maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out")
+      ) {
+        pauseAutoFollow();
+      }
+    };
+
+    map.on("dragstart", handleUserMapInteraction);
+    map.on("zoomstart", handleUserMapInteraction);
+    map.on("rotatestart", handleUserMapInteraction);
+    map.on("pitchstart", handleUserMapInteraction);
+    map.getContainer().addEventListener("click", handleZoomControlClick, true);
+
     mapRef.current = map;
 
     return () => {
+      clearResumeFollowTimer();
+
       if (routeDebounceRef.current) {
         clearTimeout(routeDebounceRef.current);
+      }
+
+      map.off("dragstart", handleUserMapInteraction);
+      map.off("zoomstart", handleUserMapInteraction);
+      map.off("rotatestart", handleUserMapInteraction);
+      map.off("pitchstart", handleUserMapInteraction);
+      map.getContainer().removeEventListener("click", handleZoomControlClick, true);
+
+      if (programmaticMoveEndHandlerRef.current) {
+        map.off("moveend", programmaticMoveEndHandlerRef.current);
+        programmaticMoveEndHandlerRef.current = null;
       }
 
       riderAnimatorRef.current?.cancel();
@@ -159,6 +272,10 @@ export function DeliveryMap({
       lastHeadingRef.current = null;
       restaurantMarkerRef.current = null;
       destinationMarkerRef.current = null;
+      followPausedRef.current = false;
+      programmaticMoveRef.current = false;
+      latestRiderCoordinatesRef.current = null;
+      hasInitialFitRef.current = false;
     };
   }, []);
 
@@ -291,11 +408,14 @@ export function DeliveryMap({
     const nextCoordinates = toCoordinates(markerLocation);
 
     if (!nextCoordinates) {
+      latestRiderCoordinatesRef.current = null;
       riderAnimator.setImmediate(null, map);
       headingAnimator.setImmediate(null);
       lastHeadingRef.current = null;
       return;
     }
+
+    latestRiderCoordinatesRef.current = nextCoordinates;
 
     const previousCoordinates =
       riderAnimator.getCurrentPosition() ?? riderAnimator.getSettledPosition();
@@ -346,6 +466,22 @@ export function DeliveryMap({
       return;
     }
 
+    const focusRequested = focusSignal !== lastFocusSignalRef.current;
+    lastFocusSignalRef.current = focusSignal;
+
+    if (focusRequested) {
+      followPausedRef.current = false;
+
+      if (resumeFollowTimerRef.current) {
+        clearTimeout(resumeFollowTimerRef.current);
+        resumeFollowTimerRef.current = null;
+      }
+    }
+
+    if (followPausedRef.current && !focusRequested) {
+      return;
+    }
+
     const focusCoordinates = [];
     const restaurantCoordinates = toCoordinates(restaurant);
     const destinationCoordinates = toCoordinates(destination);
@@ -367,10 +503,26 @@ export function DeliveryMap({
       return;
     }
 
+    const applyCamera = () => {
+      if (followPausedRef.current && !focusRequested) {
+        return;
+      }
+
+      if (focusRequested || !hasInitialFitRef.current) {
+        fitMapToPoints(map, focusCoordinates, markProgrammaticMoveRef.current);
+        hasInitialFitRef.current = true;
+        return;
+      }
+
+      if (riderCoordinates) {
+        easeMapToRider(map, riderCoordinates, markProgrammaticMoveRef.current);
+      }
+    };
+
     if (map.isStyleLoaded()) {
-      fitMapToPoints(map, focusCoordinates);
+      applyCamera();
     } else {
-      map.once("load", () => fitMapToPoints(map, focusCoordinates));
+      map.once("load", applyCamera);
     }
   }, [
     focusSignal,
