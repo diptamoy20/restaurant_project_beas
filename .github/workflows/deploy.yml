@@ -23,6 +23,9 @@ on:
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '22'
   BACKEND_DIR: backend
@@ -42,6 +45,7 @@ jobs:
   backend-ci:
     name: Build All Apps
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/restaurant_db?schema=restaurant_management
     steps:
@@ -62,6 +66,11 @@ jobs:
       - name: Install backend dependencies
         working-directory: ${{ env.BACKEND_DIR }}
         run: npm ci
+
+      - name: Audit backend dependencies (report only)
+        working-directory: ${{ env.BACKEND_DIR }}
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
       - name: Lint backend
         working-directory: ${{ env.BACKEND_DIR }}
@@ -114,6 +123,7 @@ jobs:
     needs: backend-ci
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     concurrency:
       group: simple-server-deploy
       cancel-in-progress: false
