@@ -71,12 +71,12 @@ export function CartPage() {
   const urlRestaurantId = resolveRestaurantId(location.search);
   const restaurantId = cartRestaurantId || urlRestaurantId;
   const restaurantName =
+    items.find((item) => item.restaurantName)?.restaurantName ||
+    items.find((item) => item.restaurant?.name)?.restaurant?.name ||
     items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant
       ?.name ||
-    items.find((item) => item.restaurant?.name)?.restaurant?.name ||
     "";
-  const restaurantLabel =
-    restaurantName || (restaurantId ? `Restaurant #${restaurantId}` : "");
+  const restaurantLabel = restaurantName || (restaurantId ? "Restaurant" : "");
   const contextText = tableId
     ? `Ordering for Table ${tableId}${restaurantLabel ? ` at ${restaurantLabel}` : ""}`
     : restaurantLabel
