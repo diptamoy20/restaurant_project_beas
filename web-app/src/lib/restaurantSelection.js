@@ -1,3 +1,6 @@
+import { getPersistedRestaurantSlug } from './restaurantPaths';
+import { getPersistedRestaurantId } from './tableSession';
+
 function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
@@ -23,7 +26,13 @@ export function distanceKm(origin, restaurant) {
 
 export function getRestaurantIdFromUrl(search) {
   const params = new URLSearchParams(search);
-  return params.get('restaurantId') || params.get('restaurant') || null;
+  const legacyValue = params.get('restaurantId') || params.get('restaurant');
+
+  if (legacyValue && /^\d+$/.test(String(legacyValue))) {
+    return legacyValue;
+  }
+
+  return null;
 }
 
 export function getNearestRestaurant(restaurants, location) {
@@ -44,20 +53,67 @@ export function getNearestRestaurantId(restaurants, location) {
   return getNearestRestaurant(restaurants, location)?.id ?? null;
 }
 
-export function resolveMenuRestaurantId({
+export function getNearestRestaurantSlug(restaurants, location) {
+  return getNearestRestaurant(restaurants, location)?.slug ?? null;
+}
+
+export function resolveMenuRestaurant({
   urlRestaurantId,
+  urlRestaurantSlug,
   selectedRestaurantId,
+  selectedRestaurantSlug,
   nearbyRestaurants,
   location,
 }) {
+  if (urlRestaurantSlug) {
+    const match = nearbyRestaurants?.find(
+      (restaurant) => restaurant.slug === urlRestaurantSlug,
+    );
+
+    return {
+      id: match?.id ?? selectedRestaurantId ?? null,
+      slug: urlRestaurantSlug,
+    };
+  }
+
   if (urlRestaurantId) {
     const parsed = Number(urlRestaurantId);
-    return Number.isNaN(parsed) ? null : parsed;
+    const match = nearbyRestaurants?.find(
+      (restaurant) => Number(restaurant.id) === parsed,
+    );
+
+    return {
+      id: Number.isNaN(parsed) ? null : parsed,
+      slug: match?.slug ?? selectedRestaurantSlug ?? null,
+    };
+  }
+
+  if (selectedRestaurantSlug) {
+    return {
+      id: selectedRestaurantId ?? null,
+      slug: selectedRestaurantSlug,
+    };
   }
 
   if (selectedRestaurantId != null) {
-    return Number(selectedRestaurantId);
+    const match = nearbyRestaurants?.find(
+      (restaurant) => Number(restaurant.id) === Number(selectedRestaurantId),
+    );
+
+    return {
+      id: Number(selectedRestaurantId),
+      slug: match?.slug ?? (getPersistedRestaurantSlug() || null),
+    };
   }
 
-  return getNearestRestaurantId(nearbyRestaurants, location);
+  const nearest = getNearestRestaurant(nearbyRestaurants, location);
+
+  return {
+    id: nearest?.id ?? null,
+    slug: nearest?.slug ?? null,
+  };
+}
+
+export function resolveMenuRestaurantId(args) {
+  return resolveMenuRestaurant(args).id;
 }

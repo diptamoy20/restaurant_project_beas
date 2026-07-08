@@ -7,6 +7,11 @@ import {
   useState,
 } from 'react';
 import { useLocation } from 'react-router-dom';
+import {
+  getRestaurantSlugFromPath,
+  persistRestaurantSlug,
+} from '../lib/restaurantPaths';
+import { getRestaurantIdFromUrl } from '../lib/restaurantSelection';
 import { persistRestaurantId, resolveRestaurantId } from '../lib/tableSession';
 
 const SelectedRestaurantContext = createContext(null);
@@ -22,37 +27,86 @@ export function SelectedRestaurantProvider({ children }) {
 
     return raw ? Number(raw) : null;
   });
+  const [selectedRestaurantSlug, setSelectedRestaurantSlugState] = useState(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
 
-  const setSelectedRestaurantId = useCallback((id) => {
-    setSelectedRestaurantIdState(id);
+    return getRestaurantSlugFromPath(window.location.pathname) || null;
+  });
 
-    if (typeof window !== 'undefined') {
-      if (id == null) {
-        window.sessionStorage.removeItem('restaurant-web-active-restaurant');
-      } else {
-        persistRestaurantId(id);
-      }
+  const setSelectedRestaurant = useCallback(({ id, slug }) => {
+    setSelectedRestaurantIdState(id ?? null);
+    setSelectedRestaurantSlugState(slug ?? null);
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (id == null) {
+      window.sessionStorage.removeItem('restaurant-web-active-restaurant');
+    } else {
+      persistRestaurantId(id);
+    }
+
+    if (!slug) {
+      window.sessionStorage.removeItem('restaurant-web-active-restaurant-slug');
+    } else {
+      persistRestaurantSlug(slug);
     }
   }, []);
 
-  useEffect(() => {
-    const fromUrl = resolveRestaurantId(location.search);
+  const setSelectedRestaurantId = useCallback(
+    (id) => {
+      setSelectedRestaurant({ id, slug: selectedRestaurantSlug });
+    },
+    [selectedRestaurantSlug, setSelectedRestaurant],
+  );
 
-    if (fromUrl) {
-      const parsed = Number(fromUrl);
+  const setSelectedRestaurantSlug = useCallback(
+    (slug) => {
+      setSelectedRestaurant({ id: selectedRestaurantId, slug });
+    },
+    [selectedRestaurantId, setSelectedRestaurant],
+  );
+
+  useEffect(() => {
+    const slugFromPath = getRestaurantSlugFromPath(location.pathname);
+
+    if (slugFromPath && slugFromPath !== selectedRestaurantSlug) {
+      setSelectedRestaurantSlugState(slugFromPath);
+      persistRestaurantSlug(slugFromPath);
+    }
+  }, [location.pathname, selectedRestaurantSlug]);
+
+  useEffect(() => {
+    const legacyRestaurantId = getRestaurantIdFromUrl(location.search);
+
+    if (legacyRestaurantId) {
+      const parsed = Number(legacyRestaurantId);
 
       if (!Number.isNaN(parsed) && parsed !== selectedRestaurantId) {
-        setSelectedRestaurantId(parsed);
+        setSelectedRestaurantIdState(parsed);
+        persistRestaurantId(parsed);
       }
     }
-  }, [location.search, selectedRestaurantId, setSelectedRestaurantId]);
+  }, [location.search, selectedRestaurantId]);
 
   const value = useMemo(
     () => ({
       selectedRestaurantId,
+      selectedRestaurantSlug,
+      setSelectedRestaurant,
       setSelectedRestaurantId,
+      setSelectedRestaurantSlug,
     }),
-    [selectedRestaurantId, setSelectedRestaurantId],
+    [
+      selectedRestaurantId,
+      selectedRestaurantSlug,
+      setSelectedRestaurant,
+      setSelectedRestaurantId,
+      setSelectedRestaurantSlug,
+    ],
   );
 
   return (

@@ -19,6 +19,7 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/menu/:slug" element={<MenuPage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/login" element={<LoginPage />} />

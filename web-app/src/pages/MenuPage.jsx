@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   addToCart,
@@ -19,8 +19,9 @@ import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
 import {
   getRestaurantIdFromUrl,
-  resolveMenuRestaurantId,
+  resolveMenuRestaurant,
 } from "../lib/restaurantSelection";
+import { buildMenuPath, persistRestaurantSlug } from "../lib/restaurantPaths";
 import {
   persistRestaurantId,
   persistTableId,
@@ -39,9 +40,10 @@ export function MenuPage() {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+  const { slug: routeSlug } = useParams();
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location);
-  const { selectedRestaurantId, setSelectedRestaurantId } =
+  const { selectedRestaurantId, selectedRestaurantSlug, setSelectedRestaurant } =
     useSelectedRestaurant();
   const {
     items,
@@ -81,27 +83,35 @@ export function MenuPage() {
   };
 
   const urlRestaurantId = getRestaurantIdFromUrl(location.search);
+  const urlRestaurantSlug = routeSlug || null;
 
-  const activeRestaurantId = useMemo(
+  const activeRestaurant = useMemo(
     () =>
-      resolveMenuRestaurantId({
+      resolveMenuRestaurant({
         urlRestaurantId,
+        urlRestaurantSlug,
         selectedRestaurantId,
+        selectedRestaurantSlug,
         nearbyRestaurants: nearby.restaurants,
         location: locationFlow.location,
       }),
     [
       urlRestaurantId,
+      urlRestaurantSlug,
       selectedRestaurantId,
+      selectedRestaurantSlug,
       nearby.restaurants,
       locationFlow.location,
     ],
   );
 
+  const activeRestaurantId = activeRestaurant.id;
+  const activeRestaurantSlug =
+    activeRestaurant.slug || restaurant?.slug || urlRestaurantSlug;
+
   const isMenuStale =
-    activeRestaurantId != null &&
-    menuRestaurantId != null &&
-    Number(menuRestaurantId) !== Number(activeRestaurantId);
+    Boolean(activeRestaurantSlug) &&
+    restaurant?.slug !== activeRestaurantSlug;
 
   // States for Filtering and Searching
   const [frequentItems, setFrequentItems] = useState([]);
@@ -131,54 +141,90 @@ export function MenuPage() {
   }, [location.search]);
 
   useEffect(() => {
-    if (!activeRestaurantId) {
+    if (!activeRestaurantId && !activeRestaurantSlug) {
       return;
     }
 
-    persistRestaurantId(activeRestaurantId);
-
-    if (selectedRestaurantId !== activeRestaurantId) {
-      setSelectedRestaurantId(activeRestaurantId);
+    if (activeRestaurantId) {
+      persistRestaurantId(activeRestaurantId);
     }
-  }, [activeRestaurantId, selectedRestaurantId, setSelectedRestaurantId]);
+
+    if (activeRestaurantSlug) {
+      persistRestaurantSlug(activeRestaurantSlug);
+    }
+
+    setSelectedRestaurant({
+      id: activeRestaurantId ?? selectedRestaurantId,
+      slug: activeRestaurantSlug,
+    });
+  }, [
+    activeRestaurantId,
+    activeRestaurantSlug,
+    selectedRestaurantId,
+    setSelectedRestaurant,
+  ]);
 
   useEffect(() => {
-    if (!activeRestaurantId || urlRestaurantId) {
+    if (!urlRestaurantId || urlRestaurantSlug) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    api
+      .get(`/v1/restaurants/${urlRestaurantId}`)
+      .then((data) => {
+        if (!cancelled && data?.slug) {
+          navigate(
+            buildMenuPath(data.slug, {
+              tableId: resolveTableId(location.search),
+            }),
+            { replace: true },
+          );
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlRestaurantId, urlRestaurantSlug, location.search, navigate]);
+
+  useEffect(() => {
+    if (urlRestaurantSlug || urlRestaurantId || !activeRestaurantSlug) {
       return;
     }
 
-    const params = new URLSearchParams(location.search);
-    params.set("restaurantId", String(activeRestaurantId));
-
     navigate(
-      {
-        pathname: location.pathname,
-        search: params.toString(),
-      },
+      buildMenuPath(activeRestaurantSlug, {
+        tableId: resolveTableId(location.search),
+      }),
       { replace: true },
     );
   }, [
-    activeRestaurantId,
+    activeRestaurantSlug,
     urlRestaurantId,
-    location.pathname,
+    urlRestaurantSlug,
     location.search,
     navigate,
   ]);
 
   useEffect(() => {
-    if (!activeRestaurantId) {
+    if (!activeRestaurantSlug && !activeRestaurantId) {
       return;
     }
 
     dispatch(
       fetchMenu({
         restaurantId: activeRestaurantId,
+        restaurantSlug: activeRestaurantSlug,
         coordinates: locationFlow.location,
       }),
     );
   }, [
     dispatch,
     activeRestaurantId,
+    activeRestaurantSlug,
     locationFlow.location?.lat,
     locationFlow.location?.lng,
   ]);
@@ -189,13 +235,15 @@ export function MenuPage() {
     setDebouncedSearchQuery("");
     setFrequentItems([]);
     setBestSelling([]);
-  }, [activeRestaurantId]);
+  }, [activeRestaurantId, activeRestaurantSlug]);
 
   // Fetch user-specific and restaurant-specific frequently ordered items
   useEffect(() => {
-    if (isAuthenticated && activeRestaurantId) {
+    if (isAuthenticated && activeRestaurantSlug) {
       api
-        .get(`/menu/restaurant/${activeRestaurantId}/frequent`)
+        .get(
+          `/menu/restaurant/slug/${encodeURIComponent(activeRestaurantSlug)}/frequent`,
+        )
         .then((data) => {
           setFrequentItems(Array.isArray(data) ? data : []);
         })
@@ -205,10 +253,10 @@ export function MenuPage() {
     } else {
       setFrequentItems([]);
     }
-  }, [isAuthenticated, activeRestaurantId]);
+  }, [isAuthenticated, activeRestaurantSlug]);
 
   useEffect(() => {
-    if (!activeRestaurantId) {
+    if (!activeRestaurantId && !activeRestaurantSlug) {
       setBestSelling([]);
       return undefined;
     }
@@ -457,7 +505,7 @@ export function MenuPage() {
     return base + addonsTotal;
   }, [customizingItem, selectedVariant, selectedAddons]);
 
-  if (!activeRestaurantId) {
+  if (!activeRestaurantSlug && !activeRestaurantId) {
     if (nearby.loading) {
       return (
         <section>
@@ -526,7 +574,7 @@ export function MenuPage() {
       <div className="section-header">
         <div>
           <p className="eyebrow">Menu</p>
-          <h2>{restaurant?.name ?? `Restaurant ${activeRestaurantId}`}</h2>
+          <h2>{restaurant?.name ?? "Restaurant menu"}</h2>
           <p>{restaurant?.address ?? "Fresh dishes prepared for you"}</p>
         </div>
         {delivery ? (

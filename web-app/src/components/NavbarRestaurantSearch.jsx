@@ -4,6 +4,7 @@ import { useSelectedRestaurant } from "../context/SelectedRestaurantContext.jsx"
 import { useNearbyRestaurants } from "../hooks/useNearbyRestaurants";
 import { useUserLocation } from "../hooks/useUserLocation";
 import { distanceKm } from "../lib/restaurantSelection";
+import { buildMenuPath, persistRestaurantSlug } from "../lib/restaurantPaths";
 import { persistRestaurantId, resolveTableId } from "../lib/tableSession";
 import { searchRestaurants } from "../services/locationApi";
 
@@ -12,8 +13,11 @@ export function NavbarRestaurantSearch() {
   const navigate = useNavigate();
   const locationFlow = useUserLocation();
   const nearby = useNearbyRestaurants(locationFlow.location, { limit: 16 });
-  const { selectedRestaurantId, setSelectedRestaurantId } =
-    useSelectedRestaurant();
+  const {
+    selectedRestaurantId,
+    selectedRestaurantSlug,
+    setSelectedRestaurant,
+  } = useSelectedRestaurant();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [remoteResults, setRemoteResults] = useState([]);
@@ -96,9 +100,15 @@ export function NavbarRestaurantSearch() {
   }, [query, remoteResults, nearbySorted]);
 
   const selectedLabel =
+    nearbySorted.find((row) => row.slug === selectedRestaurantSlug)?.name ??
     nearbySorted.find((row) => row.id === selectedRestaurantId)?.name ??
+    remoteResults.find((row) => row.slug === selectedRestaurantSlug)?.name ??
     remoteResults.find((row) => row.id === selectedRestaurantId)?.name ??
-    (selectedRestaurantId ? `Restaurant #${selectedRestaurantId}` : null);
+    (selectedRestaurantSlug
+      ? selectedRestaurantSlug.replace(/-/g, " ")
+      : selectedRestaurantId
+        ? `Restaurant #${selectedRestaurantId}`
+        : null);
 
   return (
     <div className="navbar-restaurant-search" ref={wrapRef}>
@@ -145,25 +155,23 @@ export function NavbarRestaurantSearch() {
                 <button
                   type="button"
                   className={
+                    restaurant.slug === selectedRestaurantSlug ||
                     restaurant.id === selectedRestaurantId
                       ? "navbar-restaurant-option is-active"
                       : "navbar-restaurant-option"
                   }
                   onClick={() => {
-                    setSelectedRestaurantId(restaurant.id);
+                    setSelectedRestaurant({
+                      id: restaurant.id,
+                      slug: restaurant.slug,
+                    });
                     persistRestaurantId(restaurant.id);
-                    const params = new URLSearchParams();
-                    const tableId = resolveTableId(location.search);
-                    if (tableId) {
-                      params.set("table", String(tableId));
-                    }
-                    params.set("restaurantId", String(restaurant.id));
+                    persistRestaurantSlug(restaurant.slug);
                     navigate(
-                      {
-                        pathname: "/menu",
-                        search: params.toString(),
-                      },
-                      { replace: location.pathname === "/menu" },
+                      buildMenuPath(restaurant.slug, {
+                        tableId: resolveTableId(location.search),
+                      }),
+                      { replace: location.pathname.startsWith("/menu") },
                     );
 
                     setOpen(false);

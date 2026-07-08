@@ -243,11 +243,7 @@ useEffect(() => {
       return;
     }
 
-    const checkoutPath = createSessionAwarePath(
-      "/checkout",
-      tableId,
-      restaurantId,
-    );
+    const checkoutPath = createSessionAwarePath("/checkout", tableId);
     const [checkoutPathname, checkoutSearch = ""] = checkoutPath.split("?");
 
     if (!token) {
@@ -307,11 +303,7 @@ useEffect(() => {
         return;
       }
 
-      const finalPath = createSessionAwarePath(
-        "/checkout",
-        tableId,
-        targetRestaurantId,
-      );
+      const finalPath = createSessionAwarePath("/checkout", tableId);
       navigate(finalPath);
     } catch (error) {
       setErrorMessage(

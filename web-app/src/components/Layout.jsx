@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { useSelectedRestaurant } from '../context/SelectedRestaurantContext.jsx';
+import { buildMenuPath, isMenuPath } from '../lib/restaurantPaths';
 import { logout } from '../store/slices/authSlice';
 import { fetchCart } from '../store/slices/cartSlice';
 import { clearFavorites, fetchFavorites } from '../store/slices/favoritesSlice';
@@ -22,13 +24,16 @@ export function Layout({ children }) {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const profileMenuRef = useRef(null);
+  const { selectedRestaurantSlug } = useSelectedRestaurant();
   const isHomePage = location.pathname === '/';
   const cartCount = cartItems.reduce(
     (sum, item) => sum + (item.quantity ?? 1),
     0,
   );
   const homePath = '/';
-  const menuPath = '/menu';
+  const menuPath = selectedRestaurantSlug
+    ? buildMenuPath(selectedRestaurantSlug)
+    : '/menu';
   const cartPath = '/cart';
   const profilePath = '/profile';
   const ordersPath = '/orders';
@@ -150,7 +155,7 @@ export function Layout({ children }) {
                   Home
                 </Link>
                 <Link
-                  className={location.pathname === '/menu' ? 'active' : ''}
+                  className={isMenuPath(location.pathname) ? 'active' : ''}
                   to={menuPath}
                 >
                   Menu
@@ -238,7 +243,7 @@ export function Layout({ children }) {
               <>
                 <Link
                   className={
-                    location.pathname === '/menu' ? 'nav-cta active' : 'nav-cta'
+                    isMenuPath(location.pathname) ? 'nav-cta active' : 'nav-cta'
                   }
                   to={menuPath}
                 >
@@ -325,7 +330,7 @@ export function Layout({ children }) {
                 Home
               </Link>
               <Link
-                className={location.pathname === '/menu' ? 'active' : ''}
+                className={isMenuPath(location.pathname) ? 'active' : ''}
                 to={menuPath}
               >
                 Menu
@@ -366,7 +371,7 @@ export function Layout({ children }) {
             <>
               <Link
                 className={
-                  location.pathname === '/menu' ? 'nav-cta active' : 'nav-cta'
+                  isMenuPath(location.pathname) ? 'nav-cta active' : 'nav-cta'
                 }
                 to={menuPath}
               >

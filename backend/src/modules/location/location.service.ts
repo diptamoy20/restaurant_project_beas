@@ -18,6 +18,7 @@ type RestaurantRouteData = {
 type NearbyRestaurantRow = {
   id: number;
   name: string;
+  slug: string;
   address: string;
   city: string | null;
   latitude: number;
@@ -183,6 +184,7 @@ export class LocationService {
         SELECT
           r."id",
           r."name",
+          r."slug",
           r."address",
           r."city",
           r."latitude",
@@ -242,6 +244,7 @@ export class LocationService {
       SELECT
         "id",
         "name",
+        "slug",
         "address",
         "city",
         "latitude",

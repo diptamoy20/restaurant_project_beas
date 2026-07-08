@@ -32,24 +32,26 @@ export function resolveTableId(search) {
 
 export function resolveRestaurantId(search) {
   const params = new URLSearchParams(search);
-  return params.get('restaurant') || params.get('restaurantId') || getPersistedRestaurantId() || '';
+  const legacyValue = params.get('restaurant') || params.get('restaurantId');
+
+  if (legacyValue && /^\d+$/.test(String(legacyValue))) {
+    return legacyValue;
+  }
+
+  return getPersistedRestaurantId() || '';
 }
 
 export function createTableAwarePath(path, tableId) {
   return path;
 }
 
-export function createSessionAwarePath(path, tableId, restaurantId) {
+export function createSessionAwarePath(path, tableId) {
+  if (!tableId) {
+    return path;
+  }
+
   const params = new URLSearchParams();
+  params.set('table', String(tableId));
 
-  if (tableId) {
-    params.set('table', String(tableId));
-  }
-
-  if (restaurantId) {
-    params.set('restaurant', String(restaurantId));
-  }
-
-  const query = params.toString();
-  return query ? `${path}?${query}` : path;
+  return `${path}?${params.toString()}`;
 }

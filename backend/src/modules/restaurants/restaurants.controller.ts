@@ -349,6 +349,78 @@ export class RestaurantsController {
   }
 
   /**
+   * Get restaurant menu with delivery quote (slug-based)
+   */
+  @Get('by-slug/:slug/menu')
+  @AllowWeb()
+  @ApiOperation({ summary: 'Get restaurant menu by slug with delivery quote for coordinates' })
+  @ApiParam({ name: 'slug', type: String, example: 'pizza-hut' })
+  @ApiQuery({ name: 'lat', required: false, type: Number, example: 22.5726 })
+  @ApiQuery({ name: 'lng', required: false, type: Number, example: 88.3639 })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    type: Number,
+    description: 'Category id',
+    example: 2,
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOkResponse({ type: MenuResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  async getRestaurantMenuBySlug(
+    @Param('slug') slug: string,
+    @Query() query: PaginatedMenuQueryDto,
+    @Req() request: { user?: AuthenticatedUser },
+  ): Promise<MenuResponseDto> {
+    const id = await this.restaurantsService.resolveRestaurantIdBySlug(slug);
+    const userId = request.user?.id;
+    const hasCoordinates =
+      query.lat !== undefined ||
+      query.lng !== undefined ||
+      query.latitude !== undefined ||
+      query.longitude !== undefined;
+
+    if (!hasCoordinates) {
+      return this.menuService.getMenuByRestaurant(
+        id,
+        {
+          categoryId: query.categoryId,
+          limit: query.limit,
+          offset: query.offset,
+        },
+        userId,
+      );
+    }
+
+    const { lat, lng } = query.getCoordinates();
+
+    return this.menuService.getMenuByRestaurant(
+      id,
+      {
+        coordinates: { lat, lng },
+        categoryId: query.categoryId,
+        limit: query.limit,
+        offset: query.offset,
+      },
+      userId,
+    );
+  }
+
+  /**
+   * Get single restaurant by slug
+   */
+  @Get('by-slug/:slug')
+  @AllowWeb()
+  @ApiOperation({ summary: 'Get restaurant by slug' })
+  @ApiParam({ name: 'slug', type: String, example: 'pizza-hut' })
+  @ApiOkResponse({ type: RestaurantResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  async getRestaurantBySlug(@Param('slug') slug: string): Promise<RestaurantResponseDto> {
+    return this.restaurantsService.getRestaurantBySlug(slug);
+  }
+
+  /**
    * Get restaurant menu with delivery quote
    */
   @Get(':id/menu')

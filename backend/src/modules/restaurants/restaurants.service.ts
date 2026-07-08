@@ -23,6 +23,7 @@ import {
   PaginatedResult,
   toPrismaPagination,
 } from '../../common/dto/pagination.dto';
+import { generateUniqueRestaurantSlug } from '../../common/utils/restaurant-slug.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LocationService } from '../location/location.service';
 
@@ -89,6 +90,36 @@ export class RestaurantsService {
       throw new NotFoundException('Restaurant not found');
     }
     return this.mapRestaurant(restaurant);
+  }
+
+  /**
+   * Get single restaurant by slug
+   */
+  async getRestaurantBySlug(slug: string): Promise<RestaurantResponseDto> {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { slug },
+      include: { categories: true, tables: true, menuItems: true },
+    });
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+    return this.mapRestaurant(restaurant);
+  }
+
+  /**
+   * Resolve a restaurant slug to its numeric ID
+   */
+  async resolveRestaurantIdBySlug(slug: string): Promise<number> {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { slug },
+      select: { id: true, isActive: true },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    return restaurant.id;
   }
 
   async getRestaurantTables(restaurantId: number): Promise<RestaurantTableResponseDto[]> {
@@ -494,10 +525,13 @@ export class RestaurantsService {
     this.validateDeliveryPricing(data);
 
     try {
+      const slug = await generateUniqueRestaurantSlug(this.prisma, data.name);
+
       // Create restaurant without location field first
       const restaurant = await this.prisma.restaurant.create({
         data: {
           name: data.name,
+          slug,
           address: data.address,
           city: data.city ?? null,
           latitude: data.latitude,
@@ -810,6 +844,7 @@ export class RestaurantsService {
   private mapRestaurant(restaurant: {
     id: number;
     name: string;
+    slug: string;
     address: string;
     city: string | null;
     latitude: number;
@@ -861,6 +896,7 @@ export class RestaurantsService {
     return {
       id: restaurant.id,
       name: restaurant.name,
+      slug: restaurant.slug,
       address: restaurant.address,
       city: restaurant.city,
       latitude: restaurant.latitude,
