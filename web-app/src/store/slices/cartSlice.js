@@ -76,6 +76,20 @@ function normalizeCartItem(item) {
     category: menuItem.category ?? item.category,
     restaurantId:
       menuItem.restaurantId ?? item.restaurantId ?? menuItem.restaurant?.id,
+    restaurantName:
+      item.restaurantName ??
+      item.restaurant?.name ??
+      menuItem.restaurant?.name ??
+      null,
+    restaurant:
+      item.restaurant ??
+      menuItem.restaurant ??
+      (item.restaurantName || menuItem.restaurant?.name
+        ? {
+            id: menuItem.restaurantId ?? item.restaurantId,
+            name: item.restaurantName ?? menuItem.restaurant?.name,
+          }
+        : null),
     basePrice: baseItemPrice,
     price: unitPrice * Math.max(1, Number(item.quantity ?? 1)),
     unitPrice: unitPrice,
@@ -185,6 +199,10 @@ function mapServerCart(cart) {
     cartKey: String(item.cartItemId),
 
     restaurantId: item.restaurantId,
+    restaurantName: item.restaurantName ?? item.restaurant?.name ?? null,
+    restaurant: item.restaurantName
+      ? { id: item.restaurantId, name: item.restaurantName }
+      : item.restaurant ?? null,
     image: item.image,
     description: item.description,
     rating: item.rating,

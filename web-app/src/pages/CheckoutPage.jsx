@@ -57,6 +57,16 @@ export function CheckoutPage() {
   );
   const tableId = resolveTableId(location.search);
   const restaurantId = resolveRestaurantId(location.search) || cartRestaurantId;
+  const restaurantName = useMemo(
+    () =>
+      items.find((item) => item.restaurantName)?.restaurantName ||
+      items.find((item) => item.restaurant?.name)?.restaurant?.name ||
+      items.find((item) => item.menuItem?.restaurant?.name)?.menuItem?.restaurant
+        ?.name ||
+      "",
+    [items],
+  );
+  const restaurantLabel = restaurantName || (restaurantId ? "Restaurant" : "");
   const orderType = tableId ? "DINE_IN" : "DELIVERY";
   const needsDeliveryAddress = orderType === "DELIVERY";
   const subtotal = useMemo(
@@ -440,7 +450,8 @@ export function CheckoutPage() {
           <p className="eyebrow">Checkout</p>
           <h2>Confirm order</h2>
           <p className="cart-supporting-copy">
-            Table {tableId || "N/A"} - Restaurant {restaurantId}
+            Table {tableId || "N/A"}
+            {restaurantLabel ? ` - ${restaurantLabel}` : ""}
           </p>
         </div>
         <Link

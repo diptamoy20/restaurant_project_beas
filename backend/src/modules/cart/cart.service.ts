@@ -125,6 +125,7 @@ export class CartService {
           price: totalPrice,
           unitPrice: unitPrice,
           restaurantId: item.restaurantId,
+          restaurantName: item.restaurant?.name ?? null,
           discount: item.menuItem.discountPrice,
           addOns: await this.enrichStoredAddOns(item.addOns),
           description: item.menuItem.description,
