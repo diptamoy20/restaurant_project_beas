@@ -11,7 +11,6 @@ import { DeliveryOrdersPage } from './pages/DeliveryOrdersPage';
 import { LoginPage } from './pages/LoginPage';
 import { MenuPage } from './pages/MenuPage';
 import { RestaurantsPage } from './pages/RestaurantsPage';
-import { TableManagementPage } from './pages/TableManagementPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { PaymentsPage } from './pages/PaymentsPage';
@@ -46,9 +45,10 @@ export default function App() {
             <Route element={<OrdersRoute />} path="/orders" />
           </Route>
 
+          <Route element={<Navigate replace to="/tables" />} path="/restaurant-tables" />
+
           <Route element={<ProtectedRoute module="restaurants" />}>
             <Route element={<RestaurantsPage />} path="/restaurants" />
-            <Route element={<TableManagementPage />} path="/restaurant-tables" />
           </Route>
 
           <Route element={<ProtectedRoute module="categories" />}>

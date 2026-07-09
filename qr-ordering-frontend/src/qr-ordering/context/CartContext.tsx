@@ -55,10 +55,10 @@ export function CartProvider({ children }: CartProviderProps) {
   const setOrderContext: CartContextValue['setOrderContext'] = useCallback((context) => {
     setSnapshot((current) => ({
       ...current,
-      restaurant: context.restaurant,
-      restaurantId: context.restaurantId,
-      tableId: context.tableId,
-      tableLabel: context.tableLabel,
+      restaurant: context.restaurant ?? current.restaurant,
+      restaurantId: context.restaurantId ?? current.restaurantId,
+      tableId: context.tableId ?? current.tableId,
+      tableLabel: context.tableLabel ?? current.tableLabel,
       sessionId: context.sessionId ?? current.sessionId,
       sessionToken: context.sessionToken ?? current.sessionToken,
     }));

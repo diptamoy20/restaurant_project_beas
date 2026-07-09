@@ -265,6 +265,51 @@ export class TablesService {
       throw new NotFoundException('Invalid or inactive table QR code');
     }
 
+    return this.buildTableResolutionResponse(table);
+  }
+
+  async resolveTableByIds(
+    restaurantId: number,
+    tableId: number,
+  ): Promise<TableResolutionResponseDto> {
+    const table = await this.prisma.restaurantTable.findUnique({
+      where: { id: tableId },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+            gstEnabled: true,
+            gstRate: true,
+          },
+        },
+      },
+    });
+
+    if (!table || table.restaurantId !== restaurantId || !table.isActive) {
+      throw new NotFoundException(
+        'Table not found, inactive, or does not belong to this restaurant',
+      );
+    }
+
+    return this.buildTableResolutionResponse(table);
+  }
+
+  private async buildTableResolutionResponse(table: {
+    id: number;
+    restaurantId: number;
+    tableNumber: string;
+    restaurant: {
+      id: number;
+      name: string;
+      description: string | null;
+      isActive: boolean;
+      gstEnabled: boolean;
+      gstRate: number;
+    };
+  }): Promise<TableResolutionResponseDto> {
     if (!table.restaurant.isActive) {
       throw new NotFoundException('Restaurant is not available');
     }

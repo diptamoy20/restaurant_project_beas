@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 
 import { TableResolutionResponseDto } from './dto/table-response.dto';
@@ -11,6 +11,23 @@ import { Public } from '../../common/decorators/public.decorator';
 @ApiStandardErrorResponses({ notFound: true })
 export class TableResolutionController {
   constructor(private readonly tablesService: TablesService) {}
+
+  @Get('resolve/:restaurantId/:tableId')
+  @Public()
+  @ApiOperation({
+    summary: 'Resolve table by restaurant and table ID',
+    description:
+      'Validates restaurant/table IDs, returns table context, and returns or creates an active dine-in session. Used for legacy menu URLs.',
+  })
+  @ApiParam({ name: 'restaurantId', description: 'Restaurant ID', type: Number })
+  @ApiParam({ name: 'tableId', description: 'Table ID', type: Number })
+  @ApiOkResponse({ type: TableResolutionResponseDto })
+  resolveByIds(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Param('tableId', ParseIntPipe) tableId: number,
+  ): Promise<TableResolutionResponseDto> {
+    return this.tablesService.resolveTableByIds(restaurantId, tableId);
+  }
 
   @Get(':token')
   @Public()

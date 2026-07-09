@@ -5,9 +5,9 @@ import { DELIVERY_STATUS } from '../../../common/constants/delivery-status';
 
 export class UpdateDeliveryStatusDto {
   @ApiProperty({
-    enum: [DELIVERY_STATUS.ON_THE_WAY, DELIVERY_STATUS.DELIVERED],
-    example: DELIVERY_STATUS.ON_THE_WAY,
+    enum: [DELIVERY_STATUS.DELIVERED],
+    example: DELIVERY_STATUS.DELIVERED,
   })
-  @IsIn([DELIVERY_STATUS.ON_THE_WAY, DELIVERY_STATUS.DELIVERED])
+  @IsIn([DELIVERY_STATUS.DELIVERED])
   status!: string;
 }

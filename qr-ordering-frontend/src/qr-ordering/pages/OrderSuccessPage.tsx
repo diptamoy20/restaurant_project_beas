@@ -19,7 +19,7 @@ export function OrderSuccessPage() {
   const navigate = useNavigate();
   const { restaurantId, tableId, tableLabel } = useCart();
   const order = useMemo(() => readLastOrder(), []);
-  const menuPath = restaurantId && tableId ? `/menu/${restaurantId}/${tableId}` : '/menu/1/1';
+  const menuPath = restaurantId && tableId ? `/menu/${restaurantId}/${tableId}` : '/';
 
   return (
     <main className="qr-success-page">

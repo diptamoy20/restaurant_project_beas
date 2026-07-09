@@ -7,12 +7,18 @@ import QRCode from 'qrcode';
 export class QrCodeService {
   constructor(private readonly configService: ConfigService) {}
 
-  buildTableQrUrl(tableToken: string): string {
-    const baseUrl = (
-      this.configService.get<string>('QR_ORDERING_BASE_URL') ?? 'http://localhost:5175'
-    ).replace(/\/$/, '');
+  getOrderingAppBaseUrl(): string {
+    const baseUrl =
+      this.configService.get<string>('QR_ORDERING_BASE_URL') ??
+      this.configService.get<string>('QR_FRONTEND_URL') ??
+      this.configService.get<string>('QR_ORDERING_APP_URL') ??
+      'http://localhost:5175';
 
-    return `${baseUrl}/table/${tableToken}`;
+    return baseUrl.replace(/\/$/, '');
+  }
+
+  buildTableQrUrl(tableToken: string): string {
+    return `${this.getOrderingAppBaseUrl()}/table/${tableToken}`;
   }
 
   async renderPng(dataUrl: string): Promise<Buffer> {

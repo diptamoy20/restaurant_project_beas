@@ -183,6 +183,10 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     }
   }
 
+  if (env.QR_ORDERING_BASE_URL && !isValidUrl(env.QR_ORDERING_BASE_URL)) {
+    throw new Error('QR_ORDERING_BASE_URL must be a valid URL');
+  }
+
   if (nodeEnv !== 'development' && !env.QR_FRONTEND_URL) {
     throw new Error('QR_FRONTEND_URL is required in non-development environments');
   }
@@ -282,6 +286,7 @@ export function validateEnv(config: Record<string, unknown>): Record<string, unk
     FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL,
     FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY,
     QR_FRONTEND_URL: env.QR_FRONTEND_URL,
+    QR_ORDERING_BASE_URL: env.QR_ORDERING_BASE_URL ?? env.QR_FRONTEND_URL,
     QR_ORDERING_APP_URL: env.QR_ORDERING_APP_URL,
     ROUTING_ENABLED: routingEnabled,
     ROUTING_PROVIDER: routingProvider,

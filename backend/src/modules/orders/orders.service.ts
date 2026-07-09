@@ -376,13 +376,31 @@ export class OrdersService {
       data.cancelledByUserId = options.changedByUserId;
     }
 
-    const order = await this.prisma.order.update({
-      where: { id: orderId },
-      data,
-      include: ORDER_INCLUDE,
+    const deliveryStatus = this.resolveDeliveryStatusForAdminOrderUpdate(status);
+
+    const order = await this.prisma.$transaction(async (transaction) => {
+      await transaction.order.update({
+        where: { id: orderId },
+        data,
+      });
+
+      if (existing.orderType === 'DELIVERY' && existing.delivery && deliveryStatus) {
+        await transaction.delivery.update({
+          where: { orderId },
+          data: { status: deliveryStatus },
+        });
+      }
+
+      return transaction.order.findUnique({
+        where: { id: orderId },
+        include: ORDER_INCLUDE,
+      });
     });
 
-    // return this.mapOrder(order);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
     const mapped = this.mapOrder(order);
 
     const latestLocation = DeliveriesGateway.resolveLatestLocation(
@@ -713,6 +731,16 @@ export class OrdersService {
     });
 
     return this.mapOrder(order);
+  }
+
+  private resolveDeliveryStatusForAdminOrderUpdate(orderStatus: string): string | null {
+    const statusMap: Partial<Record<string, string>> = {
+      [ORDER_STATUS.ON_THE_WAY]: DELIVERY_STATUS.ON_THE_WAY,
+      [ORDER_STATUS.DELIVERED]: DELIVERY_STATUS.DELIVERED,
+      [ORDER_STATUS.CANCELLED]: DELIVERY_STATUS.CANCELLED,
+    };
+
+    return statusMap[orderStatus] ?? null;
   }
 
   private mapOrder(order: OrderWithRelations, reorderOrderId?: number | null): OrderResponseDto {

@@ -287,37 +287,8 @@ export class DeliveriesService {
       throw new BadRequestException(`Delivery cannot be accepted from status ${existing.status}`);
     }
 
-    const updated = await this.prisma.$transaction(async (transaction) => {
-      await transaction.order.update({
-        where: { id: orderId },
-        data: {
-          status: ORDER_STATUS.ON_THE_WAY,
-          statusLogs: { create: [{ status: ORDER_STATUS.ON_THE_WAY }] },
-        },
-      });
-
-      return transaction.delivery.update({
-        where: { id: existing.id },
-        data: { status: DELIVERY_STATUS.ON_THE_WAY },
-        include: DELIVERY_DETAIL_INCLUDE,
-      });
-    });
-
-    const latestLocation = DeliveriesGateway.resolveLatestLocation(
-      updated.status,
-      updated.trackingLogs[0],
-      updated.order.restaurant,
-      updated.id,
-    );
-
-    this.deliveriesGateway.emitOrderUpdated(orderId, {
-      type: 'ORDER_STATUS_CHANGED',
-      status: ORDER_STATUS.ON_THE_WAY,
-      order: this.mapOrderForSocket(updated),
-      latestLocation,
-    });
-
-    return this.mapOrderDetails(updated);
+    // Admin controls the ON_THE_WAY transition; acknowledge assignment without changing status.
+    return this.mapOrderDetails(existing);
   }
 
   async sendDeliveryOtp(
@@ -326,7 +297,18 @@ export class DeliveriesService {
   ): Promise<SendOtpResponseDto> {
     const agent = await this.getCurrentAgentOrThrow(requester);
 
-    const delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
+    let delivery = await this.getMyDeliveryByOrderOrThrow(agent.id, orderId);
+
+    if (
+      delivery.status !== DELIVERY_STATUS.ON_THE_WAY &&
+      delivery.order.status === ORDER_STATUS.ON_THE_WAY
+    ) {
+      delivery = await this.prisma.delivery.update({
+        where: { id: delivery.id },
+        data: { status: DELIVERY_STATUS.ON_THE_WAY },
+        include: DELIVERY_DETAIL_INCLUDE,
+      });
+    }
 
     if (delivery.status !== DELIVERY_STATUS.ON_THE_WAY) {
       throw new BadRequestException('OTP can only be sent for orders that are on the way');
@@ -366,8 +348,12 @@ export class DeliveriesService {
 
     this.assertDeliveryTransition(currentStatus, nextStatus);
 
-    const isDelivered = nextStatus === DELIVERY_STATUS.DELIVERED;
-    const orderStatus = isDelivered ? ORDER_STATUS.DELIVERED : ORDER_STATUS.ON_THE_WAY;
+    if (nextStatus !== DELIVERY_STATUS.DELIVERED) {
+      throw new BadRequestException('Delivery boys can only mark orders as delivered');
+    }
+
+    const isDelivered = true;
+    const orderStatus = ORDER_STATUS.DELIVERED;
     let codSettled = false;
 
     const updated = await this.prisma.$transaction(async (transaction) => {
@@ -1347,7 +1333,6 @@ export class DeliveriesService {
     nextStatus: DeliveryStatusValue,
   ): void {
     const allowedTransitions: Partial<Record<DeliveryStatusValue, DeliveryStatusValue[]>> = {
-      [DELIVERY_STATUS.ASSIGNED]: [DELIVERY_STATUS.ON_THE_WAY],
       [DELIVERY_STATUS.ON_THE_WAY]: [DELIVERY_STATUS.DELIVERED],
     };
 
@@ -1360,8 +1345,8 @@ export class DeliveriesService {
 
   private getActions(status: string): DeliveryBoyOrderDetailsDto['actions'] {
     return {
-      canAccept: status === DELIVERY_STATUS.ASSIGNED,
-      canMarkOnTheWay: status === DELIVERY_STATUS.ASSIGNED,
+      canAccept: false,
+      canMarkOnTheWay: false,
       canMarkDelivered: status === DELIVERY_STATUS.ON_THE_WAY,
     };
   }

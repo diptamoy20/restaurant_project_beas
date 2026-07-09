@@ -173,6 +173,7 @@ export function CategoriesPage() {
               error={errors.restaurant}
               label="Search or select restaurant"
               list="category-restaurant-options"
+              required
               onChange={(event) => {
                 const value = event.target.value;
                 setRestaurantSearch(value);
@@ -318,8 +319,9 @@ export function CategoriesPage() {
           />
           <TextField
             error={errors.name}
-            label="Category Name *"
+            label="Category Name"
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            required
             value={form.name}
           />
           <TextField

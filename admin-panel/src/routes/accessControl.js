@@ -4,7 +4,6 @@ export const routeDefinitions = [
   { path: '/dashboard', label: 'Dashboard', module: 'dashboard' },
   { path: '/orders', label: 'Orders', module: 'orders' },
   { path: '/restaurants', label: 'Manage Restaurants', module: 'restaurants' },
-  { path: '/restaurant-tables', label: 'Table Management', module: 'restaurants' },
   { path: '/categories', label: 'Categories', module: 'categories' },
   { path: '/menu', label: 'Manage Menu', module: 'menu' },
   { path: '/coupons', label: 'Coupons', module: 'coupons' },

@@ -11,6 +11,7 @@ import { BestSellerStrip } from '../components/menu/BestSellerStrip';
 import { CategoryTabs } from '../components/menu/CategoryTabs';
 import { FoodCard } from '../components/menu/FoodCard';
 import { useCart } from '../hooks/useCart';
+import { resolveTableSession } from '../services/api/qrOrderingApi';
 import { useMenu } from '../hooks/useMenu';
 import type { AddOnIngredient } from '../types/addOn.types';
 import type { QRMenuAddonGroup, QRMenuItem, QRMenuItemVariant } from '../types/menu.types';
@@ -21,7 +22,7 @@ export function MenuPage() {
   const restaurantId = toNumericRouteId(params.restaurantId);
   const tableId = toNumericRouteId(params.tableId);
   const { data, isLoading, error } = useMenu(restaurantId, tableId);
-  const { addItem, getQuantity, setOrderContext } = useCart();
+  const { addItem, getQuantity, setOrderContext, sessionId } = useCart();
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [optionItem, setOptionItem] = useState<QRMenuItem | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<QRMenuItemVariant | undefined>();
@@ -59,6 +60,40 @@ export function MenuPage() {
       tableLabel: data.restaurant.tableName,
     });
   }, [data, restaurantId, setOrderContext, tableId]);
+
+  useEffect(() => {
+    if (!restaurantId || !tableId || sessionId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const ensureSession = async () => {
+      try {
+        const sessionData = await resolveTableSession(restaurantId, tableId);
+
+        if (cancelled) {
+          return;
+        }
+
+        setOrderContext({
+          restaurantId: sessionData.restaurantId,
+          tableId: sessionData.tableId,
+          tableLabel: sessionData.tableNumber,
+          sessionId: sessionData.sessionId,
+          sessionToken: sessionData.sessionToken,
+        });
+      } catch {
+        // Menu can still load; session is required only for order placement.
+      }
+    };
+
+    void ensureSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId, sessionId, setOrderContext, tableId]);
 
   useEffect(() => {
     setHasMinimumSplashElapsed(false);

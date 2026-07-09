@@ -5,7 +5,7 @@ import { baseQueryWithAuth } from "../app/baseQuery";
 export const restaurantApi = createApi({
   reducerPath: "restaurantApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["Restaurant", "RestaurantTables"],
+  tagTypes: ["Restaurant"],
   endpoints: (builder) => ({
     /**
      * Get all restaurants (including inactive) for admin
@@ -73,44 +73,6 @@ export const restaurantApi = createApi({
       query: (id) => `/restaurants/${id}`,
       providesTags: (result, error, id) => [{ type: "Restaurant", id }],
     }),
-
-    getRestaurantTables: builder.query({
-      query: (restaurantId) => `/restaurants/${restaurantId}/tables`,
-      providesTags: (result, error, restaurantId) =>
-        result
-          ? [{ type: 'RestaurantTables', id: restaurantId }]
-          : [{ type: 'RestaurantTables', id: restaurantId }],
-    }),
-
-    createRestaurantTable: builder.mutation({
-      query: ({ restaurantId, data }) => ({
-        url: `/restaurants/${restaurantId}/tables`,
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: (result, error, arg) => [{ type: 'RestaurantTables', id: arg.restaurantId }],
-    }),
-
-    updateRestaurantTable: builder.mutation({
-      query: ({ restaurantId, tableId, data }) => ({
-        url: `/restaurants/${restaurantId}/tables/${tableId}`,
-        method: 'PATCH',
-        body: data,
-      }),
-      invalidatesTags: (result, error, arg) => [{ type: 'RestaurantTables', id: arg.restaurantId }],
-    }),
-
-    deleteRestaurantTable: builder.mutation({
-      query: ({ restaurantId, tableId }) => ({
-        url: `/restaurants/${restaurantId}/tables/${tableId}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: (result, error, arg) => [{ type: 'RestaurantTables', id: arg.restaurantId }],
-    }),
-
-    getRestaurantTableQr: builder.query({
-      query: ({ restaurantId, tableId }) => `/restaurants/${restaurantId}/tables/${tableId}/qr`,
-    }),
   }),
 });
 
@@ -121,9 +83,4 @@ export const {
   useUploadRestaurantImageMutation,
   useDeleteRestaurantMutation,
   useGetRestaurantQuery,
-  useGetRestaurantTablesQuery,
-  useCreateRestaurantTableMutation,
-  useUpdateRestaurantTableMutation,
-  useDeleteRestaurantTableMutation,
-  useGetRestaurantTableQrQuery,
 } = restaurantApi;
