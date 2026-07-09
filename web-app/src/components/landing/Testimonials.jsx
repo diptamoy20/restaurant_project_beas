@@ -35,7 +35,7 @@ export function Testimonials() {
     <RevealSection className="content-section testimonials-section" id="testimonials">
       <div className="section-heading">
         <p className="eyebrow">Guest Feedback</p>
-        <h2>Proof that the experience feels as good as the food looks.</h2>
+        <h2>Proof that the experience feels as good as the food looks</h2>
       </div>
       <div className="testimonial-shell">
         <article className="glass-card testimonial-card">

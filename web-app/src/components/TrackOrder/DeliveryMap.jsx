@@ -125,7 +125,7 @@ export function DeliveryMap({
           osm: {
             type: "raster",
             tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
+            tileSize: 500,
             attribution: "© OpenStreetMap contributors",
           },
         },

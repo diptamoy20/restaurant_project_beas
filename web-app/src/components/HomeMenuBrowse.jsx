@@ -146,7 +146,7 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
 
         {!bestLoading && bestSelling.length === 0 ? (
           <p className="copy-muted">
-            No best-selling dishes available right now.
+            No best-selling dishes available right now
           </p>
         ) : null}
 
@@ -154,10 +154,10 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
           <Swiper
             key={`best-${restaurantId || "all"}`}
             modules={[Navigation, Pagination, Autoplay]}
-            navigation
-            pagination={{
-              clickable: true,
-            }}
+            // navigation
+            // pagination={{
+            //   clickable: true,
+            // }}
             autoplay={{
               delay: 2500,
               disableOnInteraction: false,

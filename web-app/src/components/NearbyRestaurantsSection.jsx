@@ -10,8 +10,8 @@ const formatRupees = new Intl.NumberFormat("en-IN", {
 
 function getEstimatedDeliveryLabel(restaurant) {
   return Number(restaurant.deliveryFee ?? 0) === 0
-    ? "Est. delivery: Free"
-    : `Est. delivery from ${formatRupees.format(restaurant.deliveryFee)}`;
+    ? "delivery: Free"
+    : `delivery: ${formatRupees.format(restaurant.deliveryFee)}`;
 }
 
 export function NearbyRestaurantsSection({
@@ -42,11 +42,11 @@ export function NearbyRestaurantsSection({
           >
             Change Location
           </button>
-          {location ? (
+          {/* {location ? (
             <button type="button" className="ghost-button" onClick={onRetry}>
               Refresh
             </button>
-          ) : null}
+          ) : null} */}
         </div>
       </div>
 

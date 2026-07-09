@@ -7,7 +7,7 @@ export function CTABanner() {
       <div className="cta-banner">
         <div>
           <p className="eyebrow">Ready to Order?</p>
-          <h2>Bring guests from table scan to paid order in a beautifully simple flow.</h2>
+          <h2>Bring guests from table scan to paid order in a beautifully simple flow</h2>
         </div>
         <div className="hero-actions">
           <Link className="cta-button cta-button-primary" to="/menu">
