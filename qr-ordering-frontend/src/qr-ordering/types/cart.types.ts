@@ -42,10 +42,10 @@ export interface CartContextValue extends CartSnapshot {
   decreaseQuantity: (cartKey: string) => void;
   clearCart: () => void;
   setOrderContext: (context: {
-    restaurant: QRRestaurantInfo;
-    restaurantId: number;
-    tableId: number;
-    tableLabel: string;
+    restaurant?: QRRestaurantInfo;
+    restaurantId?: number;
+    tableId?: number;
+    tableLabel?: string;
     sessionId?: number;
     sessionToken?: string;
   }) => void;

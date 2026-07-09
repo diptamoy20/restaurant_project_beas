@@ -35,6 +35,17 @@ export async function resolveTableToken(token: string): Promise<TableResolutionR
   return unwrapData<TableResolutionResponse>(response);
 }
 
+export async function resolveTableSession(
+  restaurantId: number,
+  tableId: number,
+): Promise<TableResolutionResponse> {
+  const response = await axiosInstance.get<TableResolutionResponse | { data: TableResolutionResponse }>(
+    `/table/resolve/${restaurantId}/${tableId}`,
+  );
+
+  return unwrapData<TableResolutionResponse>(response);
+}
+
 export async function getQRMenu(restaurantId: number, tableId: number): Promise<QRMenuResponse> {
   const response = await axiosInstance.get<QRMenuResponse | { data: QRMenuResponse }>(
     `/qr/menu/${restaurantId}/${tableId}`,

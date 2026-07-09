@@ -43,6 +43,7 @@ export function TablesPage() {
   const [form, setForm] = useState(emptyForm);
   const [formErrors, setFormErrors] = useState({});
   const [actionError, setActionError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const query = useMemo(
     () => ({
@@ -97,6 +98,7 @@ export function TablesPage() {
     });
     setFormErrors({});
     setActionError("");
+    setSuccessMessage("");
     setModalOpen(true);
   };
 
@@ -110,6 +112,7 @@ export function TablesPage() {
     });
     setFormErrors({});
     setActionError("");
+    setSuccessMessage("");
     setModalOpen(true);
   };
 
@@ -145,14 +148,17 @@ export function TablesPage() {
           capacity: Number(form.capacity),
           isActive: form.isActive,
         }).unwrap();
+        setSuccessMessage("Table updated successfully.");
       } else {
         await createTable({
           restaurantId: Number(form.restaurantId),
           tableNumber: form.tableNumber.trim(),
           capacity: Number(form.capacity),
         }).unwrap();
+        setSuccessMessage("Table created successfully.");
       }
 
+      setActionError("");
       setModalOpen(false);
     } catch (submitError) {
       setActionError(submitError?.data?.message || submitError?.message || "Save failed");
@@ -166,6 +172,8 @@ export function TablesPage() {
 
     try {
       await deleteTable(table.id).unwrap();
+      setSuccessMessage(`${table.tableNumber} deleted successfully.`);
+      setActionError("");
     } catch (deleteError) {
       setActionError(deleteError?.data?.message || deleteError?.message || "Delete failed");
     }
@@ -176,6 +184,10 @@ export function TablesPage() {
       const mutation = regenerate ? regenerateQr : generateQr;
       const updated = await mutation(table.id).unwrap();
       setQrPreviewTable(updated);
+      setSuccessMessage(
+        regenerate ? "QR code regenerated successfully." : updated.hasQr ? "QR code ready." : "QR code generated successfully.",
+      );
+      setActionError("");
     } catch (qrError) {
       setActionError(qrError?.data?.message || qrError?.message || "QR generation failed");
     }
@@ -184,6 +196,8 @@ export function TablesPage() {
   const handleDownloadQr = async (tableId, format) => {
     try {
       await downloadTableQr(tableId, format);
+      setSuccessMessage(`QR code downloaded as ${format.toUpperCase()}.`);
+      setActionError("");
     } catch (downloadError) {
       setActionError(downloadError.message || "QR download failed");
     }
@@ -201,6 +215,8 @@ export function TablesPage() {
 
     try {
       await closeSession(session.id).unwrap();
+      setSuccessMessage(`Session closed for ${table.tableNumber}.`);
+      setActionError("");
     } catch (closeError) {
       setActionError(closeError?.data?.message || closeError?.message || "Failed to close session");
     }
@@ -233,6 +249,11 @@ export function TablesPage() {
           ) : null}
         </div>
 
+        {successMessage ? (
+          <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {successMessage}
+          </div>
+        ) : null}
         {actionError ? <ErrorState message={actionError} /> : null}
         {isLoading ? <Loader label="Loading tables..." /> : null}
         {error ? (
@@ -245,6 +266,11 @@ export function TablesPage() {
             { key: "restaurantName", header: "Restaurant", render: (row) => row.restaurantName },
             { key: "tableNumber", header: "Table Number", render: (row) => row.tableNumber },
             { key: "capacity", header: "Capacity", render: (row) => row.capacity },
+            {
+              key: "isActive",
+              header: "Status",
+              render: (row) => (row.isActive === false ? "Inactive" : "Active"),
+            },
             {
               key: "qrStatus",
               header: "QR Status",
@@ -351,7 +377,7 @@ export function TablesPage() {
       </Card>
 
       <Modal
-        isOpen={modalOpen}
+        open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingTable ? "Edit Table" : "Create Table"}
       >
@@ -402,7 +428,7 @@ export function TablesPage() {
         </div>
       </Modal>
 
-      <Modal isOpen={Boolean(viewTable)} onClose={() => setViewTable(null)} title="Table Details">
+      <Modal open={Boolean(viewTable)} onClose={() => setViewTable(null)} title="Table Details">
         {viewTable ? (
           <div className="space-y-3 text-sm text-slate-700">
             <p><strong>Restaurant:</strong> {viewTable.restaurantName}</p>
@@ -418,7 +444,7 @@ export function TablesPage() {
         ) : null}
       </Modal>
 
-      <Modal isOpen={Boolean(qrPreviewTable)} onClose={() => setQrPreviewTable(null)} title="QR Preview">
+      <Modal open={Boolean(qrPreviewTable)} onClose={() => setQrPreviewTable(null)} title="QR Preview">
         {qrPreviewTable?.qrCodeUrl ? (
           <div className="space-y-4 text-center">
             <p className="text-sm text-slate-600">{qrPreviewTable.qrCodeUrl}</p>

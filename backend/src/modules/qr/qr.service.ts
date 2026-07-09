@@ -198,7 +198,7 @@ export class QrService {
       id: number;
       restaurantId: number;
       tableNumber: string;
-      status: string | null;
+      isActive: boolean;
     };
   }> {
     const restaurant = await this.prisma.restaurant.findUnique({
@@ -223,12 +223,14 @@ export class QrService {
         id: true,
         restaurantId: true,
         tableNumber: true,
-        status: true,
+        isActive: true,
       },
     });
 
-    if (!table || table.restaurantId !== restaurantId || table.status === 'INACTIVE') {
-      throw new NotFoundException('Table not found or does not belong to this restaurant');
+    if (!table || table.restaurantId !== restaurantId || !table.isActive) {
+      throw new NotFoundException(
+        'Table not found, inactive, or does not belong to this restaurant',
+      );
     }
 
     return { restaurant, table };

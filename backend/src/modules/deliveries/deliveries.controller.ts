@@ -230,7 +230,10 @@ export class DeliveriesController {
 
   @Roles(Role.DELIVERY_BOY)
   @Patch('me/orders/:orderId/accept')
-  @ApiOperation({ summary: 'Accept assigned order as current delivery boy' })
+  @ApiOperation({
+    summary:
+      'Acknowledge an assigned order. Status transitions to ON_THE_WAY are managed by admin.',
+  })
   @ApiParam({ name: 'orderId', type: Number, example: 1025 })
   @ApiOkResponse({ type: DeliveryBoyOrderDetailsDto })
   @ApiStandardErrorResponses({ badRequest: true, notFound: true })
@@ -243,7 +246,7 @@ export class DeliveriesController {
 
   @Roles(Role.DELIVERY_BOY)
   @Patch('me/orders/:orderId/status')
-  @ApiOperation({ summary: 'Update assigned delivery order status' })
+  @ApiOperation({ summary: 'Mark an on-the-way delivery order as delivered' })
   @ApiParam({ name: 'orderId', type: Number, example: 1025 })
   @ApiBody({ type: UpdateDeliveryStatusDto })
   @ApiOkResponse({ type: DeliveryBoyOrderDetailsDto })

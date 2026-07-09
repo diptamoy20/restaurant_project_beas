@@ -9,6 +9,6 @@ import { TablesService } from './tables.service';
 @Module({
   controllers: [AdminTablesController, AdminTableSessionsController, TableResolutionController],
   providers: [TablesService, TableSessionsService, QrCodeService],
-  exports: [TablesService, TableSessionsService],
+  exports: [TablesService, TableSessionsService, QrCodeService],
 })
 export class TablesModule {}

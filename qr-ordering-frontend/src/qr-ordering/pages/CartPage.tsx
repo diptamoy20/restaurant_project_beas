@@ -31,7 +31,7 @@ export function CartPage() {
   } = useCart();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  const menuPath = restaurantId && tableId ? `/menu/${restaurantId}/${tableId}` : '/menu/1/1';
+  const menuPath = restaurantId && tableId ? `/menu/${restaurantId}/${tableId}` : '/';
   const gstRate = restaurant?.gstEnabled ? Number(restaurant.gstRate ?? 0) : 0;
   const estimatedTaxAmount = Number(((subtotal * gstRate) / 100).toFixed(2));
   const estimatedFinalAmount = Number((subtotal + estimatedTaxAmount).toFixed(2));
