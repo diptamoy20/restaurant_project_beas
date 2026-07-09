@@ -107,7 +107,7 @@ export function NavbarRestaurantSearch() {
     (selectedRestaurantSlug
       ? selectedRestaurantSlug.replace(/-/g, " ")
       : selectedRestaurantId
-        ? `Restaurant #${selectedRestaurantId}`
+        ? `Select restaurant`
         : null);
 
   return (

@@ -15,7 +15,7 @@ export function Footer() {
           <h4>Quick Links</h4>
           <a href="/#features">Features</a>
           <a href="/#how-it-works">How It Works</a>
-          <a href="/#featured-menu">Featured Menu</a>
+          <a href="/#testimonials">Feedbacks</a>
         </div>
         <div>
           <h4>Navigate</h4>

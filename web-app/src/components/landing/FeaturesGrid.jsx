@@ -24,7 +24,7 @@ export function FeaturesGrid() {
     <RevealSection className="content-section" id="features">
       <div className="section-heading">
         <p className="eyebrow">Why Guests Convert</p>
-        <h2>Designed to move diners from curiosity to checkout.</h2>
+        <h2>Designed to move diners from curiosity to checkout</h2>
       </div>
       <div className="feature-grid">
         {features.map(({ title, description, Icon }) => (

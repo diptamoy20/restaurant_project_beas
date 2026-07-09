@@ -24,7 +24,7 @@ export function HowItWorks() {
     <RevealSection className="content-section how-it-works" id="how-it-works">
       <div className="section-heading">
         <p className="eyebrow">How It Works</p>
-        <h2>A three-step flow diners understand instantly.</h2>
+        <h2>A three-step flow diners understand instantly</h2>
       </div>
       <div className="stepper">
         {steps.map(({ title, description, Icon }, index) => (
