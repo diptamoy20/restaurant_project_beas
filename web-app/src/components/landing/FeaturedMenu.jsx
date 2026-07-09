@@ -1,7 +1,7 @@
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { addToCart } from '../../store/slices/cartSlice';
 import { RevealSection } from './RevealSection';
+import { useAddToCart } from '../../hooks/useAddToCart';
 
 const formatCurrency = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -10,8 +10,8 @@ const formatCurrency = new Intl.NumberFormat('en-IN', {
 });
 
 export function FeaturedMenu() {
-  const dispatch = useDispatch();
   const items = useSelector((state) => state.menu.items.slice(0, 4));
+  const { addItemToCart } = useAddToCart();
 
   return (
     <RevealSection className="content-section" id="featured-menu">
@@ -39,7 +39,7 @@ export function FeaturedMenu() {
                 <button
                   type="button"
                   className="add-cart-inline"
-                  onClick={() => dispatch(addToCart({ item, quantity: 1 }))}
+                  onClick={() => addItemToCart(item, null, [], 1)}
                 >
                   Add to Cart
                 </button>

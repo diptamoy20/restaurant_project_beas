@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { SelectedRestaurantProvider } from './context/SelectedRestaurantContext.jsx';
+import { LoginRequiredProvider } from './context/LoginRequiredContext.jsx';
 import { store } from './store';
 import './styles.css';
 import projectLogo from './assets/project-logo.svg';
@@ -22,7 +23,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <Provider store={store}>
       <BrowserRouter>
         <SelectedRestaurantProvider>
-          <App />
+          <LoginRequiredProvider>
+            <App />
+          </LoginRequiredProvider>
         </SelectedRestaurantProvider>
       </BrowserRouter>
     </Provider>

@@ -3,11 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import {
-  addToCart,
-  addToCartAsync,
   clearError,
   getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
+import { useAddToCart } from "../hooks/useAddToCart";
 import { fetchMenu } from "../store/slices/menuSlice";
 import {
   fetchFavorites,
@@ -58,6 +57,7 @@ export function MenuPage() {
   const { error: cartError } = useSelector((state) => state.cart);
 
   const isAuthenticated = useSelector((state) => !!state.auth.token);
+  const { addItemToCart } = useAddToCart();
 
   // Favorites state
   const favoriteIds = useSelector((state) => state.favorites.ids);
@@ -379,29 +379,10 @@ export function MenuPage() {
     setCartMessage("");
     dispatch(clearError());
 
-    try {
-      if (isAuthenticated) {
-        await dispatch(
-          addToCartAsync({
-            item,
-            variant,
-            addOns,
-            quantity,
-          }),
-        ).unwrap();
-      } else {
-        dispatch(
-          addToCart({
-            item,
-            variant,
-            addOns,
-            quantity,
-          }),
-        );
-      }
+    const added = await addItemToCart(item, variant, addOns, quantity);
+
+    if (added) {
       setCartMessage(`${item.name} added to cart.`);
-    } catch {
-      return;
     }
   };
 

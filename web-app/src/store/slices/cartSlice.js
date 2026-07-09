@@ -1,7 +1,44 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { cartApi } from "../../services/cartApi";
+import { loadUserFromStorage } from "../../services/authStorage";
 
-const CART_STORAGE_KEY = "cart_items";
+const LEGACY_CART_STORAGE_KEY = "cart_items";
+const CART_STORAGE_PREFIX = "cart_items_";
+
+export function getCartStorageKey(userId) {
+  return `${CART_STORAGE_PREFIX}${userId}`;
+}
+
+export function purgeAllCartStorage() {
+  try {
+    localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+
+    const keysToRemove = [];
+
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+
+      if (key?.startsWith(CART_STORAGE_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch (error) {
+    console.error("Failed to purge cart storage:", error);
+  }
+}
+
+function getActiveCartStorageKey() {
+  const auth = loadUserFromStorage();
+  const userId = auth?.user?.id;
+
+  if (!auth?.token || userId == null) {
+    return null;
+  }
+
+  return getCartStorageKey(userId);
+}
 
 function cleanApiError(message = "") {
   const cleaned = message.replace(/\s*\(requestId:.*?\)/, "");
@@ -142,32 +179,50 @@ function matchesCartItem(item, keyOrId) {
   );
 }
 
-// Load cart from localStorage
-const loadCartFromStorage = () => {
+function loadCartFromStorage(storageKey) {
+  if (!storageKey) {
+    return [];
+  }
+
   try {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     const parsed = stored ? JSON.parse(stored) : [];
     const rawItems = Array.isArray(parsed) ? parsed : [];
     const merged = mergeCartItems(rawItems);
 
     if (rawItems.length !== merged.length) {
-      saveCartToStorage(merged);
+      saveCartToStorage(merged, storageKey);
     }
 
     return merged;
   } catch {
     return [];
   }
-};
+}
 
-// Save cart to localStorage
-const saveCartToStorage = (items) => {
+function saveCartToStorage(items, storageKey = getActiveCartStorageKey()) {
+  if (!storageKey) {
+    return;
+  }
+
   try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(storageKey, JSON.stringify(items));
   } catch (error) {
     console.error("Failed to save cart to storage:", error);
   }
-};
+}
+
+function getInitialCartItems() {
+  const storageKey = getActiveCartStorageKey();
+
+  if (!storageKey) {
+    localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+    return [];
+  }
+
+  localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+  return loadCartFromStorage(storageKey);
+}
 
 function mapServerAddOns(addOns = []) {
   return addOns
@@ -374,7 +429,7 @@ export const clearCartAsync = createAsyncThunk(
 const cartSlice = createSlice({
   name: "cart",
   initialState: {
-    items: loadCartFromStorage(),
+    items: getInitialCartItems(),
     lastOrderId: null,
     loading: false,
     error: null,
@@ -455,7 +510,10 @@ const cartSlice = createSlice({
     },
     clearCart(state) {
       state.items = [];
-      saveCartToStorage([]);
+      state.error = null;
+      state.loading = false;
+      state.syncing = false;
+      purgeAllCartStorage();
     },
     setLastOrderId(state, action) {
       state.lastOrderId = action.payload;
@@ -574,7 +632,7 @@ const cartSlice = createSlice({
 
         state.items = [];
 
-        saveCartToStorage([]);
+        purgeAllCartStorage();
       });
   },
 });

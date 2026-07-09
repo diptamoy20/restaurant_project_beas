@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useSelectedRestaurant } from '../context/SelectedRestaurantContext.jsx';
 import { buildMenuPath, isMenuPath } from '../lib/restaurantPaths';
 import { logout } from '../store/slices/authSlice';
-import { fetchCart } from '../store/slices/cartSlice';
+import { clearCart, fetchCart } from '../store/slices/cartSlice';
 import { clearFavorites, fetchFavorites } from '../store/slices/favoritesSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { NavbarRestaurantSearch } from './NavbarRestaurantSearch.jsx';
@@ -26,10 +26,9 @@ export function Layout({ children }) {
   const profileMenuRef = useRef(null);
   const { selectedRestaurantSlug } = useSelectedRestaurant();
   const isHomePage = location.pathname === '/';
-  const cartCount = cartItems.reduce(
-    (sum, item) => sum + (item.quantity ?? 1),
-    0,
-  );
+  const cartCount = user
+    ? cartItems.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
+    : 0;
   const homePath = '/';
   const menuPath = selectedRestaurantSlug
     ? buildMenuPath(selectedRestaurantSlug)
@@ -43,6 +42,7 @@ export function Layout({ children }) {
   const handleLogout = () => {
     signOutFromFirebase();
     dispatch(clearFavorites());
+    dispatch(clearCart());
     dispatch(logout());
     setProfileMenuOpen(false);
     navigate('/login', { replace: true });
@@ -110,9 +110,12 @@ export function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    if (token) {
-      dispatch(fetchCart());
+    if (!token) {
+      dispatch(clearCart());
+      return;
     }
+
+    dispatch(fetchCart());
   }, [dispatch, token]);
 
   useEffect(() => {
