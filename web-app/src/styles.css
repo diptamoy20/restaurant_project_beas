@@ -2148,6 +2148,48 @@ h4 {
   flex-wrap: wrap;
 }
 
+.cross-restaurant-backdrop {
+  animation: modal-backdrop-in 0.2s ease;
+}
+
+.cross-restaurant-modal {
+  animation: modal-panel-in 0.24s ease;
+}
+
+.cross-restaurant-modal h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.cross-restaurant-message strong {
+  color: var(--color-primary-strong);
+}
+
+.cross-restaurant-actions {
+  flex-wrap: wrap;
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .location-secondary {
   background: rgba(26, 71, 42, 0.08);
   color: var(--color-primary-strong);

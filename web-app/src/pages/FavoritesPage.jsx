@@ -5,6 +5,7 @@ import {
   getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
 import { useAddToCart } from "../hooks/useAddToCart";
+import { isCrossRestaurantError } from "../utils/cartRestaurant";
 import {
   fetchFavorites,
   addFavorite,
@@ -33,6 +34,8 @@ export function FavoritesPage() {
   } = useSelector((state) => state.favorites);
 
   const { error: cartError } = useSelector((state) => state.cart);
+  const visibleCartError =
+    cartError && !isCrossRestaurantError(cartError) ? cartError : null;
   const [cartMessage, setCartMessage] = useState("");
 
   // Customizer state — mirrors MenuPage exactly
@@ -208,9 +211,9 @@ export function FavoritesPage() {
           {cartMessage}
         </div>
       ) : null}
-      {cartError ? (
+      {visibleCartError ? (
         <div className="order-status-banner error" style={{ margin: "0 1.5rem 1rem" }}>
-          {cartError}
+          {visibleCartError}
         </div>
       ) : null}
 
