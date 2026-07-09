@@ -496,6 +496,13 @@ export class DeliveryBoyBillingDto {
   @IsNumber()
   taxAmount!: number;
 
+  @ApiProperty({
+    example: 50,
+    description: 'Tip amount selected by the customer during checkout.',
+  })
+  @IsNumber()
+  tipAmount!: number;
+
   @ApiProperty({ example: 900 })
   @IsNumber()
   totalAmount!: number;

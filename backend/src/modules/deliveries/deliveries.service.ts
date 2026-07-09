@@ -1176,6 +1176,7 @@ export class DeliveriesService {
         packagingCharge: order.packagingCharge,
         discountAmount: order.discountAmount ?? null,
         taxAmount: order.taxAmount,
+        tipAmount: order.tipAmount ?? 0,
         totalAmount: order.totalAmount,
         finalAmount: order.finalAmount,
         paymentMethod: order.paymentMethod,
