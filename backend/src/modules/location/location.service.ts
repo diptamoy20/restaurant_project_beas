@@ -23,6 +23,7 @@ type NearbyRestaurantRow = {
   city: string | null;
   latitude: number;
   longitude: number;
+  imageUrl: string | null;
   isActive: boolean;
   deliveryRadiusKm: number;
   deliveryEnabled: boolean;
@@ -189,6 +190,7 @@ export class LocationService {
           r."city",
           r."latitude",
           r."longitude",
+          r."image_url" AS "imageUrl",
           r."is_active" AS "isActive",
           r."delivery_radius_km" AS "deliveryRadiusKm",
           r."delivery_enabled" AS "deliveryEnabled",
@@ -249,6 +251,7 @@ export class LocationService {
         "city",
         "latitude",
         "longitude",
+        "imageUrl",
         "isActive",
         "deliveryRadiusKm",
         "deliveryEnabled",
