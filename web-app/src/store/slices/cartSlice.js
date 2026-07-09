@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { cartApi } from "../../services/cartApi";
 import { loadUserFromStorage } from "../../services/authStorage";
+import { isCrossRestaurantError } from "../../utils/cartRestaurant";
 
 const LEGACY_CART_STORAGE_KEY = "cart_items";
 const CART_STORAGE_PREFIX = "cart_items_";
@@ -42,12 +43,6 @@ function getActiveCartStorageKey() {
 
 function cleanApiError(message = "") {
   const cleaned = message.replace(/\s*\(requestId:.*?\)/, "");
-  if (
-    cleaned.includes("different restaurant") ||
-    cleaned.includes("Please clear your cart first")
-  ) {
-    return "Your cart already contains items from another restaurant. Please clear the cart before adding new items.";
-  }
   return cleaned;
 }
 
@@ -573,6 +568,10 @@ const cartSlice = createSlice({
       })
       .addCase(addToCartAsync.rejected, (state, action) => {
         state.loading = false;
+        if (isCrossRestaurantError(action.payload)) {
+          state.error = null;
+          return;
+        }
         state.error = cleanApiError(action.payload);
       })
       // Update Cart Item Async

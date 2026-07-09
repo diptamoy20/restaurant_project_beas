@@ -7,6 +7,7 @@ import {
   getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
 import { useAddToCart } from "../hooks/useAddToCart";
+import { isCrossRestaurantError } from "../utils/cartRestaurant";
 import { fetchMenu } from "../store/slices/menuSlice";
 import {
   fetchFavorites,
@@ -55,6 +56,8 @@ export function MenuPage() {
   } = useSelector((state) => state.menu);
 
   const { error: cartError } = useSelector((state) => state.cart);
+  const visibleCartError =
+    cartError && !isCrossRestaurantError(cartError) ? cartError : null;
 
   const isAuthenticated = useSelector((state) => !!state.auth.token);
   const { addItemToCart } = useAddToCart();
@@ -581,8 +584,8 @@ export function MenuPage() {
         {cartMessage ? (
           <div className="order-status-banner success">{cartMessage}</div>
         ) : null}
-        {cartError ? (
-          <div className="order-status-banner error">{cartError}</div>
+        {visibleCartError ? (
+          <div className="order-status-banner error">{visibleCartError}</div>
         ) : null}
       </div>
 
