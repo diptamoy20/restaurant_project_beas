@@ -4,13 +4,12 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import {
-  addToCart,
-  addToCartAsync,
   clearError,
 } from "../store/slices/cartSlice";
+import { useAddToCart } from "../hooks/useAddToCart";
 
 import { getBestSellingMenu } from "../services/menuPublicApi";
 import { MenuSlideCard } from "../utils/MenuSlideCard";
@@ -36,8 +35,7 @@ const swiperBreakpoints = {
 
 export function HomeMenuBrowse({ restaurantId, coordinates }) {
   const dispatch = useDispatch();
-
-  const isAuthenticated = useSelector((state) => !!state.auth.token);
+  const { addItemToCart } = useAddToCart();
 
   const [bestSelling, setBestSelling] = useState([]);
   const [bestLoading, setBestLoading] = useState(false);
@@ -100,25 +98,14 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
       return;
     }
 
-    const payload = {
-      item,
-      quantity: 1,
-    };
+    const added = await addItemToCart(item, null, [], 1);
 
-    try {
-      if (isAuthenticated) {
-        await dispatch(addToCartAsync(payload)).unwrap();
-      } else {
-        dispatch(addToCart(payload));
-      }
-
+    if (added) {
       setToast(`${item.name} added to cart`);
 
       window.setTimeout(() => {
         setToast("");
       }, 2600);
-    } catch {
-      // handled by cart slice
     }
   };
 

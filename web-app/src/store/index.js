@@ -3,7 +3,7 @@ import { setAuthRefreshHandler, setAuthTokenGetter, setUnauthorizedHandler } fro
 import { setAuthTokenResolver } from '../services/authToken';
 import authReducer from './slices/authSlice';
 import { logout, refreshSession } from './slices/authSlice';
-import cartReducer from './slices/cartSlice';
+import cartReducer, { clearCart } from './slices/cartSlice';
 import menuReducer from './slices/menuSlice';
 import paymentReducer from './slices/paymentSlice';
 import orderReducer from './slices/orderSlice';
@@ -49,6 +49,7 @@ setUnauthorizedHandler(({ token } = {}) => {
 
   if (!token || token === currentToken) {
     store.dispatch(clearFavorites());
+    store.dispatch(clearCart());
     store.dispatch(logout());
   }
 });

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  addToCart,
-  addToCartAsync,
   clearError,
   getEffectiveMenuPrice,
 } from "../store/slices/cartSlice";
+import { useAddToCart } from "../hooks/useAddToCart";
 import {
   fetchFavorites,
   addFavorite,
@@ -23,6 +22,7 @@ const formatRupees = new Intl.NumberFormat("en-IN", {
 export function FavoritesPage() {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => !!state.auth.token);
+  const { addItemToCart } = useAddToCart();
 
   const {
     items: favoriteItems,
@@ -71,15 +71,11 @@ export function FavoritesPage() {
   const handleAddToCart = async (item, variant = null, addOns = [], quantity = 1) => {
     setCartMessage("");
     dispatch(clearError());
-    try {
-      if (isAuthenticated) {
-        await dispatch(addToCartAsync({ item, variant, addOns, quantity })).unwrap();
-      } else {
-        dispatch(addToCart({ item, variant, addOns, quantity }));
-      }
+
+    const added = await addItemToCart(item, variant, addOns, quantity);
+
+    if (added) {
       setCartMessage(`${item.name} added to cart.`);
-    } catch {
-      // error already in cart state
     }
   };
 

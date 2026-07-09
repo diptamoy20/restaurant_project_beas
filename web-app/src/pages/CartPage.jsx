@@ -102,8 +102,11 @@ export function CartPage() {
 useEffect(() => {
   dispatch(clearError());
   setErrorMessage('');
-  dispatch(fetchCart());
-}, [dispatch]);
+
+  if (token) {
+    dispatch(fetchCart());
+  }
+}, [dispatch, token]);
 
 useEffect(() => {
   dispatch(clearError());
