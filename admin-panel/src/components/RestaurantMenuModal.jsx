@@ -564,10 +564,10 @@ export function RestaurantMenuModal({
             ) : null}
 
             <TextField
-              required
               error={errors.name}
-              label="Menu Name *"
+              label="Menu Name"
               name="name"
+              required
               value={form.name}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, name: event.target.value }))
@@ -575,9 +575,9 @@ export function RestaurantMenuModal({
             />
 
             <SelectField
+              error={errors.categoryId}
               required
-              className={errors.categoryId ? "text-rose-600" : ""}
-              label="Category *"
+              label="Category"
               name="categoryId"
               value={form.categoryId}
               onChange={(event) =>
@@ -592,11 +592,11 @@ export function RestaurantMenuModal({
             ) : null}
 
             <TextField
-              required
               error={errors.price}
-              label="Price (₹) *"
+              label="Price (₹)"
               min="0"
               name="price"
+              required
               step="0.01"
               type="number"
               value={form.price}

@@ -102,6 +102,7 @@ export function LoginPage() {
               name="identifier"
               onChange={handleChange}
               placeholder="admin@example.com or +919900000005"
+              required
               type="text"
               value={form.identifier}
             />
@@ -110,6 +111,7 @@ export function LoginPage() {
               name="password"
               onChange={handleChange}
               placeholder="password123"
+              required
               type="password"
               value={form.password}
             />

@@ -361,6 +361,7 @@ export function TablesPage() {
               error={formErrors.restaurantId}
               label="Restaurant"
               options={restaurantOptions.filter((option) => option.value)}
+              required
               value={form.restaurantId}
               onChange={(event) => setForm((current) => ({ ...current, restaurantId: event.target.value }))}
             />
@@ -368,12 +369,14 @@ export function TablesPage() {
           <TextField
             error={formErrors.tableNumber}
             label="Table Number"
+            required
             value={form.tableNumber}
             onChange={(event) => setForm((current) => ({ ...current, tableNumber: event.target.value }))}
           />
           <TextField
             error={formErrors.capacity}
             label="Capacity"
+            required
             type="number"
             value={form.capacity}
             onChange={(event) => setForm((current) => ({ ...current, capacity: event.target.value }))}

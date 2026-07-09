@@ -19,6 +19,7 @@ import {
 } from "../services/restaurantApi";
 import { useGetAdminRestaurantMenuQuery } from "../services/menuApi";
 import { RestaurantMenuModal } from "../components/RestaurantMenuModal.jsx";
+import { RequiredMark } from "../components/ui/FieldLabel";
 import { IMAGE_UPLOAD_ACCEPT, validateImageFile } from "../utils/imageUpload";
 
 const initialFormState = {
@@ -796,16 +797,20 @@ export function RestaurantsPage() {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <TextField
             error={errors.name}
-            label="Restaurant Name *"
+            label="Restaurant Name"
             name="name"
             onChange={handleInputChange}
             placeholder="e.g., Downtown Spice Hub"
+            required
             value={form.name}
           />
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-slate-900">Restaurant location *</h3>
+              <h3 className="text-sm font-semibold text-slate-900">
+                Restaurant location
+                <RequiredMark />
+              </h3>
               <p className="mt-1 text-xs text-slate-500">
                 Search for an address or pick a point on the map. Address and coordinates are filled
                 automatically.
@@ -926,6 +931,7 @@ export function RestaurantsPage() {
                 name="deliveryBaseFee"
                 onChange={handleInputChange}
                 placeholder="e.g., 20"
+                required
                 step="0.01"
                 type="number"
                 value={form.deliveryBaseFee}
@@ -937,6 +943,7 @@ export function RestaurantsPage() {
                 min="0"
                 name="deliveryBaseDistanceKm"
                 onChange={handleInputChange}
+                required
                 step="0.1"
                 type="number"
                 value={form.deliveryBaseDistanceKm}
@@ -949,6 +956,7 @@ export function RestaurantsPage() {
                 name="deliveryPerKmFee"
                 onChange={handleInputChange}
                 placeholder="e.g., 7"
+                required
                 step="0.01"
                 type="number"
                 value={form.deliveryPerKmFee}
@@ -961,6 +969,7 @@ export function RestaurantsPage() {
                 name="packagingCharge"
                 onChange={handleInputChange}
                 placeholder="e.g., 10"
+                required
                 step="0.01"
                 type="number"
                 value={form.packagingCharge}
@@ -1028,6 +1037,7 @@ export function RestaurantsPage() {
               max="28"
               name="gstRate"
               onChange={handleInputChange}
+              required={form.gstEnabled}
               step="0.01"
               type="number"
               value={form.gstRate}

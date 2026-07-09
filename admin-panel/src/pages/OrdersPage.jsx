@@ -6,6 +6,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ErrorState } from "../components/ui/ErrorState";
 import { Loader } from "../components/ui/Loader";
 import { SelectField } from "../components/ui/SelectField";
+import { FieldLabel } from "../components/ui/FieldLabel";
 import { Table } from "../components/ui/Table";
 import { TextField } from "../components/ui/TextField";
 import { PermissionGate } from "../components/PermissionGate";
@@ -989,7 +990,7 @@ export function OrdersPage() {
               </p>
             </div>
             <label className="block text-sm font-medium text-slate-700">
-              <span className="mb-2 block">Cancel Notes / Reason *</span>
+              <FieldLabel required>Cancel Notes / Reason</FieldLabel>
               <textarea
                 className="min-h-32 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
                 maxLength={500}

@@ -341,6 +341,7 @@ export function TableManagementPage() {
         <form onSubmit={handleSaveTable} className="space-y-4">
           <TextField
             label="Table number"
+            required
             value={formState.tableNumber}
             onChange={(event) => handleFormChange('tableNumber', event.target.value)}
             placeholder="E.g. T1 or Table 1"

@@ -7,6 +7,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Loader } from '../components/ui/Loader';
 import { Modal } from '../components/ui/Modal';
+import { RequiredMark } from '../components/ui/FieldLabel';
 import { SelectField } from '../components/ui/SelectField';
 import { Table } from '../components/ui/Table';
 import { TextField } from '../components/ui/TextField';
@@ -599,8 +600,16 @@ export function StaffPage() {
               label="Role"
               onChange={(event) => handleRoleChange(event.target.value)}
               options={roleOptions}
+              required
               value={form.role}
             />
+            <p className="md:col-span-2 text-xs text-slate-500">
+              <span className="font-medium text-slate-700">
+                Contact
+                <RequiredMark />
+              </span>{' '}
+              — provide at least an email or phone number.
+            </p>
             <TextField
               autoComplete="email"
               error={formErrors.email}
@@ -616,6 +625,7 @@ export function StaffPage() {
               maxLength={16}
               onChange={(event) => setField('phone', normalizePhoneInput(event.target.value))}
               placeholder="+919900000005"
+              required={form.role === 'delivery_boy'}
               value={form.phone}
             />
             <TextField
@@ -624,6 +634,7 @@ export function StaffPage() {
               error={formErrors.password}
               label={isEditing ? 'New password' : 'Password'}
               onChange={(event) => setField('password', event.target.value)}
+              required={!isEditing}
               type="password"
               value={form.password}
             />
