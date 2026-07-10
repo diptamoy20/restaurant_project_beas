@@ -88,6 +88,16 @@ export function CheckoutAddressPicker({ selectedAddressId, onSelectAddress }) {
                     ) : null}
                   </span>
                   <span className="checkout-address-card-line">{address.address}</span>
+                  {address.buildingFloor ? (
+                    <span className="checkout-address-card-line">
+                      {address.buildingFloor}
+                    </span>
+                  ) : null}
+                  {address.nearbyLandmark ? (
+                    <span className="checkout-address-card-line checkout-address-card-meta">
+                      Landmark: {address.nearbyLandmark}
+                    </span>
+                  ) : null}
                   {formatAddressMeta(address) ? (
                     <span className="checkout-address-card-line checkout-address-card-meta">
                       {formatAddressMeta(address)}

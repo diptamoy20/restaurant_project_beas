@@ -36,6 +36,8 @@ export class UserAddressesService {
           userId,
           label: payload.label ?? 'Home',
           address: payload.address.trim(),
+          buildingFloor: this.cleanOptionalText(payload.buildingFloor),
+          nearbyLandmark: this.cleanOptionalText(payload.nearbyLandmark),
           city: this.cleanOptionalText(payload.city),
           state: this.cleanOptionalText(payload.state),
           latitude: payload.latitude,
@@ -68,6 +70,12 @@ export class UserAddressesService {
         data: {
           ...(payload.label !== undefined && { label: payload.label }),
           ...(payload.address !== undefined && { address: payload.address.trim() }),
+          ...(payload.buildingFloor !== undefined && {
+            buildingFloor: this.cleanOptionalText(payload.buildingFloor),
+          }),
+          ...(payload.nearbyLandmark !== undefined && {
+            nearbyLandmark: this.cleanOptionalText(payload.nearbyLandmark),
+          }),
           ...(payload.city !== undefined && { city: this.cleanOptionalText(payload.city) }),
           ...(payload.state !== undefined && { state: this.cleanOptionalText(payload.state) }),
           ...(payload.latitude !== undefined && { latitude: payload.latitude }),
@@ -136,6 +144,8 @@ export class UserAddressesService {
       userId: address.userId,
       label: address.label,
       address: address.address,
+      buildingFloor: address.buildingFloor,
+      nearbyLandmark: address.nearbyLandmark,
       city: address.city,
       state: address.state,
       latitude: address.latitude,

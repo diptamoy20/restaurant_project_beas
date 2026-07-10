@@ -610,6 +610,8 @@ export class DeliveriesService {
                 id: order.address.id,
                 label: order.address.label,
                 address: order.address.address,
+                buildingFloor: order.address.buildingFloor,
+                nearbyLandmark: order.address.nearbyLandmark,
                 city: order.address.city,
                 state: order.address.state,
                 latitude: order.address.latitude,
@@ -697,6 +699,8 @@ export class DeliveriesService {
               id: delivery.order.address.id,
               label: delivery.order.address.label,
               address: delivery.order.address.address,
+              buildingFloor: delivery.order.address.buildingFloor,
+              nearbyLandmark: delivery.order.address.nearbyLandmark,
               city: delivery.order.address.city,
               state: delivery.order.address.state,
               latitude: delivery.order.address.latitude,
@@ -1125,6 +1129,8 @@ export class DeliveriesService {
               id: order.address.id,
               label: order.address.label,
               address: order.address.address,
+              buildingFloor: order.address.buildingFloor,
+              nearbyLandmark: order.address.nearbyLandmark,
               city: order.address.city,
               state: order.address.state,
               latitude: order.address.latitude,
@@ -1386,10 +1392,20 @@ export class DeliveriesService {
 
   private formatAddress(address: {
     address: string;
+    buildingFloor?: string | null;
+    nearbyLandmark?: string | null;
     city: string | null;
     state: string | null;
   }): string {
-    return [address.address, address.city, address.state].filter(Boolean).join(', ');
+    return [
+      address.buildingFloor,
+      address.address,
+      address.nearbyLandmark ? `Landmark: ${address.nearbyLandmark}` : null,
+      address.city,
+      address.state,
+    ]
+      .filter(Boolean)
+      .join(', ');
   }
 
   private getDistanceKm(
