@@ -3222,18 +3222,43 @@ h4 {
 }
 
 .address-manager-header,
-.address-card,
 .address-card-title,
-.address-card-actions,
 .address-form-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.address-manager-header,
-.address-card {
+..address-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  justify-content: stretch;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.address-manager-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   justify-content: space-between;
+}
+
+.address-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.address-card-actions button {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .address-manager-header h3 {
@@ -3499,7 +3524,8 @@ h4 {
   min-width: 0;
 }
 
-.address-card-main p {
+.address-card-main p,
+.address-card-main span {
   overflow-wrap: anywhere;
 }
 
@@ -3691,11 +3717,25 @@ h4 {
   }
 
   .address-manager-header,
-  .address-card,
-  .address-card-actions,
   .address-form-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .address-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .address-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .address-card-actions button,
+  .address-form-actions button,
+  .checkout-add-address-button {
+    width: 100%;
   }
 
   .address-form-grid {
