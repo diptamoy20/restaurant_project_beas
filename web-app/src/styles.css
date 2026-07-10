@@ -3899,6 +3899,54 @@ h4 {
   display: none;
 }
 
+/* Reusable Horizontal Carousel wrapper and track */
+.horizontal-carousel {
+  position: relative;
+  width: 100%;
+}
+
+.horizontal-carousel-track {
+  display: flex;
+  overflow-x: auto;
+  gap: 1.25rem;
+  padding-bottom: 0.5rem;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.horizontal-carousel-track::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.horizontal-carousel.is-dragging {
+  cursor: grabbing;
+}
+
+.carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(4, 77, 37, 0.95);
+  border: 1px solid var(--color-border);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(8,24,16,0.08);
+  cursor: pointer;
+  z-index: 4;
+}
+
+.carousel-prev { left: 0.5rem; }
+.carousel-next { right: 0.5rem; }
+
+.carousel-nav:hover {
+  transform: translateY(-50%) scale(1.03);
+}
+
 .category-pill {
   padding: 0.45rem 1.15rem;
   border-radius: 99px;
