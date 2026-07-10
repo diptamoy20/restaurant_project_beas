@@ -236,10 +236,10 @@ export function OrdersPage() {
       <div className="section-heading">
         <p className="eyebrow">Orders</p>
         <h2>Your orders</h2>
-        <p className="copy orders-page-lede">
+        {/* <p className="copy orders-page-lede">
           Status updates refresh automatically every{" "}
           {Math.round(POLL_MS / 1000)} seconds while this page stays open.
-        </p>
+        </p> */}
       </div>
 
       {loading ? (

@@ -561,7 +561,7 @@ export function MenuPage() {
           <h2>{restaurant?.name ?? "Restaurant menu"}</h2>
           <p>{restaurant?.address ?? "Fresh dishes prepared for you"}</p>
         </div>
-        {delivery ? (
+        {/* {delivery ? (
           <div
             className={
               delivery.deliveryAvailable
@@ -580,7 +580,7 @@ export function MenuPage() {
                 : "Distance unavailable"}
             </span>
           </div>
-        ) : null}
+        ) : null} */}
         {cartMessage ? (
           <div className="order-status-banner success">{cartMessage}</div>
         ) : null}

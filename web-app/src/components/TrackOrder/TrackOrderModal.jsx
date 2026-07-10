@@ -126,7 +126,7 @@ export function TrackOrderModal({ open, order, onClose, onOrderUpdated }) {
                   focusSignal={mapFocusSignal}
                 />
               </div>
-              <div className="track-modal-map-actions">
+              {/* <div className="track-modal-map-actions">
                 <button
                   type="button"
                   className="ghost-button track-open-maps"
@@ -134,7 +134,7 @@ export function TrackOrderModal({ open, order, onClose, onOrderUpdated }) {
                 >
                   Open in Maps
                 </button>
-              </div>
+              </div> */}
             </aside>
 
             <div className="track-modal-details">
