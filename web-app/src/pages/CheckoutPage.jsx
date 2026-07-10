@@ -450,8 +450,8 @@ export function CheckoutPage() {
           <p className="eyebrow">Checkout</p>
           <h2>Confirm order</h2>
           <p className="cart-supporting-copy">
-            Table {tableId || "N/A"}
-            {restaurantLabel ? ` - ${restaurantLabel}` : ""}
+            {/* Table {tableId || "N/A"} */}
+            {restaurantLabel ? ` ${restaurantLabel}` : ""}
           </p>
         </div>
         <Link
