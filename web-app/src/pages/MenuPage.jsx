@@ -29,6 +29,7 @@ import {
 } from "../lib/tableSession";
 import { getBestSellingMenu } from "../services/menuPublicApi";
 import { MenuSlideCard } from "../utils/MenuSlideCard";
+import HorizontalCarousel from "../components/HorizontalCarousel";
 const formatRupees = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -612,7 +613,7 @@ export function MenuPage() {
           {bestSellingLoading ? (
             <p className="copy-muted">Loading favourites…</p>
           ) : (
-            <div className="frequent-scroll">
+            <HorizontalCarousel className="frequent-scroll" arrowLabel="Best sellers">
               {bestSelling.map((item) => {
                 const price =
                   item.discountPrice != null && item.discountPrice > 0
@@ -666,7 +667,7 @@ export function MenuPage() {
                   </div>
                 );
               })}
-            </div>
+            </HorizontalCarousel>
           )}
         </div>
       )}
@@ -691,7 +692,7 @@ export function MenuPage() {
             </svg>
             Frequently Ordered
           </h3>
-          <div className="frequent-scroll">
+          <HorizontalCarousel className="frequent-scroll" arrowLabel="Frequently ordered">
             {frequentItems.map((item) => {
               const price =
                 item.discountPrice != null && item.discountPrice > 0
@@ -744,7 +745,7 @@ export function MenuPage() {
                 </div>
               );
             })}
-          </div>
+          </HorizontalCarousel>
         </div>
       )}
 
@@ -752,8 +753,13 @@ export function MenuPage() {
       <div className="sticky-filter-wrapper">
         <div className="filter-container">
           {/* Left half: scrollable category list */}
-          <div className="categories-scroll">
+          <HorizontalCarousel
+            className="categories-scroll"
+            arrowLabel="Categories"
+            selectedKey={activeCategoryId ?? "all"}
+          >
             <button
+              data-key="all"
               className={`category-pill ${activeCategoryId === null ? "active" : ""}`}
               onClick={() => setActiveCategoryId(null)}
             >
@@ -762,13 +768,14 @@ export function MenuPage() {
             {categories.map((cat) => (
               <button
                 key={`cat-pill-${cat.id}`}
+                data-key={cat.id}
                 className={`category-pill ${activeCategoryId === cat.id ? "active" : ""}`}
                 onClick={() => setActiveCategoryId(cat.id)}
               >
                 {cat.name}
               </button>
             ))}
-          </div>
+          </HorizontalCarousel>
 
           {/* Right half: Search, sorting and Veg/Non-Veg toggles */}
           <div className="filter-controls">
