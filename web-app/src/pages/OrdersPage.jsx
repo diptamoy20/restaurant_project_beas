@@ -1,4 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { orderApi } from "../services/orderApi";
 import { formatDateTime } from "../utils/date";
@@ -11,14 +18,23 @@ const TrackOrderModal = lazy(() =>
 );
 
 const STATUS_THEME = {
-  PENDING: { label: 'Pending', className: 'order-chip order-chip--pending' },
-  PLACED: { label: 'Pending', className: 'order-chip order-chip--pending' },
-  ACCEPTED: { label: 'Accepted', className: 'order-chip order-chip--accepted' },
-  PREPARING: { label: 'Preparing', className: 'order-chip order-chip--preparing' },
-  ON_THE_WAY: { label: 'On the way', className: 'order-chip order-chip--delivery' },
-  DELIVERED: { label: 'Delivered', className: 'order-chip order-chip--done' },
-  CANCELLED: { label: 'Cancelled', className: 'order-chip order-chip--cancelled' },
-  SERVED: { label: 'Served', className: 'order-chip order-chip--done' },
+  PENDING: { label: "Pending", className: "order-chip order-chip--pending" },
+  PLACED: { label: "Pending", className: "order-chip order-chip--pending" },
+  ACCEPTED: { label: "Accepted", className: "order-chip order-chip--accepted" },
+  PREPARING: {
+    label: "Preparing",
+    className: "order-chip order-chip--preparing",
+  },
+  ON_THE_WAY: {
+    label: "On the way",
+    className: "order-chip order-chip--delivery",
+  },
+  DELIVERED: { label: "Delivered", className: "order-chip order-chip--done" },
+  CANCELLED: {
+    label: "Cancelled",
+    className: "order-chip order-chip--cancelled",
+  },
+  SERVED: { label: "Served", className: "order-chip order-chip--done" },
 };
 
 const POLL_MS = 22_000;
@@ -30,14 +46,24 @@ const formatCurrency = new Intl.NumberFormat("en-IN", {
 });
 
 /** Renders a single bill row. Hidden when value is null/undefined/0 and hideZero=true */
-function BillRow({ label, value, isDiscount = false, isMuted = false, isPayable = false, hideZero = true, prefix = "" }) {
+function BillRow({
+  label,
+  value,
+  isDiscount = false,
+  isMuted = false,
+  isPayable = false,
+  hideZero = true,
+  prefix = "",
+}) {
   if (hideZero && (value == null || Number(value) === 0)) return null;
   const className = [
     "bill-row",
     isDiscount ? "bill-row-discount" : "",
     isMuted ? "bill-row-muted" : "",
     isPayable ? "bill-row-payable" : "",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={className}>
@@ -67,17 +93,29 @@ function OrderPricingBreakdown({ order }) {
   return (
     <div className="bill-summary-rows order-card-bill-rows">
       {/* Items total (MRP subtotal before discounts) */}
-      <BillRow label="Items total" value={order.subtotalAmount ?? order.totalAmount} hideZero={false} />
+      <BillRow
+        label="Items total"
+        value={order.subtotalAmount ?? order.totalAmount}
+        hideZero={false}
+      />
 
       {/* Menu / item-level discount */}
       {hasMenuDiscount && (
-        <BillRow label="Item discount" value={order.menuDiscountAmount} isDiscount />
+        <BillRow
+          label="Item discount"
+          value={order.menuDiscountAmount}
+          isDiscount
+        />
       )}
 
       {/* Coupon discount */}
       {hasCoupon && (
         <BillRow
-          label={order.couponDiscountAmount > 0 ? `Coupon${order.couponCode ? ` (${order.couponCode})` : ""}` : "Coupon"}
+          label={
+            order.couponDiscountAmount > 0
+              ? `Coupon${order.couponCode ? ` (${order.couponCode})` : ""}`
+              : "Coupon"
+          }
           value={order.couponDiscountAmount}
           isDiscount
         />
@@ -85,7 +123,11 @@ function OrderPricingBreakdown({ order }) {
 
       {/* Manual discount (admin) */}
       {hasManualDiscount && (
-        <BillRow label="Discount" value={order.manualDiscountAmount} isDiscount />
+        <BillRow
+          label="Discount"
+          value={order.manualDiscountAmount}
+          isDiscount
+        />
       )}
 
       {/* Delivery charge */}
@@ -136,11 +178,7 @@ function OrderPricingBreakdown({ order }) {
               />
             )}
             {hasOtherTaxes && (
-              <BillRow
-                label="Other Taxes"
-                value={order.otherTaxes}
-                isMuted
-              />
+              <BillRow label="Other Taxes" value={order.otherTaxes} isMuted />
             )}
           </div>
         </>
@@ -152,7 +190,12 @@ function OrderPricingBreakdown({ order }) {
       )}
 
       {/* Grand total */}
-      <BillRow label="Total paid" value={order.finalAmount} isPayable hideZero={false} />
+      <BillRow
+        label="Total paid"
+        value={order.finalAmount}
+        isPayable
+        hideZero={false}
+      />
     </div>
   );
 }
@@ -368,9 +411,18 @@ export function OrdersPage() {
                 </div>
               </footer>
 
-              {order.cancellationReason ? (
+              {/* {order.cancellationReason ? (
                 <div className="order-status-banner error">
                   Cancelled: {order.cancellationReason}
+                </div>
+              ) : null} */}
+
+              {order.cancellationReason ? (
+                <div className="order-status-banner error">
+                  <div className="banner-title">Order Cancelled</div>
+                  <div className="banner-message">
+                    Reason: {order.cancellationReason}
+                  </div>
                 </div>
               ) : null}
 
