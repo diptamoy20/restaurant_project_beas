@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { AddressForm } from './AddressForm';
 
-export function AddressDialog({
+export function 
+AddressDialog({
   open,
   title = 'Add address',
   initialAddress,

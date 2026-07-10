@@ -40,6 +40,12 @@
   min-height: 5rem;
 }
 
+.location-picker-field textarea[readonly] {
+  background: #f8fafc;
+  color: #334155;
+  cursor: default;
+}
+
 .location-picker-ghost-button {
   min-height: 2.75rem;
   padding: 0.55rem 0.9rem;
