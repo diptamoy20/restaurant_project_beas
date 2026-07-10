@@ -26,14 +26,24 @@ const formatCurrency = new Intl.NumberFormat("en-IN", {
 });
 
 /** Renders a single bill row. Hidden when value is null/undefined/0 and hideZero=true */
-function BillRow({ label, value, isDiscount = false, isMuted = false, isPayable = false, hideZero = true, prefix = "" }) {
+function BillRow({
+  label,
+  value,
+  isDiscount = false,
+  isMuted = false,
+  isPayable = false,
+  hideZero = true,
+  prefix = "",
+}) {
   if (hideZero && (value == null || Number(value) === 0)) return null;
   const className = [
     "bill-row",
     isDiscount ? "bill-row-discount" : "",
     isMuted ? "bill-row-muted" : "",
     isPayable ? "bill-row-payable" : "",
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={className}>
@@ -99,19 +109,19 @@ export function CartPage() {
   //   dispatch(fetchCart());
   // }, [dispatch]);
 
-useEffect(() => {
-  dispatch(clearError());
-  setErrorMessage('');
+  useEffect(() => {
+    dispatch(clearError());
+    setErrorMessage("");
 
-  if (token) {
-    dispatch(fetchCart());
-  }
-}, [dispatch, token]);
+    if (token) {
+      dispatch(fetchCart());
+    }
+  }, [dispatch, token]);
 
-useEffect(() => {
-  dispatch(clearError());
-  setErrorMessage('');
-}, [restaurantId]);
+  useEffect(() => {
+    dispatch(clearError());
+    setErrorMessage("");
+  }, [restaurantId]);
 
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price, 0),
@@ -148,7 +158,8 @@ useEffect(() => {
         const payload = {
           restaurantId: Number(restaurantId),
           orderType: tableId ? "DINE_IN" : "DELIVERY",
-          addressId: !tableId && defaultAddress ? Number(defaultAddress.id) : undefined,
+          addressId:
+            !tableId && defaultAddress ? Number(defaultAddress.id) : undefined,
           ...(!tableId ? buildDeliveryCoordinatePayload() : {}),
           items: items.map((item) => ({
             menuItemId: item.menuItemId || item.id,
@@ -360,28 +371,39 @@ useEffect(() => {
               return (
                 <article key={item.cartKey} className="cart-item-card">
                   <div className="cart-item-main">
-                    <div>
-                      <span className="pill">{item.category?.name}</span>
-                      <h3>{item.name}</h3>
-                      <p className="line-item-meta">
-                        {formatCurrency.format(item.unitPrice)} per item
-                      </p>
-                      {(item.variant ||
-                        (item.addOns && item.addOns.length > 0)) && (
-                        <div className="cart-item-customizations">
-                          {item.variant && (
-                            <span>Size: {item.variant.name}</span>
-                          )}
-                          {(item.addOns ?? []).map((addon) => (
-                            <span
-                              key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}
-                            >
-                              + {addon.addonOptionName || addon.name} (+{" "}
-                              {formatCurrency.format(addon.price)})
-                            </span>
-                          ))}
+                    <div className="cart-item-content">
+                      {item.image && (
+                        <div className="cart-item-image">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            loading="lazy"
+                          />
                         </div>
                       )}
+                      <div className="cart-item-details">
+                        <span className="pill">{item.category?.name}</span>
+                        <h3>{item.name}</h3>
+                        <p className="line-item-meta">
+                          {formatCurrency.format(item.unitPrice)} per item
+                        </p>
+                        {(item.variant ||
+                          (item.addOns && item.addOns.length > 0)) && (
+                          <div className="cart-item-customizations">
+                            {item.variant && (
+                              <span>Size: {item.variant.name}</span>
+                            )}
+                            {(item.addOns ?? []).map((addon) => (
+                              <span
+                                key={`cart-addon-${item.cartKey}-${addon.addonOptionId}`}
+                              >
+                                + {addon.addonOptionName || addon.name} ( +
+                                {formatCurrency.format(addon.price)})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -391,7 +413,6 @@ useEffect(() => {
                       Remove
                     </button>
                   </div>
-
                   <div className="cart-item-footer">
                     <div
                       className="quantity-selector"
@@ -448,20 +469,36 @@ useEffect(() => {
             {quote ? (
               <>
                 {/* Items subtotal */}
-                <BillRow label="Items total" value={quote.subtotalAmount ?? subtotal} hideZero={false} />
+                <BillRow
+                  label="Items total"
+                  value={quote.subtotalAmount ?? subtotal}
+                  hideZero={false}
+                />
 
                 {/* Menu / item-level discount */}
-                <BillRow label="Item discount" value={quote.menuDiscountAmount} isDiscount />
+                <BillRow
+                  label="Item discount"
+                  value={quote.menuDiscountAmount}
+                  isDiscount
+                />
 
                 {/* Coupon discount */}
                 <BillRow
-                  label={quote.couponDiscountAmount > 0 ? `Coupon${quote.couponCode ? ` (${quote.couponCode})` : ""}` : "Coupon"}
+                  label={
+                    quote.couponDiscountAmount > 0
+                      ? `Coupon${quote.couponCode ? ` (${quote.couponCode})` : ""}`
+                      : "Coupon"
+                  }
                   value={quote.couponDiscountAmount}
                   isDiscount
                 />
 
                 {/* Manual discount */}
-                <BillRow label="Discount" value={quote.manualDiscountAmount} isDiscount />
+                <BillRow
+                  label="Discount"
+                  value={quote.manualDiscountAmount}
+                  isDiscount
+                />
 
                 {/* Delivery charge */}
                 {quote.deliveryCharge != null && (
@@ -485,7 +522,11 @@ useEffect(() => {
                 {/* Taxes with breakdown */}
                 {Number(quote.taxAmount) > 0 && (
                   <>
-                    <BillRow label="Taxes" value={quote.taxAmount} hideZero={false} />
+                    <BillRow
+                      label="Taxes"
+                      value={quote.taxAmount}
+                      hideZero={false}
+                    />
                     <div className="bill-tax-breakup">
                       {Number(quote.cgstAmount) > 0 && (
                         <BillRow
@@ -519,19 +560,32 @@ useEffect(() => {
                 <hr className="cart-summary-divider" />
 
                 {/* Final Payable Amount */}
-                <BillRow label="Payable" value={quote.finalAmount} isPayable hideZero={false} />
+                <BillRow
+                  label="Payable"
+                  value={quote.finalAmount}
+                  isPayable
+                  hideZero={false}
+                />
               </>
             ) : (
               <>
-                <BillRow label="Items total" value={subtotal} hideZero={false} />
+                <BillRow
+                  label="Items total"
+                  value={subtotal}
+                  hideZero={false}
+                />
                 <div className="cart-summary-notice">
                   <p className="cart-tax-note">
-                    ✓ Items total shown above<br/>
-                    • Delivery charges calculated at checkout<br/>
-                    • Packaging charges based on items<br/>
-                    • GST/Taxes calculated with delivery address<br/>
-                    • Coupon discounts applied at checkout<br/>
-                    • Final payable amount confirmed before payment
+                    ✓ Items total shown above
+                    <br />
+                    • Delivery charges calculated at checkout
+                    <br />
+                    • Packaging charges based on items
+                    <br />
+                    • GST/Taxes calculated with delivery address
+                    <br />
+                    • Coupon discounts applied at checkout
+                    <br />• Final payable amount confirmed before payment
                   </p>
                 </div>
               </>
