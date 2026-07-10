@@ -51,6 +51,7 @@ export function LocationPicker({
   const [osmSearching, setOsmSearching] = useState(false);
 
   const hasSelectedCoordinates = hasValidCoordinates(value.latitude, value.longitude);
+  const hasResolvedAddress = hasSelectedCoordinates && Boolean(value.address?.trim());
 
   const emitChange = (patch) => {
     onChange?.({
@@ -190,31 +191,36 @@ export function LocationPicker({
     geocoderRef.current?.geocode({ location }, (results, status) => {
       if (status !== google.maps.GeocoderStatus.OK || !results?.[0]) {
         setMapsMessage(message);
-        emitChange(nextCoordinates);
+        emitChange({
+          address: '',
+          city: '',
+          state: '',
+          ...nextCoordinates,
+        });
         return;
       }
 
       const nextAddress = readPlaceAddress(results[0]);
       setMapsMessage(message);
       emitChange({
-        address: nextAddress.address || value.address,
-        city: nextAddress.city || value.city,
-        state: nextAddress.state || value.state,
+        address: nextAddress.address || '',
+        city: nextAddress.city || '',
+        state: nextAddress.state || '',
         ...nextCoordinates,
       });
     });
   };
 
   const applyOpenStreetMapCoordinates = async (latitude, longitude, message) => {
-    emitChange({ latitude, longitude });
+    emitChange({ address: '', city: '', state: '', latitude, longitude });
 
     try {
       const nextAddress = await reverseGeocode(latitude, longitude);
       setMapsMessage(message);
       emitChange({
-        address: nextAddress.address || value.address,
-        city: nextAddress.city || value.city,
-        state: nextAddress.state || value.state,
+        address: nextAddress.address || '',
+        city: nextAddress.city || '',
+        state: nextAddress.state || '',
         latitude,
         longitude,
       });
@@ -286,7 +292,7 @@ export function LocationPicker({
     }
 
     emitChange({
-      address: result.address || value.address,
+      address: result.address || '',
       city: result.city,
       state: result.state,
       latitude: result.latitude,
@@ -373,6 +379,8 @@ export function LocationPicker({
             value={value.address}
             onChange={(event) => emitChange({ address: event.target.value })}
             placeholder="Select a location from the map"
+            readOnly={hasResolvedAddress}
+            aria-readonly={hasResolvedAddress}
             rows={3}
           />
         </label>
