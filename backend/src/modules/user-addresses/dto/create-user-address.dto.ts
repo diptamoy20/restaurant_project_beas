@@ -22,6 +22,18 @@ export class CreateUserAddressDto {
   @MaxLength(500)
   address!: string;
 
+  @ApiPropertyOptional({ example: 'Flat 12B, 4th floor, Green Heights' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  buildingFloor?: string;
+
+  @ApiPropertyOptional({ example: 'Near City Mall bus stop' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nearbyLandmark?: string;
+
   @ApiPropertyOptional({ example: 'Bengaluru' })
   @IsOptional()
   @IsString()

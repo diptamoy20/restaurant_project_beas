@@ -859,6 +859,8 @@ export class OrdersService {
             id: order.address.id,
             label: order.address.label,
             address: order.address.address,
+            buildingFloor: order.address.buildingFloor,
+            nearbyLandmark: order.address.nearbyLandmark,
             city: order.address.city,
             state: order.address.state,
           }

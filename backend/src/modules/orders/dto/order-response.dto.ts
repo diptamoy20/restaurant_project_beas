@@ -222,6 +222,16 @@ export class OrderAddressSummaryDto {
   @IsString()
   address!: string;
 
+  @ApiPropertyOptional({ example: 'Flat 12B, 4th floor', nullable: true })
+  @IsOptional()
+  @IsString()
+  buildingFloor!: string | null;
+
+  @ApiPropertyOptional({ example: 'Near City Mall bus stop', nullable: true })
+  @IsOptional()
+  @IsString()
+  nearbyLandmark!: string | null;
+
   @ApiPropertyOptional({ example: 'Kolkata', nullable: true })
   @IsOptional()
   @IsString()

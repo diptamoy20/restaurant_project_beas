@@ -19,6 +19,8 @@ function hasValidCoordinates(latitude, longitude) {
 
 const emptyLocation = {
   address: '',
+  buildingFloor: '',
+  nearbyLandmark: '',
   city: '',
   state: '',
   latitude: '',
@@ -29,6 +31,7 @@ export function LocationPicker({
   value = emptyLocation,
   onChange,
   showAddressField = true,
+  showAddressDetails = false,
   showCityField = true,
   showStateField = true,
   showCoordinates = false,
@@ -52,6 +55,7 @@ export function LocationPicker({
 
   const hasSelectedCoordinates = hasValidCoordinates(value.latitude, value.longitude);
   const hasResolvedAddress = hasSelectedCoordinates && Boolean(value.address?.trim());
+  const isLocationSelected = hasSelectedCoordinates;
 
   const emitChange = (patch) => {
     onChange?.({
@@ -379,11 +383,34 @@ export function LocationPicker({
             value={value.address}
             onChange={(event) => emitChange({ address: event.target.value })}
             placeholder="Select a location from the map"
-            readOnly={hasResolvedAddress}
-            aria-readonly={hasResolvedAddress}
+            readOnly={hasSelectedCoordinates}
+            disabled={hasSelectedCoordinates}
+            aria-readonly={hasSelectedCoordinates}
             rows={3}
           />
         </label>
+      ) : null}
+
+      {showAddressField && showAddressDetails ? (
+        <div className="location-picker-grid location-picker-wide">
+          <label className="location-picker-field">
+            <span>Building/Floor</span>
+            <input
+              value={value.buildingFloor ?? ''}
+              onChange={(event) => emitChange({ buildingFloor: event.target.value })}
+              placeholder="Flat, floor, building, block"
+            />
+          </label>
+
+          <label className="location-picker-field">
+            <span>Nearby Landmark</span>
+            <input
+              value={value.nearbyLandmark ?? ''}
+              onChange={(event) => emitChange({ nearbyLandmark: event.target.value })}
+              placeholder="School, hospital, mall, bus stop"
+            />
+          </label>
+        </div>
       ) : null}
 
       {showCityField || showStateField ? (
@@ -394,6 +421,9 @@ export function LocationPicker({
               <input
                 value={value.city}
                 onChange={(event) => emitChange({ city: event.target.value })}
+                readOnly={hasSelectedCoordinates}
+                disabled={hasSelectedCoordinates}
+                aria-readonly={hasSelectedCoordinates}
               />
             </label>
           ) : null}
@@ -404,6 +434,9 @@ export function LocationPicker({
               <input
                 value={value.state}
                 onChange={(event) => emitChange({ state: event.target.value })}
+                readOnly={hasSelectedCoordinates}
+                disabled={hasSelectedCoordinates}
+                aria-readonly={hasSelectedCoordinates}
               />
             </label>
           ) : null}

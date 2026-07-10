@@ -87,6 +87,8 @@ model UserAddress {
   userId    Int     @map("user_id")
   label     String  @default("Home")
   address   String
+  buildingFloor String? @map("building_floor")
+  nearbyLandmark String? @map("nearby_landmark")
   city      String?
   state     String?
   latitude  Float

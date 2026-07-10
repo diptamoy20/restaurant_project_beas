@@ -13,6 +13,12 @@ export class UserAddressDto {
   @ApiProperty({ example: '12 MG Road, Bengaluru' })
   address!: string;
 
+  @ApiPropertyOptional({ example: 'Flat 12B, 4th floor', nullable: true })
+  buildingFloor!: string | null;
+
+  @ApiPropertyOptional({ example: 'Near City Mall bus stop', nullable: true })
+  nearbyLandmark!: string | null;
+
   @ApiPropertyOptional({ example: 'Bengaluru', nullable: true })
   city!: string | null;
 

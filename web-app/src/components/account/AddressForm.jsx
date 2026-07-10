@@ -5,6 +5,8 @@ import '@shared/location/location-picker.css';
 const emptyForm = {
   label: 'Home',
   address: '',
+  buildingFloor: '',
+  nearbyLandmark: '',
   city: '',
   state: '',
   latitude: '',
@@ -28,6 +30,8 @@ export function AddressForm({
     setForm({
       label: initialAddress?.label ?? 'Home',
       address: initialAddress?.address ?? '',
+      buildingFloor: initialAddress?.buildingFloor ?? '',
+      nearbyLandmark: initialAddress?.nearbyLandmark ?? '',
       city: initialAddress?.city ?? '',
       state: initialAddress?.state ?? '',
       latitude: initialAddress?.latitude ?? '',
@@ -44,6 +48,8 @@ export function AddressForm({
     setForm((current) => ({
       ...current,
       address: location.address ?? current.address,
+      buildingFloor: location.buildingFloor ?? current.buildingFloor,
+      nearbyLandmark: location.nearbyLandmark ?? current.nearbyLandmark,
       city: location.city ?? current.city,
       state: location.state ?? current.state,
       latitude: location.latitude ?? current.latitude,
@@ -71,6 +77,8 @@ export function AddressForm({
     await onSubmit({
       label: form.label,
       address: form.address.trim(),
+      buildingFloor: form.buildingFloor.trim() || undefined,
+      nearbyLandmark: form.nearbyLandmark.trim() || undefined,
       city: form.city.trim() || undefined,
       state: form.state.trim() || undefined,
       latitude,
@@ -105,12 +113,15 @@ export function AddressForm({
           className="address-form-wide"
           value={{
             address: form.address,
+            buildingFloor: form.buildingFloor,
+            nearbyLandmark: form.nearbyLandmark,
             city: form.city,
             state: form.state,
             latitude: form.latitude,
             longitude: form.longitude,
           }}
           onChange={handleLocationChange}
+          showAddressDetails
           requestCurrentLocationOnMount={!initialAddress?.latitude || !initialAddress?.longitude}
         />
       </div>

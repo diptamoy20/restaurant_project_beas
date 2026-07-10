@@ -41,7 +41,14 @@ export function AddressManager() {
     }
 
     return items.filter((address) =>
-      [address.label, address.address, address.city, address.state]
+      [
+        address.label,
+        address.address,
+        address.buildingFloor,
+        address.nearbyLandmark,
+        address.city,
+        address.state,
+      ]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(query)),
     );
@@ -132,6 +139,8 @@ export function AddressManager() {
                 {address.isDefault ? <span className="address-badge">Default</span> : null}
               </div>
               <p>{address.address}</p>
+              {address.buildingFloor ? <span>{address.buildingFloor}</span> : null}
+              {address.nearbyLandmark ? <span>Landmark: {address.nearbyLandmark}</span> : null}
               {formatAddressMeta(address) ? <span>{formatAddressMeta(address)}</span> : null}
             </div>
             <div className="address-card-actions">
