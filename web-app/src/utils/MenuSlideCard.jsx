@@ -68,7 +68,12 @@ export function MenuSlideCard({
 
       <div className="menu-slide-body">
         <p className="menu-slide-eyebrow">{subtitle ?? item.category?.name}</p>
-        <h4>{item.name}</h4>
+        <div className="menu-slide-title-row">
+        <h4>{item.name}</h4>        
+          {item.rating != null ? (
+            <span className="menu-slide-rating">★ {item.rating.toFixed(1)}</span>
+          ) : null}
+        </div>
         <p
           className="menu-slide-description"
           onClick={() =>
@@ -145,11 +150,7 @@ export function MenuSlideCard({
               {formatRupees.format(item.price)}
             </span>
           )}
-          {item.rating != null ? (
-            <span className="menu-slide-rating">★ {item.rating.toFixed(1)}</span>
-          ) : null}
         </div>
-
         <button
           type="button"
           className="primary-btn menu-slide-cta"

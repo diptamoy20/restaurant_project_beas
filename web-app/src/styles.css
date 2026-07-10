@@ -568,10 +568,9 @@ h4 {
 .hero-section {
   position: relative;
   overflow: hidden;
-  min-height: 100vh;
+  min-height: 60vh;
   display: grid;
   align-items: center;
-  padding: 8rem 0 3rem;
 }
 
 .hero-media,
@@ -2136,8 +2135,12 @@ h4 {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  background: rgba(26, 71, 42, 0.08);
-  color: var(--color-primary-strong);
+  /* background-color: rgba(26, 71, 42, 0.08); */
+  background-image: url("./assets/close.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 2rem;
+  color: #0000;
   box-shadow: none;
 }
 
@@ -2802,9 +2805,16 @@ h4 {
 }
 
 .menu-slide-rating {
+  /* display: flex;
+  justify-content: flex-end;
+  align-items: center; */
   font-size: 0.85rem;
   font-weight: 600;
   color: #ca8a04;
+}
+.menu-slide-title-row{
+  display: flex;
+  justify-content: space-between;
 }
 
 .menu-slide-cta {
@@ -3812,7 +3822,7 @@ h4 {
 .sticky-filter-wrapper {
   position: sticky;
   top: 4.25rem;
-  z-index: 45;
+  z-index: 2;
   background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid var(--color-border);
   box-shadow: 0 8px 32px rgba(16, 48, 28, 0.04);
