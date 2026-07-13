@@ -28,6 +28,7 @@ import { MenuModule } from './modules/menu/menu.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PosModule } from './modules/pos/pos.module';
 import { QrModule } from './modules/qr/qr.module';
 import { RestaurantsModule } from './modules/restaurants/restaurants.module';
 import { TablesModule } from './modules/tables/tables.module';
@@ -61,6 +62,7 @@ import { PrismaModule } from './prisma/prisma.module';
     TablesModule,
     UserAddressesModule,
     FavoritesModule,
+    PosModule,
   ],
   controllers: [AppController],
   providers: [

@@ -10,6 +10,7 @@ import { couponApi } from '../services/couponApi';
 import { menuApi } from '../services/menuApi';
 import { orderApi } from '../services/orderApi';
 import { paymentApi } from '../services/paymentApi';
+import { posApi } from '../services/posApi';
 import { userApi } from '../services/userApi';
 import { restaurantApi } from '../services/restaurantApi';
 import { tableApi } from '../services/tableApi';
@@ -31,6 +32,7 @@ listenerMiddleware.startListening({
     listenerApi.dispatch(analyticsApi.util.resetApiState());
     listenerApi.dispatch(restaurantApi.util.resetApiState());
     listenerApi.dispatch(tableApi.util.resetApiState());
+    listenerApi.dispatch(posApi.util.resetApiState());
   },
 });
 
@@ -49,6 +51,7 @@ export const store = configureStore({
     [analyticsApi.reducerPath]: analyticsApi.reducer,
     [restaurantApi.reducerPath]: restaurantApi.reducer,
     [tableApi.reducerPath]: tableApi.reducer,
+    [posApi.reducerPath]: posApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -65,6 +68,7 @@ export const store = configureStore({
         analyticsApi.middleware,
         restaurantApi.middleware,
         tableApi.middleware,
+        posApi.middleware,
       ),
 });
 

@@ -11,6 +11,7 @@ enum OrderSource {
   MOBILE_APP
   QR_DINE_IN
   ADMIN
+  POS
 }
 
 model User {
@@ -32,6 +33,7 @@ model User {
   lockUntil              DateTime?            @map("lock_until")
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
+  restaurantId           Int?                 @map("restaurant_id")
   role                   UserRole?
   addresses              UserAddress[]
   orders                 Order[]
@@ -45,6 +47,7 @@ model User {
   socialAccounts         SocialAccount[]
   deliveryAgent          DeliveryAgent?
   deviceTokens           DeviceToken[]
+  restaurant             Restaurant?          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
@@ -101,31 +104,31 @@ model UserAddress {
 }
 
 model Restaurant {
-  id                     Int                                   @id @default(autoincrement())
+  id                     Int                  @id @default(autoincrement())
   name                   String
-  slug                   String                                @unique
+  slug                   String               @unique
   address                String
   city                   String?
   latitude               Float
   longitude              Float
   location               Unsupported("geography(Point,4326)")?
-  cuisineType            String?                               @map("cuisine_type")
+  cuisineType            String?              @map("cuisine_type")
   description            String?
-  imageUrl               String?                               @map("image_url")
-  imagePublicId          String?                               @map("image_public_id")
-  deliveryRadiusKm       Float                                 @default(8) @map("delivery_radius_km")
-  deliveryEnabled        Boolean                               @default(true) @map("delivery_enabled")
-  deliveryBaseFee        Float                                 @default(20) @map("delivery_base_fee")
-  deliveryBaseDistanceKm Float                                 @default(1) @map("delivery_base_distance_km")
-  deliveryPerKmFee       Float                                 @default(7) @map("delivery_per_km_fee")
-  deliveryFeeMin         Float?                                @map("delivery_fee_min")
-  deliveryFeeCap         Float?                                @map("delivery_fee_cap")
-  freeDeliveryMinAmount  Float?                                @map("free_delivery_min_amount")
-  packagingCharge        Float                                 @default(0) @map("packaging_charge")
-  isLocationEnabled      Boolean                               @default(true) @map("is_location_enabled")
-  isActive               Boolean                               @default(true) @map("is_active")
-  createdAt              DateTime                              @default(now()) @map("created_at")
-  updatedAt              DateTime                              @updatedAt @map("updated_at")
+  imageUrl               String?              @map("image_url")
+  imagePublicId          String?              @map("image_public_id")
+  deliveryRadiusKm       Float                @default(8) @map("delivery_radius_km")
+  deliveryEnabled        Boolean              @default(true) @map("delivery_enabled")
+  deliveryBaseFee        Float                @default(20) @map("delivery_base_fee")
+  deliveryBaseDistanceKm Float                @default(1) @map("delivery_base_distance_km")
+  deliveryPerKmFee       Float                @default(7) @map("delivery_per_km_fee")
+  deliveryFeeMin         Float?               @map("delivery_fee_min")
+  deliveryFeeCap         Float?               @map("delivery_fee_cap")
+  freeDeliveryMinAmount  Float?               @map("free_delivery_min_amount")
+  packagingCharge        Float                @default(0) @map("packaging_charge")
+  isLocationEnabled      Boolean              @default(true) @map("is_location_enabled")
+  isActive               Boolean              @default(true) @map("is_active")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
   tables                 RestaurantTable[]
   tableSessions          TableSession[]
   categories             Category[]
@@ -135,10 +138,11 @@ model Restaurant {
   deliveryZones          DeliveryZone[]
   coupons                Coupon[]
   cartItems              CartItem[]
-  gstin                  String?                               @map("gstin")
-  gstRate                Float                                 @default(5) @map("gst_rate")
-  gstEnabled             Boolean                               @default(true) @map("gst_enabled")
-  gstMode                String                                @default("EXCLUSIVE") @map("gst_mode")
+  gstin                  String?              @map("gstin")
+  gstRate                Float                @default(5) @map("gst_rate")
+  gstEnabled             Boolean              @default(true) @map("gst_enabled")
+  gstMode                String               @default("EXCLUSIVE") @map("gst_mode")
+  staffUsers             User[]
 
   @@map("restaurants")
 }

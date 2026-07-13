@@ -4,17 +4,20 @@ export const roleLabelMap = {
   admin: 'Admin',
   manager: 'Manager',
   delivery_boy: 'Delivery Boy',
+  pos_staff: 'POS Staff',
 };
 
 export const roleApiMap = {
   admin: 'admin',
   manager: 'manager',
   delivery_boy: 'delivery_boy',
+  pos_staff: 'pos_staff',
 };
 
 export const defaultPermissionsByRole = {
   admin: {
     dashboard: ['view'],
+    pos: ['view'],
     orders: ['view', 'accept', 'reject', 'complete'],
     restaurants: ['view', 'create', 'edit', 'delete'],
     categories: ['view', 'create', 'edit', 'delete'],
@@ -27,6 +30,7 @@ export const defaultPermissionsByRole = {
   },
   manager: {
     dashboard: ['view'],
+    pos: ['view'],
     orders: ['view', 'accept', 'reject'],
     restaurants: ['view', 'edit'],
     categories: ['view'],
@@ -36,6 +40,12 @@ export const defaultPermissionsByRole = {
     payments: ['view', 'filter'],
     tables: ['view', 'create', 'edit', 'generate_qr'],
     staff: [],
+  },
+  pos_staff: {
+    pos: ['view'],
+    orders: ['view', 'accept', 'complete'],
+    tables: ['view'],
+    menu: ['view'],
   },
   delivery_boy: {
     dashboard: ['view'],
@@ -60,6 +70,10 @@ export function inferUiRole(rawRole = 'delivery_boy') {
 
   if (roles.includes('manager')) {
     return 'manager';
+  }
+
+  if (roles.includes('pos_staff')) {
+    return 'pos_staff';
   }
 
   return 'delivery_boy';

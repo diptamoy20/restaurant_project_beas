@@ -22,7 +22,10 @@ import { hasBackendRole } from './utils/auth';
 function DashboardRoute() {
   const user = useSelector((state) => state.auth.user);
 
-  return hasBackendRole(user, 'delivery_boy') ? <DeliveryDashboardPage /> : <DashboardPage />;
+  if (hasBackendRole(user, 'delivery_boy')) {
+    return <DeliveryDashboardPage />;
+  }
+  return <DashboardPage />;
 }
 
 function OrdersRoute() {

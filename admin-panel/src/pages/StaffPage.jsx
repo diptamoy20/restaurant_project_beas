@@ -20,6 +20,7 @@ import {
   useUpdateUserMutation,
   useUploadStaffProfileImageMutation,
 } from '../services/userApi';
+import { useGetAllRestaurantsQuery } from '../services/restaurantApi';
 import { defaultPermissionsByRole, roleLabelMap } from '../utils/auth';
 import { IMAGE_UPLOAD_ACCEPT, validateImageFile } from '../utils/imageUpload';
 
@@ -27,16 +28,20 @@ const roleOptions = [
   { value: 'manager', label: 'Manager' },
   { value: 'delivery_boy', label: 'Delivery boy' },
   { value: 'admin', label: 'Admin' },
+  { value: 'pos_staff', label: 'POS Staff' },
 ];
 
 const capabilityModules = [
   { key: 'dashboard', label: 'Dashboard', actions: ['view'] },
+  { key: 'pos', label: 'POS', actions: ['view'] },
   { key: 'orders', label: 'Orders', actions: ['view', 'accept', 'reject', 'complete'] },
   { key: 'restaurants', label: 'Restaurants', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'categories', label: 'Categories', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'coupons', label: 'Coupons', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'customers', label: 'Customers', actions: ['view'] },
   { key: 'payments', label: 'Payments', actions: ['view', 'filter'] },
+  { key: 'tables', label: 'Tables', actions: ['view', 'create', 'edit', 'delete', 'generate_qr'] },
+  { key: 'menu', label: 'Menu', actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'staff', label: 'Staff', actions: ['view', 'create', 'edit', 'delete', 'assign'] },
 ];
 
@@ -82,6 +87,7 @@ function createFormState(role = 'manager') {
     password: '',
     role,
     permissions: roleDefaults(role),
+    restaurantId: '',
     deliveryAgent: {
       isVerified: false,
       address: '',
@@ -129,11 +135,17 @@ function permissionsMatch(left = {}, right = {}) {
 export function StaffPage() {
   const currentUserId = useSelector((state) => state.auth.user?.id);
   const { data: users = [], isLoading, error: listError } = useGetUsersQuery();
+  const { data: restaurants = [], isLoading: isRestaurantsLoading } = useGetAllRestaurantsQuery();
+  const activeRestaurants = useMemo(() => {
+    return restaurants.filter((r) => r.isActive !== false);
+  }, [restaurants]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [permissionMode, setPermissionMode] = useState('default');
   const [form, setForm] = useState(() => createFormState());
   const [formErrors, setFormErrors] = useState({});
+  const [restaurantSearch, setRestaurantSearch] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [createUser, createState] = useCreateUserMutation();
@@ -187,6 +199,18 @@ export function StaffPage() {
 
     return () => URL.revokeObjectURL(previewUrl);
   }, [imageFile]);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleOutsideClick = (event) => {
+      if (event.target.closest('.restaurant-picker-container')) {
+        return;
+      }
+      setIsDropdownOpen(false);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [isDropdownOpen]);
 
   const setField = (name, value) => {
     setForm((current) => ({ ...current, [name]: value }));
@@ -254,6 +278,8 @@ export function StaffPage() {
     setForm(createFormState());
     setImageFile(null);
     setFormErrors({});
+    setRestaurantSearch('');
+    setIsDropdownOpen(false);
   };
 
   const closeDialog = () => {
@@ -284,6 +310,7 @@ export function StaffPage() {
       password: '',
       role,
       permissions,
+      restaurantId: user.restaurantId ? String(user.restaurantId) : '',
       deliveryAgent: {
         isVerified: user.deliveryAgent?.isVerified ?? false,
         address: user.deliveryAgent?.address ?? '',
@@ -296,6 +323,7 @@ export function StaffPage() {
         vehicleColor: user.deliveryAgent?.vehicleColor ?? '',
       },
     });
+    setRestaurantSearch(user.restaurantName ?? '');
     setImageFile(null);
     setDialogOpen(true);
   };
@@ -309,6 +337,10 @@ export function StaffPage() {
       role: form.role,
       permissions: form.permissions,
     };
+
+    if (form.role === 'pos_staff') {
+      payload.restaurantId = form.restaurantId ? Number(form.restaurantId) : null;
+    }
 
     if (form.role === 'delivery_boy') {
       payload.deliveryAgent = {
@@ -355,6 +387,15 @@ export function StaffPage() {
 
     if (isEditing && password && password.length < 6) {
       errors.password = 'New password must be at least 6 characters.';
+    }
+
+    if (form.role === 'pos_staff') {
+      if (!form.restaurantId) {
+        errors.restaurantId = 'Restaurant selection is required for POS staff.';
+      }
+      if (activeRestaurants.length === 0 && !isRestaurantsLoading) {
+        errors.restaurantId = 'No active restaurants available. POS Staff cannot be created.';
+      }
     }
 
     if (form.role === 'delivery_boy') {
@@ -492,13 +533,24 @@ export function StaffPage() {
                   <div>
                     <p className="font-semibold text-slate-950">{row.name || 'Unnamed user'}</p>
                     <p className="text-xs text-slate-500">{row.email || row.phone}</p>
+                    {getPrimaryRole(row) === 'pos_staff' && row.restaurantName ? (
+                      <p className="text-xs font-medium text-slate-500 mt-0.5">
+                        Restaurant: {row.restaurantName}
+                      </p>
+                    ) : null}
                   </div>
                 ),
               },
               {
                 key: 'role',
                 header: 'Role',
-                render: (row) => roleLabelMap[getPrimaryRole(row)] || getPrimaryRole(row),
+                render: (row) => {
+                  const label = roleLabelMap[getPrimaryRole(row)] || getPrimaryRole(row);
+                  if (getPrimaryRole(row) === 'pos_staff' && row.restaurantName) {
+                    return `${label} (${row.restaurantName})`;
+                  }
+                  return label;
+                },
               },
               {
                 key: 'status',
@@ -638,6 +690,81 @@ export function StaffPage() {
               type="password"
               value={form.password}
             />
+
+            {form.role === 'pos_staff' ? (
+              <div className="relative md:col-span-2 restaurant-picker-container">
+                <label className="block text-sm font-medium text-slate-700">
+                  <span className="mb-2 block">
+                    Restaurant <RequiredMark />
+                  </span>
+                  <input
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-900"
+                    placeholder={
+                      activeRestaurants.length === 0 && !isRestaurantsLoading
+                        ? 'No active restaurants available'
+                        : 'Type to search restaurant...'
+                    }
+                    type="text"
+                    value={restaurantSearch}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setRestaurantSearch(value);
+                      setIsDropdownOpen(true);
+                      
+                      // Auto-select exact match
+                      const exactMatch = activeRestaurants.find(
+                        (r) => r.name.toLowerCase() === value.trim().toLowerCase(),
+                      );
+                      setField('restaurantId', exactMatch ? String(exactMatch.id) : '');
+                    }}
+                    disabled={activeRestaurants.length === 0 && !isRestaurantsLoading}
+                  />
+                  {formErrors.restaurantId ? (
+                    <span className="mt-1 block text-xs text-rose-600">{formErrors.restaurantId}</span>
+                  ) : null}
+                </label>
+
+                {isDropdownOpen && activeRestaurants.length > 0 ? (
+                  <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-lg">
+                    {activeRestaurants
+                      .filter((r) =>
+                        r.name.toLowerCase().includes(restaurantSearch.toLowerCase()),
+                      )
+                      .map((restaurant) => (
+                        <button
+                          className="block w-full border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 hover:bg-slate-50 text-slate-900"
+                          key={restaurant.id}
+                          onClick={() => {
+                            setField('restaurantId', String(restaurant.id));
+                            setRestaurantSearch(restaurant.name);
+                            setIsDropdownOpen(false);
+                          }}
+                          type="button"
+                        >
+                          <span className="block font-medium">{restaurant.name}</span>
+                          <span className="text-xs text-slate-500">
+                            {restaurant.city || restaurant.address}
+                          </span>
+                        </button>
+                      ))}
+                    {activeRestaurants.filter((r) =>
+                      r.name.toLowerCase().includes(restaurantSearch.toLowerCase()),
+                    ).length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-slate-500">
+                        No matching restaurants found.
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {!isRestaurantsLoading && activeRestaurants.length === 0 ? (
+                  <div className="mt-2 text-sm text-rose-600 font-medium">
+                    ⚠️ No active restaurants available. You must create/activate a restaurant first.
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {form.role === 'delivery_boy' ? (
