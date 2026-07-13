@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -138,6 +139,11 @@ export class CreateStaffUserDto {
   @IsEnum(Role)
   role!: Role;
 
+  @ApiPropertyOptional({ example: 1 })
+  @ValidateIf((payload) => payload.role === Role.POS_STAFF)
+  @IsNumber({}, { message: 'Restaurant is required for POS staff' })
+  restaurantId?: number;
+
   @ApiPropertyOptional({ example: { orders: ['view'] } })
   @IsOptional()
   @IsObject()
@@ -177,6 +183,11 @@ export class UpdateStaffUserDto {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber({}, { message: 'Restaurant is required for POS staff' })
+  restaurantId?: number | null;
 
   @ApiPropertyOptional({ example: { orders: ['view'] } })
   @IsOptional()
@@ -289,6 +300,12 @@ export class StaffUserDto {
 
   @ApiProperty({ enum: Role, example: Role.DELIVERY_BOY })
   role!: Role;
+
+  @ApiPropertyOptional({ example: 1, nullable: true })
+  restaurantId?: number | null;
+
+  @ApiPropertyOptional({ example: 'Pizza Palace', nullable: true })
+  restaurantName?: string | null;
 
   @ApiProperty({ example: { orders: ['view'] } })
   permissions!: Record<string, string[]>;

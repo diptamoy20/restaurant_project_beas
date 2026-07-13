@@ -3,7 +3,7 @@ import { Role } from '../enums/role.enum';
 export type PermissionMap = Record<string, string[]>;
 
 export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
-  Role.ADMIN | Role.MANAGER | Role.DELIVERY_BOY,
+  Role.ADMIN | Role.MANAGER | Role.DELIVERY_BOY | Role.POS_STAFF,
   PermissionMap
 > = {
   [Role.ADMIN]: {
@@ -16,6 +16,7 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
     payments: ['view', 'filter'],
     staff: ['view', 'create', 'edit', 'delete', 'assign'],
     tables: ['view', 'create', 'edit', 'delete', 'generate_qr'],
+    pos: ['view', 'create_orders', 'update_orders', 'complete_orders'],
   },
   [Role.MANAGER]: {
     dashboard: ['view'],
@@ -27,6 +28,7 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
     payments: ['view', 'filter'],
     staff: [],
     tables: ['view', 'create', 'edit', 'generate_qr'],
+    pos: ['view', 'create_orders', 'update_orders', 'complete_orders'],
   },
   [Role.DELIVERY_BOY]: {
     dashboard: ['view'],
@@ -38,6 +40,18 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<
     payments: [],
     staff: [],
     tables: [],
+  },
+  [Role.POS_STAFF]: {
+    dashboard: ['view'],
+    orders: ['view', 'create', 'update'],
+    restaurants: [],
+    categories: ['view'],
+    coupons: ['view'],
+    customers: [],
+    payments: ['view'],
+    staff: [],
+    tables: ['view'],
+    pos: ['view', 'create_orders', 'update_orders', 'complete_orders'],
   },
 };
 
@@ -52,6 +66,10 @@ export function getDefaultPermissionsForRoles(roles: Role[]): PermissionMap {
 
   if (roles.includes(Role.DELIVERY_BOY)) {
     return DEFAULT_PERMISSIONS_BY_ROLE[Role.DELIVERY_BOY];
+  }
+
+  if (roles.includes(Role.POS_STAFF)) {
+    return DEFAULT_PERMISSIONS_BY_ROLE[Role.POS_STAFF];
   }
 
   return {};

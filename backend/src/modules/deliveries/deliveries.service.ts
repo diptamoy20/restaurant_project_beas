@@ -742,7 +742,18 @@ export class DeliveriesService {
 
       latestLocation: delivery.trackingLogs[0]
         ? this.mapTrackingLog(delivery.trackingLogs[0])
-        : DeliveriesGateway.resolveLatestLocation(delivery.order.status, null, order.restaurant),
+        : order.restaurant
+          ? {
+              id: null,
+              deliveryId: delivery.id,
+              latitude: order.restaurant.latitude,
+              longitude: order.restaurant.longitude,
+              speed: null,
+              heading: null,
+              recordedAt: null,
+              source: 'restaurant',
+            }
+          : null,
       trackingHistory: delivery.trackingLogs.map((log) => this.mapTrackingLog(log)),
       restaurant: order.restaurant ? this.mapTrackingRestaurant(order.restaurant) : null,
     };

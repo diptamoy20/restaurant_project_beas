@@ -34,6 +34,7 @@ const STAFF_USER_INCLUDE = {
     },
   },
   deliveryAgent: true,
+  restaurant: true,
 } satisfies Prisma.UserInclude;
 
 type StaffUserRecord = Prisma.UserGetPayload<{ include: typeof STAFF_USER_INCLUDE }>;
@@ -223,7 +224,7 @@ export class AdminService {
           is: {
             role: {
               name: {
-                in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY],
+                in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY, Role.POS_STAFF],
               },
             },
           },
@@ -544,8 +545,10 @@ export class AdminService {
   }
 
   async createStaff(payload: CreateStaffUserDto): Promise<StaffUserDto> {
-    if (![Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY].includes(payload.role)) {
-      throw new BadRequestException('Only admin, manager, and delivery boy staff can be created');
+    if (![Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY, Role.POS_STAFF].includes(payload.role)) {
+      throw new BadRequestException(
+        'Only admin, manager, delivery boy, and POS staff can be created',
+      );
     }
 
     const email = payload.email?.trim().toLowerCase() || null;
@@ -596,6 +599,7 @@ export class AdminService {
           role: {
             create: { roleId: role.id },
           },
+          restaurantId: payload.role === Role.POS_STAFF ? (payload.restaurantId ?? null) : null,
         },
         include: STAFF_USER_INCLUDE,
       });
@@ -700,6 +704,7 @@ export class AdminService {
           profileImageUrl,
           profileImagePublicId: shouldReplaceProfileImageUrl ? null : undefined,
           permissions: this.normalizePermissions(payload.permissions, nextRole),
+          restaurantId: nextRole === Role.POS_STAFF ? (payload.restaurantId ?? null) : null,
         },
         include: STAFF_USER_INCLUDE,
       });
@@ -826,7 +831,7 @@ export class AdminService {
           is: {
             role: {
               name: {
-                in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY],
+                in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY, Role.POS_STAFF],
               },
             },
           },
@@ -915,6 +920,8 @@ export class AdminService {
       isActive: user.isActive,
       role,
       permissions: permissions ?? this.readPermissions(user.permissions, role),
+      restaurantId: user.restaurantId,
+      restaurantName: user.restaurant?.name ?? null,
       deliveryAgent:
         role === Role.DELIVERY_BOY && user.deliveryAgent
           ? {
@@ -1023,8 +1030,10 @@ export class AdminService {
   }
 
   private assertManageableStaffRole(role: Role): void {
-    if (![Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY].includes(role)) {
-      throw new BadRequestException('Only admin, manager, and delivery boy staff can be managed');
+    if (![Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY, Role.POS_STAFF].includes(role)) {
+      throw new BadRequestException(
+        'Only admin, manager, delivery boy, and POS staff can be managed',
+      );
     }
   }
 
@@ -1036,7 +1045,7 @@ export class AdminService {
           is: {
             role: {
               name: {
-                in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY],
+                in: [Role.ADMIN, Role.MANAGER, Role.DELIVERY_BOY, Role.POS_STAFF],
               },
             },
           },

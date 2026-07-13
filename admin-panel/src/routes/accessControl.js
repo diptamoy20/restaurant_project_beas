@@ -13,6 +13,12 @@ export const routeDefinitions = [
   { path: '/staff', label: 'Staff', module: 'staff' },
 ];
 
+const posRouteDefinitions = [
+  { path: '/orders', label: 'Orders', module: 'orders' },
+  { path: '/tables', label: 'Table Management', module: 'tables' },
+  { path: '/menu', label: 'Manage Menu', module: 'menu' },
+];
+
 const deliveryRouteDefinitions = [
   { path: '/dashboard', label: 'Dashboard', module: 'dashboard' },
   { path: '/orders', label: 'Assigned Orders', module: 'orders' },
@@ -26,7 +32,12 @@ export function getVisibleRoutes(role, permissions = {}) {
   const effectivePermissions = Object.keys(permissions).length
     ? permissions
     : (defaultPermissionsByRole[role] ?? {});
-  const routes = role === 'delivery_boy' ? deliveryRouteDefinitions : routeDefinitions;
+  let routes = routeDefinitions;
+  if (role === 'delivery_boy') {
+    routes = deliveryRouteDefinitions;
+  } else if (role === 'pos_staff') {
+    routes = posRouteDefinitions;
+  }
 
   return routes.filter((route) => canAccess(effectivePermissions, route.module));
 }

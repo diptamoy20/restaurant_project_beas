@@ -24,6 +24,7 @@ async function ensureUser(params: {
   phone: string;
   plainPassword: string;
   roleId: number;
+  restaurantId?: number;
 }): Promise<{ id: number }> {
   const hashedPassword = await hash(params.plainPassword, 10);
 
@@ -34,12 +35,14 @@ async function ensureUser(params: {
       phone: params.phone,
       password: hashedPassword,
       isActive: true,
+      restaurantId: params.restaurantId,
     },
     create: {
       name: params.name,
       email: params.email,
       phone: params.phone,
       password: hashedPassword,
+      restaurantId: params.restaurantId,
     },
   });
 
@@ -472,6 +475,37 @@ async function main(): Promise<void> {
   const managerRole = await ensureRole('manager');
   const customerRole = await ensureRole('customer');
   const deliveryBoyRole = await ensureRole('delivery_boy');
+  const posStaffRole = await ensureRole('pos_staff');
+
+  const downtownBranch =
+    (await prisma.restaurant.findFirst({
+      where: { name: 'Downtown Spice Hub' },
+      include: { categories: true, tables: true },
+    })) ??
+    (await prisma.restaurant.create({
+      data: {
+        name: 'Downtown Spice Hub',
+        slug: slugifyRestaurantName('Downtown Spice Hub'),
+        address: '45 Residency Road',
+        city: 'Bengaluru',
+        latitude: 12.9663,
+        longitude: 77.6012,
+        tables: {
+          create: [
+            { tableNumber: 'T1', qrCode: 'qr-table-t1', status: 'AVAILABLE' },
+            { tableNumber: 'T2', qrCode: 'qr-table-t2', status: 'AVAILABLE' },
+          ],
+        },
+        categories: {
+          create: [
+            { name: 'Starters', description: 'Quick bites and appetizers' },
+            { name: 'Main Course', description: 'Signature dishes' },
+            { name: 'Beverages', description: 'Cold and hot drinks' },
+          ],
+        },
+      },
+      include: { categories: true, tables: true },
+    }));
 
   const admin = await ensureUser({
     name: 'Admin User',
@@ -479,6 +513,7 @@ async function main(): Promise<void> {
     phone: '+919900000002',
     plainPassword: 'password123',
     roleId: adminRole.id,
+    restaurantId: downtownBranch.id,
   });
 
   await ensureUser({
@@ -487,6 +522,16 @@ async function main(): Promise<void> {
     phone: '+919900000003',
     plainPassword: 'password123',
     roleId: managerRole.id,
+    restaurantId: downtownBranch.id,
+  });
+
+  await ensureUser({
+    name: 'POS Staff',
+    email: 'pos@example.com',
+    phone: '+919900000005',
+    plainPassword: 'password123',
+    roleId: posStaffRole.id,
+    restaurantId: downtownBranch.id,
   });
 
   const customer = await ensureUser({
@@ -531,36 +576,6 @@ async function main(): Promise<void> {
         longitude: 77.5946,
         isDefault: true,
       },
-    }));
-
-  const downtownBranch =
-    (await prisma.restaurant.findFirst({
-      where: { name: 'Downtown Spice Hub' },
-      include: { categories: true, tables: true },
-    })) ??
-    (await prisma.restaurant.create({
-      data: {
-        name: 'Downtown Spice Hub',
-        slug: slugifyRestaurantName('Downtown Spice Hub'),
-        address: '45 Residency Road',
-        city: 'Bengaluru',
-        latitude: 12.9663,
-        longitude: 77.6012,
-        tables: {
-          create: [
-            { tableNumber: 'T1', qrCode: 'qr-table-t1', status: 'AVAILABLE' },
-            { tableNumber: 'T2', qrCode: 'qr-table-t2', status: 'AVAILABLE' },
-          ],
-        },
-        categories: {
-          create: [
-            { name: 'Starters', description: 'Quick bites and appetizers' },
-            { name: 'Main Course', description: 'Signature dishes' },
-            { name: 'Beverages', description: 'Cold and hot drinks' },
-          ],
-        },
-      },
-      include: { categories: true, tables: true },
     }));
 
   const riversideBranch =
