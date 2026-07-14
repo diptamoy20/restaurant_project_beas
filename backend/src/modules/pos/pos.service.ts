@@ -31,7 +31,7 @@ export class PosService {
 
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id: userData.restaurantId },
-      select: { id: true, name: true, isActive: true },
+      select: { id: true, name: true, address: true, gstin: true, imageUrl: true, isActive: true },
     });
 
     if (!restaurant) {
@@ -42,7 +42,13 @@ export class PosService {
       throw new ForbiddenException('Restaurant is inactive');
     }
 
-    return { restaurantId: restaurant.id, restaurantName: restaurant.name };
+    return {
+      restaurantId: restaurant.id,
+      restaurantName: restaurant.name,
+      restaurantAddress: restaurant.address,
+      gstNo: restaurant.gstin,
+      restaurantLogo: restaurant.imageUrl,
+    };
   }
 
   async getDashboard(user: AuthenticatedUser): Promise<PosDashboardResponseDto> {
@@ -95,7 +101,8 @@ export class PosService {
   }
 
   async getPosMenu(user: AuthenticatedUser, query: PosMenuQueryDto): Promise<PosMenuResponseDto> {
-    const { restaurantId } = await this.resolveUserRestaurant(user);
+    const { restaurantId, restaurantName, restaurantAddress, gstNo, restaurantLogo } =
+      await this.resolveUserRestaurant(user);
 
     const where = {
       restaurantId,
@@ -124,6 +131,12 @@ export class PosService {
     });
 
     return {
+      restaurant: {
+        restaurant_name: restaurantName,
+        restaurant_address: restaurantAddress,
+        gst_no: gstNo,
+        restaurant_logo: restaurantLogo,
+      },
       items: items.map((item) => ({
         id: item.id,
         name: item.name,
