@@ -1,6 +1,8 @@
-import { Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -9,10 +11,15 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 
+import { PosCouponsQueryDto } from './dto/pos-coupons-query.dto';
+import { PosCouponsResponseDto } from './dto/pos-coupons-response.dto';
+import { PosCreateOrderDto } from './dto/pos-create-order.dto';
 import { PosDashboardResponseDto } from './dto/pos-dashboard.dto';
 import { PosMenuQueryDto } from './dto/pos-menu-query.dto';
 import { PosMenuResponseDto } from './dto/pos-menu-response.dto';
+import { PosOrderResponseDto } from './dto/pos-order-response.dto';
 import { PosService } from './pos.service';
+import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -43,6 +50,35 @@ export class PosController {
     };
   }
 
+  @Get('coupons')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.POS_STAFF)
+  @ApiOperation({ summary: 'List coupons available for the POS staff restaurant' })
+  @ApiQuery({
+    name: 'subtotalAmount',
+    required: false,
+    type: Number,
+    description: 'Current cart subtotal for estimating discount amounts',
+    example: 450,
+  })
+  @ApiOkResponse({ type: PosCouponsResponseDto })
+  @ApiNotFoundResponse({ description: 'Restaurant not found' })
+  @ApiForbiddenResponse({ description: 'User is inactive or not associated with a restaurant' })
+  async getCoupons(
+    @Request() req: { user: AuthenticatedUser },
+    @Query() query: PosCouponsQueryDto,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: PosCouponsResponseDto;
+  }> {
+    const coupons = await this.posService.getPosCoupons(req.user, query);
+    return {
+      success: true,
+      message: 'POS coupons fetched successfully',
+      data: { coupons },
+    };
+  }
+
   @Get('menu')
   @Roles(Role.ADMIN, Role.MANAGER, Role.POS_STAFF)
   @ApiOperation({ summary: 'Get POS menu for the authenticated staff member restaurant' })
@@ -68,6 +104,28 @@ export class PosController {
     return {
       success: true,
       message: 'POS menu fetched successfully',
+      data,
+    };
+  }
+
+  @Post('orders')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.POS_STAFF)
+  @ApiOperation({ summary: 'Create a POS order' })
+  @ApiBody({ type: PosCreateOrderDto })
+  @ApiCreatedResponse({ type: PosOrderResponseDto })
+  @ApiStandardErrorResponses({ badRequest: true, notFound: true })
+  async createOrder(
+    @Request() req: { user: AuthenticatedUser },
+    @Body() dto: PosCreateOrderDto,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: PosOrderResponseDto;
+  }> {
+    const data = await this.posService.createPosOrder(req.user, dto);
+    return {
+      success: true,
+      message: 'POS order created successfully',
       data,
     };
   }

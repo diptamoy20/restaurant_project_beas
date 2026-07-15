@@ -1,15 +1,27 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { OrderSource } from '@prisma/client';
 
-import { PrismaService } from '../../prisma/prisma.service';
-import { AuthenticatedUser } from '../auth/auth.types';
+import { PosCouponsQueryDto } from './dto/pos-coupons-query.dto';
+import { PosCreateOrderDto } from './dto/pos-create-order.dto';
 import { PosDashboardResponseDto } from './dto/pos-dashboard.dto';
 import { PosMenuQueryDto } from './dto/pos-menu-query.dto';
 import { PosMenuResponseDto } from './dto/pos-menu-response.dto';
+import { PosOrderResponseDto } from './dto/pos-order-response.dto';
+import { ORDER_STATUS } from '../../common/constants/order-status';
+import { PAYMENT_STATUS } from '../../common/constants/payment';
+import { PrismaService } from '../../prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/auth.types';
+import { AvailableCouponResponseDto } from '../billing/dto/checkout-quote.dto';
+import { CouponsService } from '../coupons/coupons.service';
+import { OrdersService } from '../orders/orders.service';
 
 @Injectable()
 export class PosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ordersService: OrdersService,
+    private readonly couponsService: CouponsService,
+  ) {}
 
   private async resolveUserRestaurant(user: AuthenticatedUser) {
     const userData = await this.prisma.user.findUnique({
@@ -100,6 +112,19 @@ export class PosService {
     };
   }
 
+  async getPosCoupons(
+    user: AuthenticatedUser,
+    query: PosCouponsQueryDto,
+  ): Promise<AvailableCouponResponseDto[]> {
+    const { restaurantId } = await this.resolveUserRestaurant(user);
+
+    return this.couponsService.listAvailableForCheckout({
+      restaurantId,
+      userId: user.id,
+      subtotalAmount: query.subtotalAmount,
+    });
+  }
+
   async getPosMenu(user: AuthenticatedUser, query: PosMenuQueryDto): Promise<PosMenuResponseDto> {
     const { restaurantId, restaurantName, restaurantAddress, gstNo, restaurantLogo } =
       await this.resolveUserRestaurant(user);
@@ -147,6 +172,114 @@ export class PosService {
         isVeg: item.foodType === 'VEG',
         isAvailable: item.isAvailable,
       })),
+    };
+  }
+
+  async createPosOrder(
+    user: AuthenticatedUser,
+    dto: PosCreateOrderDto,
+  ): Promise<PosOrderResponseDto> {
+    const { restaurantId } = await this.resolveUserRestaurant(user);
+
+    const existingCustomer = await this.prisma.user.findUnique({
+      where: { phone: dto.customerPhone },
+      select: { id: true },
+    });
+
+    const created = await this.ordersService.createOrder({
+      userId: existingCustomer?.id ?? null,
+      restaurantId,
+      source: OrderSource.POS,
+      orderType: dto.orderType ?? 'TAKEAWAY',
+      paymentMethod: dto.paymentMethod ?? 'CASH',
+      couponCode: dto.couponCode,
+      tableId: dto.tableId,
+      items: dto.items,
+    });
+
+    const paymentMethod = (dto.paymentMethod ?? 'CASH').toUpperCase();
+    const isRazorpay = paymentMethod === 'RAZORPAY';
+
+    if (!isRazorpay) {
+      await this.prisma.order.update({
+        where: { id: created.id },
+        data: {
+          paymentStatus: PAYMENT_STATUS.PAID,
+          status: ORDER_STATUS.PENDING,
+          statusLogs: {
+            create: [{ status: ORDER_STATUS.PENDING }],
+          },
+        },
+      });
+
+      await this.prisma.payment.create({
+        data: {
+          orderId: created.id,
+          userId: existingCustomer?.id ?? user.id,
+          amount: created.finalAmount,
+          status: PAYMENT_STATUS.PAID,
+          method: paymentMethod,
+        },
+      });
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: created.id },
+      include: {
+        items: {
+          include: { menuItem: true },
+        },
+      },
+    });
+
+    return this.mapPosOrder(order!, paymentMethod, dto.customerPhone);
+  }
+
+  private mapPosOrder(
+    order: {
+      orderNumber: string;
+      paymentMethod: string | null;
+      paymentStatus: string;
+      subtotalAmount: number;
+      discountAmount: number | null;
+      gstRate: number;
+      taxAmount: number;
+      finalAmount: number;
+      createdAt: Date;
+      items: {
+        menuItemId: number;
+        quantity: number;
+        price: number;
+        totalPrice: number;
+        menuItem: { name: string; imageUrl: string | null } | null;
+      }[];
+    },
+    paymentMethod: string,
+    customerPhone: string,
+  ): PosOrderResponseDto {
+    const displayNumber = `ORD-${order.orderNumber}`;
+
+    return {
+      id: displayNumber,
+      orderNumber: displayNumber,
+      customerPhone,
+      items: order.items.map((item) => ({
+        menuItemId: item.menuItemId,
+        name: item.menuItem?.name ?? 'Unknown',
+        price: item.price,
+        image: item.menuItem?.imageUrl ?? null,
+        quantity: item.quantity,
+        total: item.totalPrice,
+      })),
+      paymentMethod: paymentMethod.toLowerCase(),
+      paymentStatus: order.paymentStatus.toLowerCase(),
+      subtotal: order.subtotalAmount,
+      discount: order.discountAmount ?? 0,
+      taxRate: order.gstRate / 100,
+      taxAmount: order.taxAmount,
+      grandTotal: order.finalAmount,
+      createdAt: order.createdAt,
+      completedAt: order.paymentStatus === PAYMENT_STATUS.PAID ? order.createdAt : null,
     };
   }
 }
