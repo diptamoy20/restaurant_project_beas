@@ -30,8 +30,8 @@ export class PosOrderResponseDto {
   @ApiProperty({ example: 'ORD-0957443' })
   orderNumber!: string;
 
-  @ApiProperty({ example: '9876543210' })
-  customerPhone!: string;
+  @ApiProperty({ example: '9876543210', nullable: true })
+  customerPhone!: string | null;
 
   @ApiProperty({ type: () => PosOrderItemResponseDto, isArray: true })
   items!: PosOrderItemResponseDto[];

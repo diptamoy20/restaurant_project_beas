@@ -212,10 +212,14 @@ export class PosService {
   ): Promise<PosOrderResponseDto> {
     const { restaurantId } = await this.resolveUserRestaurant(user);
 
-    const existingCustomer = await this.prisma.user.findUnique({
-      where: { phone: dto.customerPhone },
-      select: { id: true },
-    });
+    const customerPhone = dto.customerPhone || undefined;
+
+    const existingCustomer = customerPhone
+      ? await this.prisma.user.findUnique({
+          where: { phone: customerPhone },
+          select: { id: true },
+        })
+      : null;
 
     const created = await this.ordersService.createOrder({
       userId: existingCustomer?.id ?? null,
@@ -223,7 +227,7 @@ export class PosService {
       source: OrderSource.POS,
       orderType: dto.orderType ?? 'TAKEAWAY',
       paymentMethod: dto.paymentMethod ?? 'CASH',
-      couponCode: dto.couponCode,
+      couponCode: dto.couponCode || undefined,
       tableId: dto.tableId,
       items: dto.items,
     });
@@ -263,7 +267,7 @@ export class PosService {
       },
     });
 
-    return this.mapPosOrder(order!, paymentMethod, dto.customerPhone);
+    return this.mapPosOrder(order!, paymentMethod, customerPhone);
   }
 
   private mapPosOrder(
@@ -286,14 +290,14 @@ export class PosService {
       }[];
     },
     paymentMethod: string,
-    customerPhone: string,
+    customerPhone?: string,
   ): PosOrderResponseDto {
     const displayNumber = `ORD-${order.orderNumber}`;
 
     return {
       id: displayNumber,
       orderNumber: displayNumber,
-      customerPhone,
+      customerPhone: customerPhone ?? null,
       items: order.items.map((item) => ({
         menuItemId: item.menuItemId,
         name: item.menuItem?.name ?? 'Unknown',
