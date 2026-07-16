@@ -61,14 +61,15 @@ class PosOrderItemDto {
 }
 
 export class PosCreateOrderDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '9876543210',
     description:
       'Walk-in customer phone number. Used to link order to an existing customer or create a new one.',
   })
+  @IsOptional()
   @IsString()
-  @Matches(/^\+?[1-9]\d{7,14}$/, { message: PHONE_VALIDATION_MESSAGE })
-  customerPhone!: string;
+  @Matches(/^(\+?[1-9]\d{7,14})?$/, { message: PHONE_VALIDATION_MESSAGE })
+  customerPhone?: string;
 
   @ApiPropertyOptional({
     enum: ['DINE_IN', 'TAKEAWAY'],
@@ -99,7 +100,7 @@ export class PosCreateOrderDto {
   @ApiPropertyOptional({ example: 'WELCOME50' })
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z0-9_-]+$/)
+  @Matches(/^[A-Za-z0-9_-]*$/)
   couponCode?: string;
 
   @ApiProperty({ type: () => PosOrderItemDto, isArray: true })
