@@ -43,7 +43,16 @@ export class PosService {
 
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id: userData.restaurantId },
-      select: { id: true, name: true, address: true, gstin: true, imageUrl: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        gstin: true,
+        imageUrl: true,
+        gstRate: true,
+        gstEnabled: true,
+        isActive: true,
+      },
     });
 
     if (!restaurant) {
@@ -60,6 +69,8 @@ export class PosService {
       restaurantAddress: restaurant.address,
       gstNo: restaurant.gstin,
       restaurantLogo: restaurant.imageUrl,
+      gstRate: restaurant.gstRate,
+      gstEnabled: restaurant.gstEnabled,
     };
   }
 
@@ -126,8 +137,15 @@ export class PosService {
   }
 
   async getPosMenu(user: AuthenticatedUser, query: PosMenuQueryDto): Promise<PosMenuResponseDto> {
-    const { restaurantId, restaurantName, restaurantAddress, gstNo, restaurantLogo } =
-      await this.resolveUserRestaurant(user);
+    const {
+      restaurantId,
+      restaurantName,
+      restaurantAddress,
+      gstNo,
+      restaurantLogo,
+      gstRate: restaurantGstRate,
+      gstEnabled,
+    } = await this.resolveUserRestaurant(user);
 
     const where = {
       restaurantId,
@@ -155,12 +173,25 @@ export class PosService {
       orderBy: [{ isBestSelling: 'desc' }, { name: 'asc' }],
     });
 
+    const subtotal = items.reduce((sum, item) => sum + (item.discountPrice ?? item.price), 0);
+    const gstRate = gstEnabled ? restaurantGstRate : 0;
+    const taxableAmount = subtotal;
+    const taxAmount = Math.round(((taxableAmount * gstRate) / 100) * 100) / 100;
+    const cgstAmount = Math.round((taxAmount / 2) * 100) / 100;
+    const sgstAmount = Math.round((taxAmount - cgstAmount) * 100) / 100;
+    const igstAmount = 0;
+
     return {
       restaurant: {
         restaurant_name: restaurantName,
         restaurant_address: restaurantAddress,
         gst_no: gstNo,
         restaurant_logo: restaurantLogo,
+        cgstAmount,
+        sgstAmount,
+        igstAmount,
+        taxAmount,
+        gstRate,
       },
       items: items.map((item) => ({
         id: item.id,

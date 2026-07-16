@@ -15,6 +15,21 @@ export class PosMenuRestaurantDto {
     description: 'Restaurant logo image URL',
   })
   restaurant_logo?: string | null;
+
+  @ApiProperty({ example: 7.48, description: 'CGST amount based on current menu subtotal' })
+  cgstAmount!: number;
+
+  @ApiProperty({ example: 7.47, description: 'SGST amount based on current menu subtotal' })
+  sgstAmount!: number;
+
+  @ApiProperty({ example: 0, description: 'IGST amount (always 0 for intra-state)' })
+  igstAmount!: number;
+
+  @ApiProperty({ example: 14.95, description: 'Total tax amount based on current menu subtotal' })
+  taxAmount!: number;
+
+  @ApiProperty({ example: 5, description: 'GST rate percentage applied to the restaurant' })
+  gstRate!: number;
 }
 
 export class PosMenuItemDto {
