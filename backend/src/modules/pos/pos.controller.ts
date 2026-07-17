@@ -17,6 +17,8 @@ import { PosCreateOrderDto } from './dto/pos-create-order.dto';
 import { PosDashboardResponseDto } from './dto/pos-dashboard.dto';
 import { PosMenuQueryDto } from './dto/pos-menu-query.dto';
 import { PosMenuResponseDto } from './dto/pos-menu-response.dto';
+import { PosOrderListQueryDto } from './dto/pos-order-list-query.dto';
+import { PosOrderListResponseDto } from './dto/pos-order-list-response.dto';
 import { PosOrderResponseDto } from './dto/pos-order-response.dto';
 import { PosService } from './pos.service';
 import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-error-responses.decorator';
@@ -126,6 +128,27 @@ export class PosController {
     return {
       success: true,
       message: 'POS order created successfully',
+      data,
+    };
+  }
+
+  @Get('orders')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.POS_STAFF)
+  @ApiOperation({ summary: 'List POS orders for the authenticated staff restaurant' })
+  @ApiOkResponse({ type: PosOrderListResponseDto })
+  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, notFound: true })
+  async getOrders(
+    @Request() req: { user: AuthenticatedUser },
+    @Query() query: PosOrderListQueryDto,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: PosOrderListResponseDto;
+  }> {
+    const data = await this.posService.getPosOrders(req.user, query);
+    return {
+      success: true,
+      message: 'POS orders fetched successfully',
       data,
     };
   }
