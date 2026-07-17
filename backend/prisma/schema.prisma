@@ -331,6 +331,7 @@ model Order {
   cancelledAt          DateTime?        @map("cancelled_at")
   cancellationReason   String?          @map("cancellation_reason")
   cancelledByUserId    Int?             @map("cancelled_by_user_id")
+  customerPhone        String?          @map("customer_phone")
   createdAt            DateTime         @default(now()) @map("created_at")
   user                 User?            @relation(fields: [userId], references: [id])
   restaurant           Restaurant       @relation(fields: [restaurantId], references: [id])

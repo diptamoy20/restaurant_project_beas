@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { OrderSource } from '@prisma/client';
+import { Prisma, OrderSource } from '@prisma/client';
 
 import { PosCouponsQueryDto } from './dto/pos-coupons-query.dto';
 import { PosCreateOrderDto } from './dto/pos-create-order.dto';
 import { PosDashboardResponseDto } from './dto/pos-dashboard.dto';
 import { PosMenuQueryDto } from './dto/pos-menu-query.dto';
 import { PosMenuResponseDto } from './dto/pos-menu-response.dto';
+import { PosOrderListQueryDto } from './dto/pos-order-list-query.dto';
+import { PosOrderListResponseDto } from './dto/pos-order-list-response.dto';
 import { PosOrderResponseDto } from './dto/pos-order-response.dto';
 import { ORDER_STATUS } from '../../common/constants/order-status';
 import { PAYMENT_STATUS } from '../../common/constants/payment';
@@ -241,6 +243,7 @@ export class PosService {
         data: {
           paymentStatus: PAYMENT_STATUS.PAID,
           status: ORDER_STATUS.PENDING,
+          customerPhone: customerPhone ?? null,
           statusLogs: {
             create: [{ status: ORDER_STATUS.PENDING }],
           },
@@ -256,18 +259,187 @@ export class PosService {
           method: paymentMethod,
         },
       });
+    } else if (customerPhone) {
+      await this.prisma.order.update({
+        where: { id: created.id },
+        data: { customerPhone },
+      });
     }
 
     const order = await this.prisma.order.findUnique({
       where: { id: created.id },
-      include: {
+      select: {
+        orderNumber: true,
+        paymentMethod: true,
+        paymentStatus: true,
+        subtotalAmount: true,
+        discountAmount: true,
+        gstRate: true,
+        taxAmount: true,
+        finalAmount: true,
+        createdAt: true,
+        customerPhone: true,
         items: {
-          include: { menuItem: true },
+          select: {
+            menuItemId: true,
+            quantity: true,
+            price: true,
+            totalPrice: true,
+            menuItem: {
+              select: { name: true, imageUrl: true },
+            },
+          },
         },
       },
     });
 
-    return this.mapPosOrder(order!, paymentMethod, customerPhone);
+    return this.mapPosOrder(order!, paymentMethod);
+  }
+
+  async getPosOrders(
+    user: AuthenticatedUser,
+    query: PosOrderListQueryDto,
+  ): Promise<PosOrderListResponseDto> {
+    const { restaurantId } = await this.resolveUserRestaurant(user);
+
+    const where: Prisma.OrderWhereInput = {
+      restaurantId,
+      source: OrderSource.POS,
+    };
+
+    const searchTerm = query.search?.trim();
+    if (searchTerm) {
+      const stripped = searchTerm.replace(/^#/, '');
+      const isNumeric = /^\d+$/.test(stripped);
+
+      if (isNumeric) {
+        where.OR = [
+          { id: Number(stripped) },
+          { orderNumber: stripped },
+          { customerPhone: { contains: searchTerm, mode: 'insensitive' } },
+        ];
+      } else {
+        where.OR = [
+          { orderNumber: { contains: searchTerm, mode: 'insensitive' } },
+          { customerPhone: { contains: searchTerm, mode: 'insensitive' } },
+        ];
+      }
+    }
+
+    if (query.paymentStatus) {
+      where.paymentStatus = query.paymentStatus;
+    }
+
+    if (query.paymentMethod) {
+      where.paymentMethod = query.paymentMethod.toUpperCase();
+    }
+
+    if (query.orderStatus) {
+      where.status = query.orderStatus;
+    }
+
+    if (query.orderType) {
+      where.orderType = query.orderType;
+    }
+
+    if (query.date) {
+      const start = new Date(`${query.date}T00:00:00.000Z`);
+      const end = new Date(`${query.date}T23:59:59.999Z`);
+      where.createdAt = { gte: start, lte: end };
+    } else if (query.startDate || query.endDate) {
+      const createdAtFilter: Prisma.DateTimeFilter = {};
+      if (query.startDate) {
+        createdAtFilter.gte = new Date(`${query.startDate}T00:00:00.000Z`);
+      }
+      if (query.endDate) {
+        createdAtFilter.lte = new Date(`${query.endDate}T23:59:59.999Z`);
+      }
+      where.createdAt = createdAtFilter;
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const orderBy: Prisma.OrderOrderByWithRelationInput = {
+      [query.sortBy === 'finalAmount' ? 'finalAmount' : 'createdAt']:
+        query.sortOrder === 'asc' ? 'asc' : 'desc',
+    };
+
+    const [totalRecords, orders] = await Promise.all([
+      this.prisma.order.count({ where }),
+      this.prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          orderType: true,
+          paymentStatus: true,
+          paymentMethod: true,
+          subtotalAmount: true,
+          discountAmount: true,
+          gstRate: true,
+          taxAmount: true,
+          finalAmount: true,
+          createdAt: true,
+          deliveredAt: true,
+          cancelledAt: true,
+          customerPhone: true,
+          items: {
+            select: {
+              menuItemId: true,
+              quantity: true,
+              price: true,
+              totalPrice: true,
+              menuItem: {
+                select: { name: true, imageUrl: true },
+              },
+            },
+          },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    return {
+      orders: orders.map((order) => ({
+        id: `ORD-${order.orderNumber}`,
+        orderNumber: `ORD-${order.orderNumber}`,
+        customerPhone: order.customerPhone ?? null,
+        items: order.items.map((item) => ({
+          menuItemId: item.menuItemId,
+          name: item.menuItem?.name ?? 'Unknown',
+          price: item.price,
+          image: item.menuItem?.imageUrl ?? null,
+          quantity: item.quantity,
+          total: item.totalPrice,
+        })),
+        paymentMethod: (order.paymentMethod ?? 'CASH').toLowerCase(),
+        paymentStatus: order.paymentStatus.toLowerCase(),
+        orderStatus: order.status.toLowerCase(),
+        orderType: order.orderType.toLowerCase(),
+        subtotal: order.subtotalAmount,
+        discount: order.discountAmount ?? 0,
+        taxRate: order.gstRate / 100,
+        taxAmount: order.taxAmount,
+        grandTotal: order.finalAmount,
+        createdAt: order.createdAt,
+        completedAt: order.deliveredAt ?? order.cancelledAt ?? null,
+      })),
+      pagination: {
+        page,
+        limit,
+        totalRecords,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 
   private mapPosOrder(
@@ -281,6 +453,7 @@ export class PosService {
       taxAmount: number;
       finalAmount: number;
       createdAt: Date;
+      customerPhone: string | null;
       items: {
         menuItemId: number;
         quantity: number;
@@ -290,14 +463,13 @@ export class PosService {
       }[];
     },
     paymentMethod: string,
-    customerPhone?: string,
   ): PosOrderResponseDto {
     const displayNumber = `ORD-${order.orderNumber}`;
 
     return {
       id: displayNumber,
       orderNumber: displayNumber,
-      customerPhone: customerPhone ?? null,
+      customerPhone: order.customerPhone ?? null,
       items: order.items.map((item) => ({
         menuItemId: item.menuItemId,
         name: item.menuItem?.name ?? 'Unknown',
