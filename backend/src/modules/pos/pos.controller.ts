@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -6,6 +6,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
   ApiForbiddenResponse,
@@ -17,6 +18,7 @@ import { PosCreateOrderDto } from './dto/pos-create-order.dto';
 import { PosDashboardResponseDto } from './dto/pos-dashboard.dto';
 import { PosMenuQueryDto } from './dto/pos-menu-query.dto';
 import { PosMenuResponseDto } from './dto/pos-menu-response.dto';
+import { PosOrderDetailResponseDto } from './dto/pos-order-detail-response.dto';
 import { PosOrderListQueryDto } from './dto/pos-order-list-query.dto';
 import { PosOrderListResponseDto } from './dto/pos-order-list-response.dto';
 import { PosOrderResponseDto } from './dto/pos-order-response.dto';
@@ -149,6 +151,33 @@ export class PosController {
     return {
       success: true,
       message: 'POS orders fetched successfully',
+      data,
+    };
+  }
+
+  @Get('orders/:orderNumber')
+  @Roles(Role.ADMIN, Role.MANAGER, Role.POS_STAFF)
+  @ApiOperation({ summary: 'Get POS order details by order number' })
+  @ApiParam({
+    name: 'orderNumber',
+    type: String,
+    description: 'Order number with ORD- prefix (e.g. ORD-0344029)',
+    example: 'ORD-0344029',
+  })
+  @ApiOkResponse({ type: PosOrderDetailResponseDto })
+  @ApiStandardErrorResponses({ unauthorized: true, forbidden: true, notFound: true })
+  async getOrderDetail(
+    @Request() req: { user: AuthenticatedUser },
+    @Param('orderNumber') orderNumber: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: PosOrderDetailResponseDto;
+  }> {
+    const data = await this.posService.getPosOrderDetail(req.user, orderNumber);
+    return {
+      success: true,
+      message: 'POS order details fetched successfully',
       data,
     };
   }
