@@ -6,6 +6,7 @@ import { PosCreateOrderDto } from './dto/pos-create-order.dto';
 import { PosDashboardResponseDto } from './dto/pos-dashboard.dto';
 import { PosMenuQueryDto } from './dto/pos-menu-query.dto';
 import { PosMenuResponseDto } from './dto/pos-menu-response.dto';
+import { PosOrderDetailResponseDto } from './dto/pos-order-detail-response.dto';
 import { PosOrderListQueryDto } from './dto/pos-order-list-query.dto';
 import { PosOrderListResponseDto } from './dto/pos-order-list-response.dto';
 import { PosOrderResponseDto } from './dto/pos-order-response.dto';
@@ -439,6 +440,85 @@ export class PosService {
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
       },
+    };
+  }
+
+  async getPosOrderDetail(
+    user: AuthenticatedUser,
+    orderNumber: string,
+  ): Promise<PosOrderDetailResponseDto> {
+    const { restaurantId } = await this.resolveUserRestaurant(user);
+
+    const rawNumber = orderNumber.replace(/^ORD-/i, '');
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        orderNumber: rawNumber,
+        restaurantId,
+        source: OrderSource.POS,
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        paymentMethod: true,
+        subtotalAmount: true,
+        discountAmount: true,
+        gstRate: true,
+        taxAmount: true,
+        finalAmount: true,
+        createdAt: true,
+        deliveredAt: true,
+        cancelledAt: true,
+        customerPhone: true,
+        user: {
+          select: { name: true, phone: true },
+        },
+        items: {
+          select: {
+            menuItemId: true,
+            quantity: true,
+            price: true,
+            totalPrice: true,
+            menuItem: {
+              select: { name: true, imageUrl: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderNumber} not found`);
+    }
+
+    const displayNumber = `ORD-${order.orderNumber}`;
+
+    return {
+      id: displayNumber,
+      orderNumber: displayNumber,
+      items: order.items.map((item) => ({
+        menuItemId: item.menuItemId,
+        name: item.menuItem?.name ?? 'Unknown',
+        price: item.price,
+        image: item.menuItem?.imageUrl ?? null,
+        quantity: item.quantity,
+        total: item.totalPrice,
+      })),
+      customer: {
+        name: order.user?.name ?? null,
+        mobile: order.user?.phone ?? order.customerPhone ?? null,
+      },
+      paymentMethod: (order.paymentMethod ?? 'CASH').toLowerCase(),
+      paymentStatus: order.paymentStatus.toLowerCase(),
+      subtotal: order.subtotalAmount,
+      discount: order.discountAmount ?? 0,
+      taxRate: order.gstRate / 100,
+      taxAmount: order.taxAmount,
+      grandTotal: order.finalAmount,
+      createdAt: order.createdAt,
+      completedAt: order.deliveredAt ?? order.cancelledAt ?? null,
     };
   }
 
