@@ -10,17 +10,39 @@ const CATEGORY_ORDER = {
   [COUPON_CATEGORY.USED]: 2,
 };
 
-export function sortCoupons(coupons) {
-  return [...coupons].sort((left, right) => {
-    const leftCategory = left.category ?? (left.eligible ? COUPON_CATEGORY.AVAILABLE : COUPON_CATEGORY.LOCKED);
-    const rightCategory = right.category ?? (right.eligible ? COUPON_CATEGORY.AVAILABLE : COUPON_CATEGORY.LOCKED);
+function isExpiredCoupon(coupon) {
+  if (coupon?.status === "EXPIRED") {
+    return true;
+  }
 
-    return (
-      (CATEGORY_ORDER[leftCategory] ?? 1) - (CATEGORY_ORDER[rightCategory] ?? 1) ||
-      Number(right.eligible) - Number(left.eligible) ||
-      (right.estimatedDiscount ?? 0) - (left.estimatedDiscount ?? 0)
-    );
-  });
+  if (
+    coupon?.expiresAt &&
+    Number.isFinite(new Date(coupon.expiresAt).getTime()) &&
+    new Date(coupon.expiresAt).getTime() < Date.now()
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function sortCoupons(coupons) {
+  return (coupons ?? [])
+    .filter((coupon) => !isExpiredCoupon(coupon))
+    .sort((left, right) => {
+      const leftCategory =
+        left.category ??
+        (left.eligible ? COUPON_CATEGORY.AVAILABLE : COUPON_CATEGORY.LOCKED);
+      const rightCategory =
+        right.category ??
+        (right.eligible ? COUPON_CATEGORY.AVAILABLE : COUPON_CATEGORY.LOCKED);
+
+      return (
+        (CATEGORY_ORDER[leftCategory] ?? 1) - (CATEGORY_ORDER[rightCategory] ?? 1) ||
+        Number(right.eligible) - Number(left.eligible) ||
+        (right.estimatedDiscount ?? 0) - (left.estimatedDiscount ?? 0)
+      );
+    });
 }
 
 export function groupCouponsByCategory(coupons) {

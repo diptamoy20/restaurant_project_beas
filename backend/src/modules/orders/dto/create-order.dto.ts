@@ -10,6 +10,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -159,6 +160,15 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   tipAmount?: number;
+
+  @ApiPropertyOptional({
+    example: "Please make it less spicy and don't add onion.",
+    description: 'Special cooking instructions for the kitchen. Does not affect pricing.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  kitchenNote?: string;
 
   @ApiProperty({ type: () => OrderItemInputDto, isArray: true })
   @IsArray()

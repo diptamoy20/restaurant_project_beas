@@ -10,6 +10,8 @@ const projects = [
   { name: 'web-app', cwd: path.join(rootDir, 'web-app') },
   { name: 'admin-panel', cwd: path.join(rootDir, 'admin-panel') },
   { name: 'qr-ordering-frontend', cwd: path.join(rootDir, 'qr-ordering-frontend') },
+  { name: 'inventory-erp/backend', cwd: path.join(rootDir, 'inventory-erp', 'backend') },
+  { name: 'inventory-erp/frontend', cwd: path.join(rootDir, 'inventory-erp', 'frontend') },
 ];
 
 function quoteWindowsArg(value) {

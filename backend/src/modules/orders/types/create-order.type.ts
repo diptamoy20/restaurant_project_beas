@@ -42,5 +42,7 @@ export type CreateOrderType = {
 
   tipAmount?: number;
 
+  kitchenNote?: string;
+
   items: CreateOrderItemType[];
 };

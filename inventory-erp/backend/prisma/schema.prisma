@@ -1,0 +1,630 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleType {
+  SUPER_ADMIN
+  INVENTORY_MANAGER
+  WAREHOUSE_MANAGER
+  PROCUREMENT_MANAGER
+  PURCHASE_OFFICER
+  GOODS_RECEIVING_OFFICER
+  STORE_MANAGER
+  AUDITOR
+}
+
+enum StockStatus {
+  HEALTHY
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum PoStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  SUPPLIER_CONFIRMED
+  AWAITING_DELIVERY
+  GRN_CREATED
+  RECEIVING
+  RECEIVED
+  CLOSED
+  CANCELLED
+  REJECTED
+  PARTIALLY_DELIVERED
+  EXPIRED
+}
+
+enum SupplierPriceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum GrnStatus {
+  PENDING_RECEIPT
+  COMPLETED
+  CANCELLED
+}
+
+enum BranchStoreRequestStatus {
+  PENDING
+  APPROVED
+  TRANSFER_CREATED
+  DISPATCHED
+  COMPLETED
+  REJECTED
+  FULFILLED
+}
+
+enum KitchenRequestStatus {
+  PENDING
+  APPROVED
+  TRANSFERRED
+  COMPLETED
+  REJECTED
+  FULFILLED
+}
+
+enum RequestSource {
+  MANUAL
+  AUTO
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+  REJECTED
+}
+
+enum WarehouseTransferStatus {
+  PENDING
+  APPROVED
+  IN_TRANSIT
+  COMPLETED
+  REJECTED
+}
+
+enum LedgerRefType {
+  PURCHASE
+  GOODS_RECEIPT
+  TRANSFER
+  RECIPE_CONSUMPTION
+  MATERIAL_RETURN
+  WASTE
+  ADJUSTMENT
+  OPENING_STOCK
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  role      RoleType @default(STORE_MANAGER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdPos              PurchaseOrder[]       @relation("PoCreator")
+  approvedPos             PurchaseOrder[]       @relation("PoApprover")
+  grns                    GoodsReceiptNote[]
+  grnApprovals            GoodsReceiptNote[]       @relation("GrnApprover")
+  transfersReq            KitchenTransfer[]     @relation("TransferRequester")
+  transfersApp            KitchenTransfer[]     @relation("TransferApprover")
+  kitchenRequestsReq      KitchenRequest[]      @relation("KitchenReqRequester")
+  kitchenRequestsApp      KitchenRequest[]      @relation("KitchenReqApprover")
+  branchStoreRequestsReq  BranchStoreRequest[]  @relation("BranchStoreReqRequester")
+  branchStoreRequestsFul  BranchStoreRequest[]  @relation("BranchStoreReqFulfiller")
+  warehouseTransfersReq   WarehouseTransfer[]   @relation("WhTransferRequester")
+  warehouseTransfersApp   WarehouseTransfer[]   @relation("WhTransferApprover")
+  wasteLogs               WasteLog[]
+  ledgerEntries           StockLedger[]
+
+  @@map("users")
+}
+
+model Category {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  items     Ingredient[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique
+  isActive  Boolean      @default(true) @map("is_active")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  items     Ingredient[]
+
+  @@map("brands")
+}
+
+model Tax {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  rate      Float
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  items     Ingredient[]
+
+  @@map("taxes")
+}
+
+model Ingredient {
+  id           Int         @id @default(autoincrement())
+  sku          String      @unique
+  name         String
+  categoryId   Int         @map("category_id")
+  brandId      Int?        @map("brand_id")
+  taxId        Int?        @map("tax_id")
+  unit         String      @default("KG")
+  minimumStock Float       @default(0) @map("minimum_stock")
+  maximumStock Float       @default(100) @map("maximum_stock")
+  reorderLevel Float       @default(10) @map("reorder_level")
+  status       StockStatus @default(HEALTHY)
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  category Category @relation(fields: [categoryId], references: [id])
+  brand    Brand?   @relation(fields: [brandId], references: [id])
+  tax      Tax?     @relation(fields: [taxId], references: [id])
+
+  supplierPrices            SupplierIngredientPrice[]
+  poItems                   PurchaseOrderItem[]
+  grnItems                  GoodsReceiptNoteItem[]
+  warehouseStock            WarehouseInventory[]
+  storeStock                StoreInventory[]
+  kitchenStock              KitchenInventory[]
+  kitchenTransferItems      KitchenTransferItem[]
+  kitchenRequestItems       KitchenRequestItem[]
+  branchStoreRequestItems   BranchStoreRequestItem[]
+  warehouseTransferItems    WarehouseTransferItem[]
+  recipeIngredients         RecipeIngredient[]
+  wasteLogs                 WasteLog[]
+  ledgerEntries             StockLedger[]
+  returns                   MaterialReturn[]
+
+  @@map("ingredients")
+}
+
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  supplierCode  String   @unique @map("supplier_code")
+  companyName   String   @map("company_name")
+  contactPerson String   @map("contact_person")
+  mobile        String
+  email         String
+  gstNumber     String?  @map("gst_number")
+  address       String
+  paymentTerms  String   @map("payment_terms")
+  creditLimit   Float    @default(0) @map("credit_limit")
+  poPrefix      String?  @map("po_prefix")
+  leadTime      Int?     @map("lead_time")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  ingredientPrices SupplierIngredientPrice[]
+  purchaseOrders   PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model SupplierIngredientPrice {
+  id           Int                  @id @default(autoincrement())
+  supplierId   Int                  @map("supplier_id")
+  ingredientId Int                  @map("ingredient_id")
+  price        Float
+  effectiveDate DateTime?           @map("effective_date")
+  status       SupplierPriceStatus  @default(ACTIVE)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  supplier   Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, ingredientId])
+  @@map("supplier_ingredient_prices")
+}
+
+model PurchaseOrder {
+  id                   Int      @id @default(autoincrement())
+  poNumber             String   @unique @map("po_number")
+  supplierId           Int      @map("supplier_id")
+  status               PoStatus @default(DRAFT)
+  poDate               DateTime @default(now()) @map("po_date")
+  validUntil           DateTime? @map("valid_until")
+  purpose              String?  @default("REPLENISHMENT")
+  priority             String?  @default("MEDIUM")
+  expiredAt            DateTime? @map("expired_at")
+  totalAmount          Float    @default(0) @map("total_amount")
+  notes                String?
+  orderDate            DateTime @default(now()) @map("order_date")
+  expectedDeliveryDate DateTime? @map("expected_delivery_date")
+  paymentTerms         String?  @map("payment_terms")
+  submittedAt          DateTime? @map("submitted_at")
+  approvedAt           DateTime? @map("approved_at")
+  sentAt               DateTime? @map("sent_at")
+  confirmedAt          DateTime? @map("confirmed_at")
+  supplierDeclinedAt   DateTime? @map("supplier_declined_at")
+  createdById          Int      @map("created_by_id")
+  approvedById         Int?     @map("approved_by_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  supplier   Supplier  @relation(fields: [supplierId], references: [id])
+  createdBy  User      @relation("PoCreator", fields: [createdById], references: [id])
+  approvedBy User?     @relation("PoApprover", fields: [approvedById], references: [id])
+  items      PurchaseOrderItem[]
+  grns       GoodsReceiptNote[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              Int      @id @default(autoincrement())
+  purchaseOrderId Int      @map("purchase_order_id")
+  ingredientId    Int      @map("ingredient_id")
+  quantity        Float
+  unitPrice       Float    @map("unit_price")
+  totalPrice      Float    @map("total_price")
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient    @relation(fields: [ingredientId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+model GoodsReceiptNote {
+  id              Int       @id @default(autoincrement())
+  grnNumber       String    @unique @map("grn_number")
+  purchaseOrderId Int       @map("purchase_order_id")
+  receivedById    Int       @map("received_by_id")
+  status          GrnStatus @default(PENDING_RECEIPT)
+  invoiceNumber   String?   @map("invoice_number")
+  invoiceGeneratedAt DateTime? @map("invoice_generated_at")
+  approvedAt      DateTime? @map("approved_at")
+  approvedById    Int?      @map("approved_by_id")
+  deliveryChallan String?   @map("delivery_challan")
+  vehicleNumber   String?   @map("vehicle_number")
+  receivedDate    DateTime  @default(now()) @map("received_date")
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  receivedBy    User          @relation(fields: [receivedById], references: [id])
+  approvedBy    User?         @relation("GrnApprover", fields: [approvedById], references: [id])
+  items         GoodsReceiptNoteItem[]
+
+  @@map("goods_receipt_notes")
+}
+
+model GoodsReceiptNoteItem {
+  id                 Int     @id @default(autoincrement())
+  goodsReceiptNoteId Int     @map("goods_receipt_note_id")
+  ingredientId       Int     @map("ingredient_id")
+  quantityReceived   Float   @map("quantity_received")
+  quantityRejected   Float   @default(0) @map("quantity_rejected")
+  acceptedQuantity   Float   @default(0) @map("accepted_quantity")
+  damagedQuantity    Float   @default(0) @map("damaged_quantity")
+  rejectionReason   String? @map("rejection_reason")
+  damageReason      String? @map("damage_reason")
+  remarks            String?
+
+  goodsReceiptNote GoodsReceiptNote @relation(fields: [goodsReceiptNoteId], references: [id], onDelete: Cascade)
+  ingredient       Ingredient       @relation(fields: [ingredientId], references: [id])
+
+  @@map("goods_receipt_note_items")
+}
+
+model Warehouse {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  location  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  stock                 WarehouseInventory[]
+  returns               MaterialReturn[]
+  warehouseTransfers    WarehouseTransfer[]
+
+  @@map("warehouses")
+}
+
+model WarehouseInventory {
+  id                Int      @id @default(autoincrement())
+  warehouseId       Int      @map("warehouse_id")
+  ingredientId      Int      @map("ingredient_id")
+  availableQuantity Float    @default(0) @map("available_quantity")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  warehouse  Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, ingredientId])
+  @@map("warehouse_inventories")
+}
+
+model StoreInventory {
+  id                Int         @id @default(autoincrement())
+  restaurantId      Int         @map("restaurant_id")
+  ingredientId      Int         @map("ingredient_id")
+  availableQuantity Float       @default(0) @map("available_quantity")
+  reservedQuantity  Float       @default(0) @map("reserved_quantity")
+  minimumStock      Float       @default(0) @map("minimum_stock")
+  maximumStock      Float       @default(100) @map("maximum_stock")
+  reorderLevel      Float       @default(10) @map("reorder_level")
+  status            StockStatus @default(HEALTHY)
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, ingredientId])
+  @@map("store_inventories")
+}
+
+model KitchenInventory {
+  id                Int         @id @default(autoincrement())
+  restaurantId      Int         @map("restaurant_id")
+  ingredientId      Int         @map("ingredient_id")
+  availableQuantity Float       @default(0) @map("available_quantity")
+  minimumStock      Float       @default(0) @map("minimum_stock")
+  status            StockStatus @default(HEALTHY)
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, ingredientId])
+  @@map("kitchen_inventories")
+}
+
+model KitchenTransfer {
+  id                Int            @id @default(autoincrement())
+  transferNumber    String         @unique @map("transfer_number")
+  restaurantId      Int            @map("restaurant_id")
+  status            TransferStatus @default(PENDING)
+  requestedById     Int            @map("requested_by_id")
+  approvedById      Int?           @map("approved_by_id")
+  notes             String?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  requestedBy User                @relation("TransferRequester", fields: [requestedById], references: [id])
+  approvedBy  User?               @relation("TransferApprover", fields: [approvedById], references: [id])
+  items       KitchenTransferItem[]
+
+  @@map("kitchen_transfers")
+}
+
+model KitchenTransferItem {
+  id           Int             @id @default(autoincrement())
+  transferId   Int             @map("transfer_id")
+  ingredientId Int             @map("ingredient_id")
+  quantity     Float
+  transfer     KitchenTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient      @relation(fields: [ingredientId], references: [id])
+
+  @@map("kitchen_transfer_items")
+}
+
+model KitchenRequest {
+  id            Int                  @id @default(autoincrement())
+  requestNumber String               @unique @map("request_number")
+  restaurantId  Int                  @map("restaurant_id")
+  status        KitchenRequestStatus @default(PENDING)
+  requestSource RequestSource        @default(MANUAL) @map("request_source")
+  requestedById Int                  @map("requested_by_id")
+  approvedById  Int?                 @map("approved_by_id")
+  notes         String?
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  requestedBy User                @relation("KitchenReqRequester", fields: [requestedById], references: [id])
+  approvedBy  User?               @relation("KitchenReqApprover", fields: [approvedById], references: [id])
+  items       KitchenRequestItem[]
+
+  @@map("kitchen_requests")
+}
+
+model KitchenRequestItem {
+  id           Int              @id @default(autoincrement())
+  requestId    Int              @map("request_id")
+  ingredientId Int              @map("ingredient_id")
+  quantity     Float
+  request      KitchenRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient       @relation(fields: [ingredientId], references: [id])
+
+  @@map("kitchen_request_items")
+}
+
+model WarehouseTransfer {
+  id             Int                     @id @default(autoincrement())
+  transferNumber String                  @unique @map("transfer_number")
+  warehouseId    Int                     @map("warehouse_id")
+  restaurantId   Int                     @map("restaurant_id")
+  status         WarehouseTransferStatus @default(PENDING)
+  requestedById  Int                     @map("requested_by_id")
+  approvedById   Int?                    @map("approved_by_id")
+  dispatchedById Int?                    @map("dispatched_by_id")
+  dispatchedAt   DateTime?               @map("dispatched_at")
+  receivedAt     DateTime?               @map("received_at")
+  notes          String?
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+
+  warehouse   Warehouse              @relation(fields: [warehouseId], references: [id])
+  requestedBy User                   @relation("WhTransferRequester", fields: [requestedById], references: [id])
+  approvedBy  User?                  @relation("WhTransferApprover", fields: [approvedById], references: [id])
+  items       WarehouseTransferItem[]
+
+  @@map("warehouse_transfers")
+}
+
+model WarehouseTransferItem {
+  id           Int                @id @default(autoincrement())
+  transferId   Int                @map("transfer_id")
+  ingredientId Int                @map("ingredient_id")
+  quantity     Float
+  transfer     WarehouseTransfer  @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient         @relation(fields: [ingredientId], references: [id])
+
+  @@map("warehouse_transfer_items")
+}
+
+model Recipe {
+  id            Int      @id @default(autoincrement())
+  restaurantId  Int      @map("restaurant_id")
+  categoryId    Int?     @map("category_id")
+  menuItemId    Int      @map("menu_item_id")
+  menuItemName  String   @map("menu_item_name")
+  yieldQuantity Float    @default(1) @map("yield_quantity")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  ingredients RecipeIngredient[]
+
+  @@unique([restaurantId, menuItemId])
+  @@index([restaurantId])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id           Int        @id @default(autoincrement())
+  recipeId     Int        @map("recipe_id")
+  ingredientId Int        @map("ingredient_id")
+  quantity     Float
+  wastagePct   Float      @default(0) @map("wastage_pct")
+  unit         String
+
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@map("recipe_ingredients")
+}
+
+model BranchStoreRequest {
+  id              Int                       @id @default(autoincrement())
+  requestNumber   String                    @unique @map("request_number")
+  restaurantId    Int                       @map("restaurant_id")
+  status          BranchStoreRequestStatus  @default(PENDING)
+  isAutoGenerated Boolean                   @default(false) @map("is_auto_generated")
+  requestedById   Int                       @map("requested_by_id")
+  fulfilledById   Int?                      @map("fulfilled_by_id")
+  approvedAt      DateTime?                 @map("approved_at")
+  completedAt     DateTime?                 @map("completed_at")
+  notes           String?
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
+
+  requestedBy User                       @relation("BranchStoreReqRequester", fields: [requestedById], references: [id])
+  fulfilledBy User?                      @relation("BranchStoreReqFulfiller", fields: [fulfilledById], references: [id])
+  items       BranchStoreRequestItem[]
+
+  @@map("branch_store_requests")
+}
+
+model BranchStoreRequestItem {
+  id            Int                  @id @default(autoincrement())
+  requestId     Int                  @map("request_id")
+  ingredientId  Int                  @map("ingredient_id")
+  quantity      Float
+  request       BranchStoreRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient           @relation(fields: [ingredientId], references: [id])
+
+  @@map("branch_store_request_items")
+}
+
+model MaterialReturn {
+  id           Int      @id @default(autoincrement())
+  returnNumber String   @unique @map("return_number")
+  fromType     String   @map("from_type")
+  toType       String   @map("to_type")
+  restaurantId Int      @map("restaurant_id")
+  warehouseId  Int?     @map("warehouse_id")
+  ingredientId Int      @map("ingredient_id")
+  quantity     Float
+  reason       String
+  isApproved   Boolean  @default(false) @map("is_approved")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  warehouse  Warehouse? @relation(fields: [warehouseId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@map("material_returns")
+}
+
+model WasteLog {
+  id           Int      @id @default(autoincrement())
+  restaurantId Int      @map("restaurant_id")
+  ingredientId Int      @map("ingredient_id")
+  quantity     Float
+  wasteType    String   @map("waste_type")
+  notes        String?
+  loggedById   Int      @map("logged_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  loggedBy   User       @relation(fields: [loggedById], references: [id])
+
+  @@map("waste_logs")
+}
+
+model StockLedger {
+  id             Int           @id @default(autoincrement())
+  ingredientId   Int           @map("ingredient_id")
+  locationType   String        @map("location_type")
+  locationId     Int           @map("location_id")
+  refType        LedgerRefType @map("ref_type")
+  referenceId    String        @map("reference_id")
+  quantity       Float
+  beforeQuantity Float         @map("before_quantity")
+  afterQuantity  Float         @map("after_quantity")
+  unit           String
+  userId         Int?          @map("user_id")
+  timestamp      DateTime      @default(now())
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  user       User?      @relation(fields: [userId], references: [id])
+
+  @@map("stock_ledgers")
+}
+
+model Permission {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  module    String
+  action    String
+  label     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           Int      @id @default(autoincrement())
+  role         RoleType
+  permissionId Int      @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@map("role_permissions")
+}

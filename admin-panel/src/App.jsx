@@ -18,6 +18,13 @@ import { StaffPage } from './pages/StaffPage';
 import { TablesPage } from './pages/TablesPage';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { hasBackendRole } from './utils/auth';
+import { KitchenLayout } from './pages/kitchen/KitchenLayout';
+import { KitchenWorkspacePage } from './pages/kitchen/KitchenWorkspacePage';
+import { KitchenDashboardPage } from './pages/kitchen/KitchenDashboardPage';
+import { KitchenInventoryPage } from './pages/kitchen/KitchenInventoryPage';
+import { KitchenRequestsPage } from './pages/kitchen/KitchenRequestsPage';
+import { ConsumptionHistoryPage } from './pages/kitchen/ConsumptionHistoryPage';
+import { KitchenDisplayPage } from './pages/kitchen/KitchenDisplayPage';
 
 function DashboardRoute() {
   const user = useSelector((state) => state.auth.user);
@@ -60,6 +67,17 @@ export default function App() {
 
           <Route element={<ProtectedRoute module="menu" />}>
             <Route element={<MenuPage />} path="/menu" />
+          </Route>
+
+          <Route element={<ProtectedRoute module="kitchen" />}>
+            <Route element={<KitchenWorkspacePage />} path="/kitchen" />
+            <Route element={<KitchenLayout />}>
+              <Route element={<KitchenDashboardPage />} path="/restaurants/:restaurantSlug/kitchen/dashboard" />
+              <Route element={<KitchenInventoryPage />} path="/restaurants/:restaurantSlug/kitchen/inventory" />
+              <Route element={<KitchenRequestsPage />} path="/restaurants/:restaurantSlug/kitchen/requests" />
+              <Route element={<ConsumptionHistoryPage />} path="/restaurants/:restaurantSlug/kitchen/consumption" />
+              <Route element={<KitchenDisplayPage />} path="/restaurants/:restaurantSlug/kitchen/display" />
+            </Route>
           </Route>
 
           <Route element={<ProtectedRoute module="coupons" />}>
