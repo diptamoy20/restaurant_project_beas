@@ -371,10 +371,10 @@ function OrderDetailsModal({ orderId, onClose }) {
                       <span>Delivery Charge</span>
                       <span>{formatCurrency(deliveryCharge)}</span>
                     </div>
-                    <div className="flex justify-between text-slate-600">
+                    {/* <div className="flex justify-between text-slate-600">
                       <span>Platform Fee</span>
                       <span>{formatCurrency(platformFee)}</span>
-                    </div>
+                    </div> */}
                     {discount ? (
                       <div className="flex justify-between text-emerald-700">
                         <span>Discount</span>
@@ -451,15 +451,11 @@ function OrderDetailsModal({ orderId, onClose }) {
                     </>
                   ) : null}
                   <DetailRow
-                    label="Payment"
-                    value={formatLabel(data.paymentMethod)}
-                  />
-                  <DetailRow
                     label="Payment Status"
                     value={formatLabel(data.paymentStatus)}
                   />
                   <DetailRow
-                    label="Status"
+                    label="Order Status"
                     value={
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[data.status] ?? "bg-slate-200 text-slate-700"}`}

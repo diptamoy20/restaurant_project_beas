@@ -21,6 +21,7 @@ import { CheckoutModule } from './modules/checkout/checkout.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { DeliveriesModule } from './modules/deliveries/deliveries.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { LocationModule } from './modules/location/location.module';
 import { MembershipModule } from './modules/membership/membership.module';
@@ -63,6 +64,7 @@ import { PrismaModule } from './prisma/prisma.module';
     UserAddressesModule,
     FavoritesModule,
     PosModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [

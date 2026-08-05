@@ -159,7 +159,7 @@ export function LocationPicker({
         if (active) {
           setMapProvider('osm');
           setMapsReady(true);
-          setMapsMessage('Testing map enabled with OpenStreetMap. Use Google Maps for production.');
+          // setMapsMessage('Testing map enabled with OpenStreetMap. Use Google Maps for production.');
 
           if (
             requestCurrentLocationOnMount &&

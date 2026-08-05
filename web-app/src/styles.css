@@ -1672,6 +1672,12 @@ h4 {
   gap: 0.5rem;
 }
 
+.checkout-coupon-actions .tip-preset-button.selected {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(26, 71, 42, 0.18);
+}
+
 .coupon-input {
   min-width: 0;
   border-radius: var(--radius-sm);

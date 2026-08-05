@@ -476,11 +476,11 @@ export function CartPage() {
                 />
 
                 {/* Menu / item-level discount */}
-                <BillRow
+                {/* <BillRow
                   label="Item discount"
                   value={quote.menuDiscountAmount}
                   isDiscount
-                />
+                /> */}
 
                 {/* Coupon discount */}
                 <BillRow

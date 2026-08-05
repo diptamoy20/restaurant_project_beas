@@ -1,0 +1,88 @@
+{
+  "name": "inventory-backend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20 <26"
+  },
+  "scripts": {
+    "clean": "node ./scripts/clean-dist.cjs",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main.js",
+    "prebuild": "npm run clean && npm run prisma:generate",
+    "build": "nest build",
+    "lint": "eslint \"{src,prisma}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,prisma}/**/*.ts\" --fix",
+    "pretypecheck": "npm run prisma:generate",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,js,mjs,cjs,json,md,yml,yaml}\"",
+    "prepare": "husky",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:dbpush": "prisma db push",
+    "prisma:studio": "prisma studio --port 5556 --browser none",
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{js,jsx,tsx,json,md,yml,yaml,mjs,cjs}": [
+      "prettier --write"
+    ]
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^3.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/passport": "^10.0.3",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/swagger": "^7.4.2",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "7.7.0",
+    "bcryptjs": "^2.4.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "dotenv": "^17.4.2",
+    "helmet": "^8.1.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.22.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.25.1",
+    "@nestjs/cli": "^10.0.0",
+    "@nestjs/schematics": "^10.0.0",
+    "@nestjs/testing": "^10.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.20.0",
+    "@typescript-eslint/eslint-plugin": "^8.30.1",
+    "@typescript-eslint/parser": "^8.30.1",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-import-resolver-typescript": "^4.3.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.4.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.1",
+    "prettier": "^3.0.0",
+    "prisma": "7.7.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}

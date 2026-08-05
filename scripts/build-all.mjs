@@ -4,6 +4,7 @@ import process from 'node:process';
 
 const rootDir = process.cwd();
 const backendPort = process.env.PORT ?? '4000';
+const inventoryBackendPort = process.env.INVENTORY_BACKEND_PORT ?? '4001';
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 const projects = [
@@ -28,6 +29,19 @@ const projects = [
   {
     name: 'qr-ordering-frontend',
     cwd: path.join(rootDir, 'qr-ordering-frontend'),
+    env: process.env,
+  },
+  {
+    name: 'inventory-erp/backend',
+    cwd: path.join(rootDir, 'inventory-erp', 'backend'),
+    env: {
+      ...process.env,
+      PORT: inventoryBackendPort,
+    },
+  },
+  {
+    name: 'inventory-erp/frontend',
+    cwd: path.join(rootDir, 'inventory-erp', 'frontend'),
     env: process.env,
   },
 ];

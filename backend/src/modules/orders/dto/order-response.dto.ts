@@ -437,6 +437,15 @@ export class OrderResponseDto {
   @IsString()
   cancellationReason!: string | null;
 
+  @ApiPropertyOptional({
+    example: "Please make it less spicy and don't add onion.",
+    nullable: true,
+    description: 'Special cooking instructions for the kitchen.',
+  })
+  @IsOptional()
+  @IsString()
+  kitchenNote!: string | null;
+
   @ApiPropertyOptional({ example: '2026-04-20T00:00:00.000Z', nullable: true })
   @IsOptional()
   cancelledAt!: Date | null;

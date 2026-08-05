@@ -27,4 +27,7 @@ export type StoredCartAddon = {
   addonGroupId: number;
   addonOptionId: number;
   quantity: number;
+  addonOptionName?: string;
+  name?: string;
+  price?: number;
 };

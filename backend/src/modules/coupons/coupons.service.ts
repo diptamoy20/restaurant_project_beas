@@ -155,6 +155,11 @@ export class CouponsService {
       where: {
         isActive: true,
         OR: [{ restaurantId: params.restaurantId }, { restaurantId: null }],
+        AND: [
+          {
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+        ],
       },
       include: {
         _count: { select: { usages: true } },
