@@ -49,6 +49,7 @@ export function CheckoutPage() {
   const [couponListLoading, setCouponListLoading] = useState(false);
   const [couponDialogOpen, setCouponDialogOpen] = useState(false);
   const [tipInput, setTipInput] = useState("");
+  const [selectedTipPreset, setSelectedTipPreset] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("RAZORPAY");
 
   const cartRestaurantId = useMemo(
@@ -75,9 +76,12 @@ export function CheckoutPage() {
   );
   const totalAmount = quote?.finalAmount ?? subtotal;
   const tipAmount = useMemo(() => {
+    if (selectedTipPreset != null) {
+      return Number(selectedTipPreset);
+    }
     const value = Number(tipInput);
     return Number.isFinite(value) && value > 0 ? value : 0;
-  }, [tipInput]);
+  }, [selectedTipPreset, tipInput]);
   const isSubmitting = orderLoading || isPaying || quoteLoading;
 
   const buildQuotePayload = useCallback(
@@ -371,6 +375,7 @@ export function CheckoutPage() {
       orderType,
       couponCode: appliedCouponCode || undefined,
       tipAmount,
+      kitchenNote: customerNote.trim() || undefined,
       paymentMethod,
       items: items.map((item) => ({
         menuItemId: item.menuItemId || item.id,
@@ -617,29 +622,43 @@ export function CheckoutPage() {
               <span>Optional amount for the restaurant team</span>
             </div>
             <div className="checkout-coupon-actions">
-              {[20, 50, 100].map((amount) => (
-                <button
-                  key={amount}
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => setTipInput(String(amount))}
-                >
-                  {formatCurrency.format(amount)}
-                </button>
-              ))}
+              {[20, 50, 100].map((amount) => {
+                const isSelected = selectedTipPreset === amount;
+                return (
+                  <button
+                    key={amount}
+                    type="button"
+                    className={`ghost-button tip-preset-button${isSelected ? " selected" : ""}`}
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      setSelectedTipPreset(amount);
+                      setTipInput("");
+                    }}
+                  >
+                    {formatCurrency.format(amount)}
+                  </button>
+                );
+              })}
               <input
                 className="coupon-input"
                 min="0"
                 value={tipInput}
-                onChange={(event) => setTipInput(event.target.value)}
+                disabled={selectedTipPreset != null}
+                onChange={(event) => {
+                  setSelectedTipPreset(null);
+                  setTipInput(event.target.value);
+                }}
                 placeholder="Custom"
                 type="number"
               />
-              {tipInput ? (
+              {selectedTipPreset != null || tipInput ? (
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={() => setTipInput("")}
+                  onClick={() => {
+                    setSelectedTipPreset(null);
+                    setTipInput("");
+                  }}
                 >
                   Clear
                 </button>

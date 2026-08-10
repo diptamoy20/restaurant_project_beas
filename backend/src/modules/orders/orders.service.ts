@@ -7,6 +7,7 @@ import {
 import { Prisma, OrderSource } from '@prisma/client';
 
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
+import { KitchenDisplayOrderDto } from './dto/kitchen-display.dto';
 import { OrderResponseDto } from './dto/order-response.dto';
 import { CreateOrderType } from './types/create-order.type';
 import { DELIVERY_STATUS } from '../../common/constants/delivery-status';
@@ -22,6 +23,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/auth.types';
 import { BillingService } from '../billing/billing.service';
 import { DeliveriesGateway } from '../deliveries/deliveries.gateway';
+import { InventoryIntegrationService } from '../inventory/inventory-integration.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 type OrderWithRelations = Prisma.OrderGetPayload<{
   include: {
@@ -76,12 +79,30 @@ const ORDER_INCLUDE = {
   invoice: true,
 } satisfies Prisma.OrderInclude;
 
+const KITCHEN_DISPLAY_INCLUDE = {
+  items: {
+    include: {
+      menuItem: true,
+      variant: true,
+      addons: true,
+    },
+  },
+  table: true,
+  user: true,
+} satisfies Prisma.OrderInclude;
+
+type KitchenDisplayOrder = Prisma.OrderGetPayload<{
+  include: typeof KITCHEN_DISPLAY_INCLUDE;
+}>;
+
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly billingService: BillingService,
     private readonly deliveriesGateway: DeliveriesGateway,
+    private readonly inventoryService: InventoryService,
+    private readonly inventoryIntegrationService: InventoryIntegrationService,
   ) {}
 
   async listMyOrders(
@@ -130,6 +151,52 @@ export class OrdersService {
     return {
       items: orders.map((order) => this.mapOrder(order)),
       ...buildPaginationMeta(total, pagination),
+    };
+  }
+
+  async getKitchenDisplayOrders(restaurantId: number): Promise<KitchenDisplayOrderDto[]> {
+    const orders = await this.prisma.order.findMany({
+      where: { restaurantId, status: ORDER_STATUS.PREPARING },
+      include: KITCHEN_DISPLAY_INCLUDE,
+      orderBy: { preparedAt: 'asc' },
+    });
+
+    return orders.map((order) => this.mapToKitchenDisplayOrder(order));
+  }
+
+  private mapToKitchenDisplayOrder(order: KitchenDisplayOrder): KitchenDisplayOrderDto {
+    const startedAt = order.preparedAt ?? order.createdAt;
+    const elapsedMinutes = Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 60_000));
+
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      orderType: order.orderType,
+      tableId: order.tableId,
+      table: order.table?.tableNumber ?? null,
+      customerName: order.user?.name ?? null,
+      customerPhone: order.customerPhone ?? order.user?.phone ?? null,
+      kitchenNote: order.kitchenNote ?? null,
+      orderTime: order.createdAt.toISOString(),
+      startedAt: startedAt.toISOString(),
+      elapsedMinutes,
+      items: order.items.map((item) => {
+        const addonNames = item.addons.map((addon) => addon.addonOptionName);
+        const instructions = [item.variant?.name, ...addonNames].filter(Boolean).join(', ') || null;
+
+        return {
+          id: item.id,
+          menuItemId: item.menuItemId,
+          name: item.menuItem?.name ?? `Menu Item #${item.menuItemId}`,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          totalPrice: item.totalPrice,
+          variant: item.variant?.name ?? null,
+          instructions,
+          startedAt: startedAt.toISOString(),
+        };
+      }),
     };
   }
 
@@ -401,6 +468,27 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
+    if (status === ORDER_STATUS.PREPARING) {
+      try {
+        const restaurantId = order?.restaurantId || 1;
+        const orderItems = (order?.items || []).map((item: any) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+        }));
+        await this.inventoryIntegrationService.consumeRecipe(
+          restaurantId,
+          String(orderId),
+          orderItems,
+        );
+      } catch (err) {
+        console.error(
+          '[ERP Integration] Failed to consume recipe via ERP, falling back to local:',
+          (err as any)?.message,
+        );
+        await this.inventoryService.consumeOrderRecipeIngredients(orderId);
+      }
+    }
+
     const mapped = this.mapOrder(order);
 
     const latestLocation = DeliveriesGateway.resolveLatestLocation(
@@ -634,6 +722,7 @@ export class OrdersService {
             razorpayPaymentId: null,
             razorpaySignature: null,
             razorpayDetails: Prisma.DbNull,
+            kitchenNote: payload.kitchenNote ?? null,
             items: {
               deleteMany: {},
               create: billing.items.map((item) => ({
@@ -673,6 +762,7 @@ export class OrdersService {
         status: orderStatus,
         source: payload.source,
         orderType: payload.orderType,
+        kitchenNote: payload.kitchenNote ?? null,
         totalAmount: billing.mrpSubtotal,
         deliveryCharge: billing.deliveryCharge,
         packagingCharge: billing.packagingCharge,
@@ -789,6 +879,7 @@ export class OrdersService {
       deliveredAt: order.deliveredAt ?? null,
       cancelledAt: order.cancelledAt ?? null,
       cancellationReason: order.cancellationReason ?? null,
+      kitchenNote: order.kitchenNote ?? null,
       estimatedDeliveryMinutes,
       items: order.items.map((item) => ({
         id: item.id,

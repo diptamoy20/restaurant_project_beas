@@ -3,9 +3,39 @@
   "private": true,
   "scripts": {
     "install:all": "node ./scripts/install-all.mjs",
+    "dev": "node ./scripts/dev-all.mjs",
+    "dev:all": "node ./scripts/dev-all.mjs",
     "build": "node ./scripts/build-all.mjs",
     "build:all": "node ./scripts/build-all.mjs",
-    "dev": "node ./scripts/dev-all.mjs",
-    "dev:all": "node ./scripts/dev-all.mjs"
+
+    "restaurant:dev": "node ./scripts/restaurant-dev.mjs",
+    "restaurant:build": "node ./scripts/restaurant-build.mjs",
+    "restaurant:install": "node ./scripts/restaurant-install.mjs",
+    "restaurant:prisma:generate": "npm --prefix backend run prisma:generate",
+    "restaurant:prisma:migrate": "npm --prefix backend run prisma:migrate",
+    "restaurant:prisma:studio": "npm --prefix backend run prisma:studio",
+    "restaurant:prisma:dbpush": "npm --prefix backend run prisma:dbpush",
+    "restaurant:lint": "npm --prefix backend run lint",
+    "restaurant:start": "npm --prefix backend run start",
+    "restaurant:start:prod": "npm --prefix backend run start:prod",
+
+    "inventory:dev": "node ./scripts/inventory-dev.mjs",
+    "inventory:build": "node ./scripts/inventory-build.mjs",
+    "inventory:install": "node ./scripts/inventory-install.mjs",
+    "inventory:prisma:generate": "npm --prefix inventory-erp/backend run prisma:generate",
+    "inventory:prisma:migrate": "npm --prefix inventory-erp/backend run prisma:migrate",
+    "inventory:prisma:dbpush": "npm --prefix inventory-erp/backend run prisma:dbpush",
+    "inventory:prisma:studio": "npm --prefix inventory-erp/backend run prisma:studio",
+    "inventory:lint": "npm --prefix inventory-erp/backend run lint",
+    "inventory:start": "npm --prefix inventory-erp/backend run start",
+    "inventory:start:prod": "npm --prefix inventory-erp/backend run start:prod",
+
+    "prisma:generate": "npm --prefix backend run prisma:generate && npm --prefix inventory-erp/backend run prisma:generate",
+    "prisma:migrate": "npm --prefix backend run prisma:migrate && npm --prefix inventory-erp/backend run prisma:migrate",
+    "prisma:studio": "npm --prefix backend run prisma:studio",
+    "prisma:studio:inventory": "npm --prefix inventory-erp/backend run prisma:studio",
+
+    "lint": "npm --prefix backend run lint && npm --prefix inventory-erp/backend run lint",
+    "test": "echo \"No tests configured at root level. Run per-project: restaurant:lint / inventory:lint\""
   }
 }

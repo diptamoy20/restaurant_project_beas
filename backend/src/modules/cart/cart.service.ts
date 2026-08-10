@@ -7,6 +7,15 @@ import { CreateCartItemDto } from './dto/create-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 
+type AddOnForStorage = {
+  addonGroupId?: number;
+  addonOptionId: number;
+  quantity?: number;
+  addonOptionName?: string;
+  name?: string;
+  price?: number;
+};
+
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
@@ -367,24 +376,31 @@ export class CartService {
   // }
 
   private async normalizeAddOnsForStorage(
-    addOns?: { addonGroupId?: number; addonOptionId: number; quantity?: number }[] | null,
+    addOns?: AddOnForStorage[] | null,
   ): Promise<StoredCartAddon[]> {
     if (!addOns?.length) {
       return [];
     }
 
     const parsed = addOns
-      .map((addon) => ({
-        addonGroupId:
-          addon.addonGroupId != null && Number(addon.addonGroupId) > 0
-            ? Number(addon.addonGroupId)
-            : undefined,
-        addonOptionId: Number(addon.addonOptionId),
-        quantity: Math.max(1, Number(addon.quantity ?? 1)),
-      }))
+      .map((addon) => {
+        const addonOptionName = this.readSnapshotAddOnName(addon);
+
+        return {
+          addonGroupId:
+            addon.addonGroupId != null && Number(addon.addonGroupId) > 0
+              ? Number(addon.addonGroupId)
+              : undefined,
+          addonOptionId: Number(addon.addonOptionId),
+          quantity: Math.max(1, Number(addon.quantity ?? 1)),
+          addonOptionName,
+          name: addonOptionName,
+          price: this.readSnapshotPrice(addon),
+        };
+      })
       .filter((addon) => Number.isInteger(addon.addonOptionId) && addon.addonOptionId > 0);
 
-    return this.enrichAddOnGroupIds(parsed);
+    return this.enrichStoredAddOnsWithDetails(parsed);
   }
 
   private async enrichStoredAddOns(rawAddOns: Prisma.JsonValue | null): Promise<StoredCartAddon[]> {
@@ -395,6 +411,8 @@ export class CartService {
     const parsed = rawAddOns
       .map((addon) => {
         const record = addon as Record<string, unknown>;
+        const addonOptionName = this.readStoredAddOnName(record);
+
         return {
           addonGroupId:
             record.addonGroupId != null && Number(record.addonGroupId) > 0
@@ -402,47 +420,95 @@ export class CartService {
               : undefined,
           addonOptionId: Number(record.addonOptionId),
           quantity: Math.max(1, Number(record.quantity ?? 1)),
+          addonOptionName,
+          name: addonOptionName,
+          price:
+            record.price != null && Number(record.price) > 0 ? Number(record.price) : undefined,
         };
       })
       .filter((addon) => Number.isInteger(addon.addonOptionId) && addon.addonOptionId > 0);
 
-    return this.enrichAddOnGroupIds(parsed);
+    return this.enrichStoredAddOnsWithDetails(parsed);
   }
 
-  private async enrichAddOnGroupIds(
-    addOns: { addonGroupId?: number; addonOptionId: number; quantity: number }[],
+  private async enrichStoredAddOnsWithDetails(
+    addOns: AddOnForStorage[],
   ): Promise<StoredCartAddon[]> {
     if (!addOns.length) {
       return [];
     }
 
     const missingOptionIds = addOns
-      .filter((addon) => !addon.addonGroupId)
+      .filter((addon) => !addon.addonGroupId || !addon.addonOptionName || addon.price == null)
       .map((addon) => addon.addonOptionId);
 
-    const groupByOptionId = new Map<number, number>();
+    const detailsByOptionId = new Map<number, { groupId: number; name: string; price: number }>();
 
     if (missingOptionIds.length) {
       const options = await this.prisma.addonOption.findMany({
         where: { id: { in: missingOptionIds } },
-        select: { id: true, groupId: true },
+        select: { id: true, groupId: true, name: true, price: true },
       });
 
       for (const option of options) {
-        groupByOptionId.set(option.id, option.groupId);
+        detailsByOptionId.set(option.id, option);
       }
     }
 
     return addOns
-      .map((addon) => ({
-        addonGroupId: addon.addonGroupId ?? groupByOptionId.get(addon.addonOptionId),
-        addonOptionId: addon.addonOptionId,
-        quantity: addon.quantity,
-      }))
+      .map((addon) => {
+        const details = detailsByOptionId.get(addon.addonOptionId);
+        const addonGroupId = addon.addonGroupId ?? details?.groupId;
+        const addonOptionName = addon.addonOptionName ?? details?.name;
+        const price = addon.price ?? details?.price;
+
+        const result: StoredCartAddon = {
+          addonGroupId: addonGroupId ?? 0,
+          addonOptionId: addon.addonOptionId,
+          quantity: Math.max(1, addon.quantity ?? 1),
+        };
+
+        if (addonOptionName != null) {
+          result.addonOptionName = addonOptionName;
+          result.name = addonOptionName;
+        }
+
+        if (price != null) {
+          result.price = price;
+        }
+
+        return result;
+      })
       .filter(
-        (addon): addon is StoredCartAddon =>
-          addon.addonGroupId != null && addon.addonGroupId > 0 && addon.addonOptionId > 0,
+        (addon): addon is StoredCartAddon => addon.addonGroupId > 0 && addon.addonOptionId > 0,
       );
+  }
+
+  private readSnapshotAddOnName(addon: AddOnForStorage): string | undefined {
+    if (typeof addon.addonOptionName === 'string' && addon.addonOptionName.trim()) {
+      return addon.addonOptionName.trim();
+    }
+    if (typeof addon.name === 'string' && addon.name.trim()) {
+      return addon.name.trim();
+    }
+    return undefined;
+  }
+
+  private readStoredAddOnName(record: Record<string, unknown>): string | undefined {
+    if (typeof record.addonOptionName === 'string' && record.addonOptionName.trim()) {
+      return record.addonOptionName.trim();
+    }
+    if (typeof record.name === 'string' && record.name.trim()) {
+      return record.name.trim();
+    }
+    return undefined;
+  }
+
+  private readSnapshotPrice(addon: AddOnForStorage): number | undefined {
+    if (addon.price != null && Number(addon.price) > 0) {
+      return Number(addon.price);
+    }
+    return undefined;
   }
 
   private async calculateAddOnsTotal(

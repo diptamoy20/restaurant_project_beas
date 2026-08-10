@@ -8,6 +8,8 @@ const backendPort = process.env.PORT ?? '4000';
 const frontendPort = process.env.FRONTEND_PORT ?? '5173';
 const adminPanelPort = process.env.ADMIN_PANEL_PORT ?? '5174';
 const qrOrderingPort = process.env.QR_ORDERING_PORT ?? '5175';
+const inventoryBackendPort = process.env.INVENTORY_BACKEND_PORT ?? '4001';
+const inventoryFrontendPort = process.env.INVENTORY_FRONTEND_PORT ?? '5176';
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? `http://localhost:${backendPort}/api`;
 const corsOrigins =
   process.env.CORS_ORIGINS ??
@@ -16,6 +18,7 @@ const corsOrigins =
     `http://localhost:${frontendPort}`,
     `http://localhost:${adminPanelPort}`,
     `http://localhost:${qrOrderingPort}`,
+    `http://localhost:${inventoryFrontendPort}`,
   ].join(',');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
@@ -52,6 +55,23 @@ const services = [
     args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', qrOrderingPort],
     env: process.env,
   },
+  {
+    name: 'inventory-erp/backend',
+    cwd: path.join(rootDir, 'inventory-erp', 'backend'),
+    command: npmCommand,
+    args: ['run', 'start:dev'],
+    env: {
+      ...process.env,
+      PORT: inventoryBackendPort,
+    },
+  },
+  {
+    name: 'inventory-erp/frontend',
+    cwd: path.join(rootDir, 'inventory-erp', 'frontend'),
+    command: npmCommand,
+    args: ['run', 'dev', '--', '--host', '0.0.0.0', '--port', inventoryFrontendPort],
+    env: process.env,
+  },
 ];
 
 const children = [];
@@ -73,6 +93,14 @@ const requiredFiles = [
   {
     label: 'qr-ordering-frontend dependencies',
     path: path.join(rootDir, 'qr-ordering-frontend', 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite'),
+  },
+  {
+    label: 'inventory-erp/backend dependencies',
+    path: path.join(rootDir, 'inventory-erp', 'backend', 'node_modules', '.bin', process.platform === 'win32' ? 'nest.cmd' : 'nest'),
+  },
+  {
+    label: 'inventory-erp/frontend dependencies',
+    path: path.join(rootDir, 'inventory-erp', 'frontend', 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite'),
   },
 ];
 
@@ -209,10 +237,12 @@ for (const service of services) {
 process.stdout.write(
   [
     'Starting local stack...',
-    `- backend: http://localhost:${backendPort}`,
+    `- backend (restaurant): http://localhost:${backendPort}`,
     `- web-app: http://localhost:${frontendPort}`,
     `- admin-panel: http://localhost:${adminPanelPort}`,
     `- qr-ordering-frontend: http://localhost:${qrOrderingPort}`,
+    `- inventory-erp/backend: http://localhost:${inventoryBackendPort}`,
+    `- inventory-erp/frontend: http://localhost:${inventoryFrontendPort}`,
     `- API base URL: ${apiBaseUrl}`,
     'Press Ctrl+C to stop all services.',
     '',

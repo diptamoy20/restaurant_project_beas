@@ -11,6 +11,7 @@ enum OrderSource {
   MOBILE_APP
   QR_DINE_IN
   ADMIN
+  POS
 }
 
 model User {
@@ -32,6 +33,7 @@ model User {
   lockUntil              DateTime?            @map("lock_until")
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
+  restaurantId           Int?                 @map("restaurant_id")
   role                   UserRole?
   addresses              UserAddress[]
   orders                 Order[]
@@ -45,6 +47,7 @@ model User {
   socialAccounts         SocialAccount[]
   deliveryAgent          DeliveryAgent?
   deviceTokens           DeviceToken[]
+  restaurant             Restaurant?          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
@@ -101,31 +104,31 @@ model UserAddress {
 }
 
 model Restaurant {
-  id                     Int                                   @id @default(autoincrement())
+  id                     Int                  @id @default(autoincrement())
   name                   String
-  slug                   String                                @unique
+  slug                   String               @unique
   address                String
   city                   String?
   latitude               Float
   longitude              Float
   location               Unsupported("geography(Point,4326)")?
-  cuisineType            String?                               @map("cuisine_type")
+  cuisineType            String?              @map("cuisine_type")
   description            String?
-  imageUrl               String?                               @map("image_url")
-  imagePublicId          String?                               @map("image_public_id")
-  deliveryRadiusKm       Float                                 @default(8) @map("delivery_radius_km")
-  deliveryEnabled        Boolean                               @default(true) @map("delivery_enabled")
-  deliveryBaseFee        Float                                 @default(20) @map("delivery_base_fee")
-  deliveryBaseDistanceKm Float                                 @default(1) @map("delivery_base_distance_km")
-  deliveryPerKmFee       Float                                 @default(7) @map("delivery_per_km_fee")
-  deliveryFeeMin         Float?                                @map("delivery_fee_min")
-  deliveryFeeCap         Float?                                @map("delivery_fee_cap")
-  freeDeliveryMinAmount  Float?                                @map("free_delivery_min_amount")
-  packagingCharge        Float                                 @default(0) @map("packaging_charge")
-  isLocationEnabled      Boolean                               @default(true) @map("is_location_enabled")
-  isActive               Boolean                               @default(true) @map("is_active")
-  createdAt              DateTime                              @default(now()) @map("created_at")
-  updatedAt              DateTime                              @updatedAt @map("updated_at")
+  imageUrl               String?              @map("image_url")
+  imagePublicId          String?              @map("image_public_id")
+  deliveryRadiusKm       Float                @default(8) @map("delivery_radius_km")
+  deliveryEnabled        Boolean              @default(true) @map("delivery_enabled")
+  deliveryBaseFee        Float                @default(20) @map("delivery_base_fee")
+  deliveryBaseDistanceKm Float                @default(1) @map("delivery_base_distance_km")
+  deliveryPerKmFee       Float                @default(7) @map("delivery_per_km_fee")
+  deliveryFeeMin         Float?               @map("delivery_fee_min")
+  deliveryFeeCap         Float?               @map("delivery_fee_cap")
+  freeDeliveryMinAmount  Float?               @map("free_delivery_min_amount")
+  packagingCharge        Float                @default(0) @map("packaging_charge")
+  isLocationEnabled      Boolean              @default(true) @map("is_location_enabled")
+  isActive               Boolean              @default(true) @map("is_active")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
   tables                 RestaurantTable[]
   tableSessions          TableSession[]
   categories             Category[]
@@ -135,10 +138,19 @@ model Restaurant {
   deliveryZones          DeliveryZone[]
   coupons                Coupon[]
   cartItems              CartItem[]
-  gstin                  String?                               @map("gstin")
-  gstRate                Float                                 @default(5) @map("gst_rate")
-  gstEnabled             Boolean                               @default(true) @map("gst_enabled")
-  gstMode                String                                @default("EXCLUSIVE") @map("gst_mode")
+  gstin                  String?              @map("gstin")
+  gstRate                Float                @default(5) @map("gst_rate")
+  gstEnabled             Boolean              @default(true) @map("gst_enabled")
+  gstMode                String               @default("EXCLUSIVE") @map("gst_mode")
+  staffUsers             User[]
+  inventoryItems         InventoryItem[]
+  storeInventories       StoreInventory[]
+  kitchenInventories     KitchenInventory[]
+  recipes                Recipe[]
+  kitchenTransfers       KitchenTransfer[]
+  restaurantRequisitions RestaurantRequisition[]
+  inventoryLedgers       InventoryTransactionLedger[]
+  kitchenConsumptionLogs KitchenConsumptionLog[]
 
   @@map("restaurants")
 }
@@ -237,6 +249,7 @@ model MenuItem {
   orderItems          OrderItem[]
   favorites           FavoriteMenuItem[]
   cartItems           CartItem[]
+  recipes             Recipe[]
 
   @@map("menu_items")
 }
@@ -329,6 +342,8 @@ model Order {
   cancelledAt          DateTime?        @map("cancelled_at")
   cancellationReason   String?          @map("cancellation_reason")
   cancelledByUserId    Int?             @map("cancelled_by_user_id")
+  customerPhone        String?          @map("customer_phone")
+  kitchenNote          String?          @map("kitchen_note")
   createdAt            DateTime         @default(now()) @map("created_at")
   user                 User?            @relation(fields: [userId], references: [id])
   restaurant           Restaurant       @relation(fields: [restaurantId], references: [id])
@@ -613,4 +628,240 @@ model DeviceToken {
 
   @@index([userId])
   @@map("device_tokens")
+}
+
+enum StockStatus {
+  HEALTHY
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+enum InventoryType {
+  STORE
+  KITCHEN
+}
+
+enum InventoryTransactionType {
+  STORE_RECEIVE_WAREHOUSE
+  KITCHEN_ISSUE
+  KITCHEN_RECEIVE
+  RECIPE_CONSUMPTION
+  WASTE
+  ADJUSTMENT
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+  REJECTED
+}
+
+enum RequisitionStatus {
+  PENDING
+  APPROVED
+  FULFILLED
+  REJECTED
+}
+
+model InventoryItem {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int        @map("restaurant_id")
+  name         String
+  sku          String?
+  category     String     @default("General")
+  unit         String     @default("KG")
+  costPrice    Float      @default(0) @map("cost_price")
+  isActive     Boolean    @default(true) @map("is_active")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  storeStock             StoreInventory?
+  kitchenStock           KitchenInventory?
+  recipeIngredients      RecipeIngredient[]
+  transferItems          KitchenTransferItem[]
+  requisitionItems       RestaurantRequisitionItem[]
+  transactionLogs        InventoryTransactionLedger[]
+  kitchenConsumptionLogs KitchenConsumptionLog[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, category])
+  @@map("inventory_items")
+}
+
+model StoreInventory {
+  id                Int         @id @default(autoincrement())
+  restaurantId      Int         @map("restaurant_id")
+  itemId            Int         @unique @map("item_id")
+  availableQuantity Float       @default(0) @map("available_quantity")
+  reservedQuantity  Float       @default(0) @map("reserved_quantity")
+  minimumStock      Float       @default(0) @map("minimum_stock")
+  maximumStock      Float       @default(100) @map("maximum_stock")
+  reorderLevel      Float       @default(10) @map("reorder_level")
+  status            StockStatus @default(HEALTHY)
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  item       InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@map("store_inventories")
+}
+
+model KitchenInventory {
+  id                Int         @id @default(autoincrement())
+  restaurantId      Int         @map("restaurant_id")
+  itemId            Int         @unique @map("item_id")
+  availableQuantity Float       @default(0) @map("available_quantity")
+  minimumStock      Float       @default(0) @map("minimum_stock")
+  status            StockStatus @default(HEALTHY)
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  item       InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@map("kitchen_inventories")
+}
+
+model Recipe {
+  id            Int        @id @default(autoincrement())
+  restaurantId  Int        @map("restaurant_id")
+  menuItemId    Int        @map("menu_item_id")
+  name          String
+  yieldQuantity Float      @default(1) @map("yield_quantity")
+  isActive      Boolean    @default(true) @map("is_active")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  menuItem      MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  ingredients            RecipeIngredient[]
+  kitchenConsumptionLogs KitchenConsumptionLog[]
+
+  @@index([restaurantId, menuItemId])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id       Int           @id @default(autoincrement())
+  recipeId Int           @map("recipe_id")
+  itemId   Int           @map("item_id")
+  quantity Float
+  unit     String        @default("GM")
+  recipe   Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  item     InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+  @@index([itemId])
+  @@map("recipe_ingredients")
+}
+
+model KitchenTransfer {
+  id                Int            @id @default(autoincrement())
+  transferNumber    String         @unique @map("transfer_number")
+  restaurantId      Int            @map("restaurant_id")
+  status            TransferStatus @default(PENDING)
+  requestedByUserId Int?           @map("requested_by_user_id")
+  approvedByUserId  Int?           @map("approved_by_user_id")
+  notes             String?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  restaurant        Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  items KitchenTransferItem[]
+
+  @@index([restaurantId, status])
+  @@map("kitchen_transfers")
+}
+
+model KitchenTransferItem {
+  id         Int             @id @default(autoincrement())
+  transferId Int             @map("transfer_id")
+  itemId     Int             @map("item_id")
+  quantity   Float
+  transfer   KitchenTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  item       InventoryItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@map("kitchen_transfer_items")
+}
+
+model RestaurantRequisition {
+  id                Int               @id @default(autoincrement())
+  requisitionNumber String            @unique @map("requisition_number")
+  restaurantId      Int               @map("restaurant_id")
+  status            RequisitionStatus @default(PENDING)
+  isAutoGenerated   Boolean           @default(false) @map("is_auto_generated")
+  requestedByUserId Int?              @map("requested_by_user_id")
+  notes             String?
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  restaurant        Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  items RestaurantRequisitionItem[]
+
+  @@index([restaurantId, status])
+  @@map("restaurant_requisitions")
+}
+
+model RestaurantRequisitionItem {
+  id            Int                   @id @default(autoincrement())
+  requisitionId Int                   @map("requisition_id")
+  itemId        Int                   @map("item_id")
+  quantity      Float
+  requisition   RestaurantRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  item          InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([requisitionId])
+  @@map("restaurant_requisition_items")
+}
+
+model InventoryTransactionLedger {
+  id                Int                      @id @default(autoincrement())
+  restaurantId      Int                      @map("restaurant_id")
+  inventoryType     InventoryType            @map("inventory_type")
+  itemId            Int                      @map("item_id")
+  transactionType   InventoryTransactionType @map("transaction_type")
+  orderId           Int?                     @map("order_id")
+  recipeId          Int?                     @map("recipe_id")
+  referenceId       String?                  @map("reference_id")
+  quantity          Float
+  beforeQuantity    Float                    @map("before_quantity")
+  afterQuantity     Float                    @map("after_quantity")
+  unit              String
+  performedByUserId Int?                     @map("performed_by_user_id")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  item       InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, inventoryType, createdAt])
+  @@index([itemId])
+  @@map("inventory_transaction_ledgers")
+}
+
+model KitchenConsumptionLog {
+  id               Int      @id @default(autoincrement())
+  restaurantId     Int      @map("restaurant_id")
+  orderId          Int      @map("order_id")
+  menuItemId       Int      @map("menu_item_id")
+  recipeId         Int      @map("recipe_id")
+  itemId           Int      @map("item_id")
+  quantityConsumed Float    @map("quantity_consumed")
+  beforeQuantity   Float    @map("before_quantity")
+  afterQuantity    Float    @map("after_quantity")
+  unit             String
+  timestamp        DateTime @default(now())
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  item       InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  recipe     Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, timestamp])
+  @@index([orderId])
+  @@map("kitchen_consumption_logs")
 }
