@@ -18,7 +18,6 @@
     "restaurant:lint": "npm --prefix backend run lint",
     "restaurant:start": "npm --prefix backend run start",
     "restaurant:start:prod": "npm --prefix backend run start:prod",
-
     "inventory:dev": "node ./scripts/inventory-dev.mjs",
     "inventory:build": "node ./scripts/inventory-build.mjs",
     "inventory:install": "node ./scripts/inventory-install.mjs",
