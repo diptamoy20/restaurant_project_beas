@@ -200,7 +200,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT || 4000;
   const socketPort = process.env.DELIVERY_TRACKING_SOCKET_PORT || 7005;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`Server started on port ${port} (${nodeEnv})`);
   logger.log(`Delivery tracking socket: http://localhost:${socketPort}/delivery-tracking`);
 }

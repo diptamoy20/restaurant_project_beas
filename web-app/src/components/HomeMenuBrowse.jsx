@@ -33,7 +33,10 @@ const swiperBreakpoints = {
   },
 };
 
-export function HomeMenuBrowse({ restaurantId, coordinates }) {
+export function HomeMenuBrowse({
+  restaurantId,
+  coordinates,
+}) {
   const dispatch = useDispatch();
   const { addItemToCart } = useAddToCart();
 
@@ -43,6 +46,19 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
   const [toast, setToast] = useState("");
 
   console.log("restaurantId =", restaurantId);
+
+  useEffect(() => {
+    if (!restaurantId) return;
+
+    localStorage.setItem(
+      "restaurantId",
+      String(restaurantId),
+    );
+
+    window.dispatchEvent(
+      new Event("restaurantChanged"),
+    );
+  }, [restaurantId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -60,12 +76,17 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
           signal: controller.signal,
         });
 
-        const items = Array.isArray(response) ? response : [];
+        const items = Array.isArray(response)
+          ? response
+          : [];
 
         setBestSelling(items);
       } catch (err) {
         if (err?.name !== "AbortError") {
-          setError("Unable to load best-selling dishes.");
+          setError(
+            "Unable to load best-selling dishes.",
+          );
+
           setBestSelling([]);
         }
       } finally {
@@ -76,20 +97,29 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
     loadBestSelling();
 
     return () => controller.abort();
-  }, [coordinates?.lat, coordinates?.lng, restaurantId]);
+  }, [
+    coordinates?.lat,
+    coordinates?.lng,
+    restaurantId,
+  ]);
 
   const handleAddToCart = async (item) => {
     setToast("");
     dispatch(clearError());
 
-    const hasVariants = item.variants?.length > 0;
+    const hasVariants =
+      item.variants?.length > 0;
 
-    const hasAddons = item.addonGroups?.some(
-      (group) => group.options?.length > 0,
-    );
+    const hasAddons =
+      item.addonGroups?.some(
+        (group) =>
+          group.options?.length > 0,
+      );
 
     if (hasVariants || hasAddons) {
-      setToast("Open the full menu to customize this dish before adding it.");
+      setToast(
+        "Open the full menu to customize this dish before adding it.",
+      );
 
       window.setTimeout(() => {
         setToast("");
@@ -98,10 +128,17 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
       return;
     }
 
-    const added = await addItemToCart(item, null, [], 1);
+    const added = await addItemToCart(
+      item,
+      null,
+      [],
+      1,
+    );
 
     if (added) {
-      setToast(`${item.name} added to cart`);
+      setToast(
+        `${item.name} added to cart`,
+      );
 
       window.setTimeout(() => {
         setToast("");
@@ -112,7 +149,9 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
   if (bestLoading) {
     return (
       <section className="home-menu-browse">
-        <p className="eyebrow">Loading best sellers...</p>
+        <p className="eyebrow">
+          Loading best sellers...
+        </p>
       </section>
     );
   }
@@ -120,7 +159,9 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
   if (error) {
     return (
       <section className="home-menu-browse">
-        <p className="order-status-banner error">{error}</p>
+        <p className="order-status-banner error">
+          {error}
+        </p>
       </section>
     );
   }
@@ -128,50 +169,60 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
   return (
     <section className="home-menu-browse">
       {toast ? (
-        <div className="order-status-banner success">{toast}</div>
+        <div className="order-status-banner success">
+          {toast}
+        </div>
       ) : null}
 
       <div className="menu-carousel-block">
         <div className="menu-carousel-heading">
           <h3>
-            {restaurantId ? "Restaurant Best Sellers" : "Popular Dishes Near You"}
+            {restaurantId
+              ? "Restaurant Best Sellers"
+              : "Popular Dishes Near You"}
           </h3>
-
-          {/* <p>
-            {bestLoading
-              ? "Loading..."
-              : `${bestSelling.length} best-selling dishes`}
-          </p> */}
         </div>
 
-        {!bestLoading && bestSelling.length === 0 ? (
+        {!bestLoading &&
+        bestSelling.length === 0 ? (
           <p className="copy-muted">
-            No best-selling dishes available right now
+            No best-selling dishes available
+            right now
           </p>
         ) : null}
 
         {bestSelling.length > 0 ? (
           <Swiper
-            key={`best-${restaurantId || "all"}`}
-            modules={[Navigation, Pagination, Autoplay]}
-            // navigation
-            // pagination={{
-            //   clickable: true,
-            // }}
+            key={`best-${
+              restaurantId || "all"
+            }`}
+            modules={[
+              Navigation,
+              Pagination,
+              Autoplay,
+            ]}
             autoplay={{
               delay: 2500,
               disableOnInteraction: false,
             }}
             loop={bestSelling.length > 4}
-            breakpoints={swiperBreakpoints}
+            breakpoints={
+              swiperBreakpoints
+            }
             className="menu-swiper"
           >
             {bestSelling.map((item) => (
-              <SwiperSlide key={`best-${item.id}`}>
+              <SwiperSlide
+                key={`best-${item.id}`}
+              >
                 <MenuSlideCard
                   item={item}
-                  onAdd={() => handleAddToCart(item)}
-                  subtitle={item.restaurant?.name}
+                  onAdd={() =>
+                    handleAddToCart(item)
+                  }
+                  subtitle={
+                    item.restaurant?.name
+                  }
                 />
               </SwiperSlide>
             ))}

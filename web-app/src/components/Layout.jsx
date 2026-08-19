@@ -1,11 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
+import {
+  useDispatch,
+  useSelector,
+} from 'react-redux';
+
 import { useSelectedRestaurant } from '../context/SelectedRestaurantContext.jsx';
-import { buildMenuPath, isMenuPath } from '../lib/restaurantPaths';
+import {
+  buildMenuPath,
+  isMenuPath,
+} from '../lib/restaurantPaths';
 import { logout } from '../store/slices/authSlice';
-import { clearCart, fetchCart } from '../store/slices/cartSlice';
-import { clearFavorites, fetchFavorites } from '../store/slices/favoritesSlice';
+import {
+  clearCart,
+  fetchCart,
+} from '../store/slices/cartSlice';
+import {
+  clearFavorites,
+  fetchFavorites,
+} from '../store/slices/favoritesSlice';
 import { CartIcon } from './landing/LandingIcons';
 import { NavbarRestaurantSearch } from './NavbarRestaurantSearch.jsx';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
@@ -17,35 +40,78 @@ export function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const user = useSelector((state) => state.auth.user);
-  const token = useSelector((state) => state.auth.token);
-  const cartItems = useSelector((state) => state.cart.items);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+
+  const user = useSelector(
+    (state) => state.auth.user,
+  );
+
+  const token = useSelector(
+    (state) => state.auth.token,
+  );
+
+  const cartItems = useSelector(
+    (state) => state.cart.items,
+  );
+
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
+  const [profileMenuOpen, setProfileMenuOpen] =
+    useState(false);
+
+  const [scrolled, setScrolled] =
+    useState(false);
+
   const profileMenuRef = useRef(null);
-  const { selectedRestaurantSlug } = useSelectedRestaurant();
-  const isHomePage = location.pathname === '/';
+
+  const {
+    selectedRestaurantSlug,
+    clearSelectedRestaurant,
+  } = useSelectedRestaurant();
+
+  const isHomePage =
+    location.pathname === '/';
+
   const cartCount = user
-    ? cartItems.reduce((sum, item) => sum + (item.quantity ?? 1), 0)
+    ? cartItems.reduce(
+        (sum, item) =>
+          sum + (item.quantity ?? 1),
+        0,
+      )
     : 0;
+
   const homePath = '/';
+
   const menuPath = selectedRestaurantSlug
-    ? buildMenuPath(selectedRestaurantSlug)
+    ? buildMenuPath(
+        selectedRestaurantSlug,
+      )
     : '/menu';
+
   const cartPath = '/cart';
   const profilePath = '/profile';
   const ordersPath = '/orders';
   const favoritesPath = '/favorites';
-  const userDisplayName = useMemo(() => getUserDisplayName(user), [user]);
+
+  const userDisplayName = useMemo(
+    () => getUserDisplayName(user),
+    [user],
+  );
 
   const handleLogout = () => {
     signOutFromFirebase();
+
+    clearSelectedRestaurant();
+
     dispatch(clearFavorites());
     dispatch(clearCart());
     dispatch(logout());
+
     setProfileMenuOpen(false);
-    navigate('/login', { replace: true });
+
+    navigate('/login', {
+      replace: true,
+    });
   };
 
   useEffect(() => {
@@ -56,13 +122,23 @@ export function Layout({ children }) {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 24);
+      setScrolled(
+        window.scrollY > 24,
+      );
     };
 
     handleScroll();
-    window.addEventListener('scroll', handleScroll);
 
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener(
+      'scroll',
+      handleScroll,
+    );
+
+    return () =>
+      window.removeEventListener(
+        'scroll',
+        handleScroll,
+      );
   }, []);
 
   useEffect(() => {
@@ -71,25 +147,42 @@ export function Layout({ children }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(
+      location.search,
+    );
 
     if (!params.has('table')) {
       return;
     }
 
     params.delete('table');
+
     navigate(
       {
         pathname: location.pathname,
-        search: params.toString() ? `?${params.toString()}` : '',
+        search: params.toString()
+          ? `?${params.toString()}`
+          : '',
       },
-      { replace: true },
+      {
+        replace: true,
+      },
     );
-  }, [location.pathname, location.search, navigate]);
+  }, [
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   useEffect(() => {
-    function handleDocumentPointerDown(event) {
-      if (!profileMenuRef.current?.contains(event.target)) {
+    function handleDocumentPointerDown(
+      event,
+    ) {
+      if (
+        !profileMenuRef.current?.contains(
+          event.target,
+        )
+      ) {
         setProfileMenuOpen(false);
       }
     }
@@ -100,12 +193,26 @@ export function Layout({ children }) {
       }
     }
 
-    document.addEventListener('pointerdown', handleDocumentPointerDown);
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener(
+      'pointerdown',
+      handleDocumentPointerDown,
+    );
+
+    document.addEventListener(
+      'keydown',
+      handleEscape,
+    );
 
     return () => {
-      document.removeEventListener('pointerdown', handleDocumentPointerDown);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener(
+        'pointerdown',
+        handleDocumentPointerDown,
+      );
+
+      document.removeEventListener(
+        'keydown',
+        handleEscape,
+      );
     };
   }, []);
 
@@ -119,30 +226,49 @@ export function Layout({ children }) {
   }, [dispatch, token]);
 
   useEffect(() => {
-    document.body.classList.toggle('drawer-open', menuOpen);
+    document.body.classList.toggle(
+      'drawer-open',
+      menuOpen,
+    );
 
-    return () => document.body.classList.remove('drawer-open');
+    return () =>
+      document.body.classList.remove(
+        'drawer-open',
+      );
   }, [menuOpen]);
 
-  const content = children ?? <Outlet />;
+  const content =
+    children ?? <Outlet />;
 
   return (
     <div className="app-shell">
       <header
         className={[
           'topbar',
-          isHomePage && !scrolled ? 'topbar-transparent' : 'topbar-solid',
+          isHomePage && !scrolled
+            ? 'topbar-transparent'
+            : 'topbar-solid',
         ].join(' ')}
       >
         <div className="topbar-inner">
-          <Link className="brand" to={homePath}>
-            {/* <span className="brand-mark">FoodyPly</span> */}
-            <span className="brand-mark" aria-hidden="true">
-              <img src={projectLogo} alt="" />
+          <Link
+            className="brand"
+            to={homePath}
+          >
+            <span
+              className="brand-mark"
+              aria-hidden="true"
+            >
+              <img
+                src={projectLogo}
+                alt=""
+              />
             </span>
+
             <div>
-              <p className="eyebrow">QR Ordering & Payment</p>
-              {/* <strong>FoodyPly</strong> */}
+              <p className="eyebrow">
+                QR Ordering & Payment
+              </p>
             </div>
           </Link>
 
@@ -152,42 +278,79 @@ export function Layout({ children }) {
             {user ? (
               <>
                 <Link
-                  className={location.pathname === '/' ? 'active' : ''}
+                  className={
+                    location.pathname === '/'
+                      ? 'active'
+                      : ''
+                  }
                   to={homePath}
                 >
                   Home
                 </Link>
+
                 <Link
-                  className={isMenuPath(location.pathname) ? 'active' : ''}
+                  className={
+                    isMenuPath(
+                      location.pathname,
+                    )
+                      ? 'active'
+                      : ''
+                  }
                   to={menuPath}
                 >
                   Menu
                 </Link>
+
                 <Link
-                  className={location.pathname === '/orders' ? 'active' : ''}
+                  className={
+                    location.pathname ===
+                    '/orders'
+                      ? 'active'
+                      : ''
+                  }
                   to={ordersPath}
                 >
                   Orders
                 </Link>
+
                 <Link
-                  className={location.pathname === '/favorites' ? 'active' : ''}
+                  className={
+                    location.pathname ===
+                    '/favorites'
+                      ? 'active'
+                      : ''
+                  }
                   to={favoritesPath}
                 >
                   Favorites
                 </Link>
+
                 <Link
-                  className={location.pathname === '/cart' ? 'active' : ''}
+                  className={
+                    location.pathname ===
+                    '/cart'
+                      ? 'active'
+                      : ''
+                  }
                   to={cartPath}
                 >
                   <span className="cart-link-icon">
                     <CartIcon />
                   </span>
+
                   Cart
+
                   {cartCount > 0 ? (
-                    <span className="cart-badge">{cartCount}</span>
+                    <span className="cart-badge">
+                      {cartCount}
+                    </span>
                   ) : null}
                 </Link>
-                <div className="profile-menu" ref={profileMenuRef}>
+
+                <div
+                  className="profile-menu"
+                  ref={profileMenuRef}
+                >
                   <button
                     type="button"
                     className={
@@ -196,33 +359,56 @@ export function Layout({ children }) {
                         : 'profile-trigger'
                     }
                     aria-haspopup="menu"
-                    aria-expanded={profileMenuOpen}
-                    onClick={() => setProfileMenuOpen((current) => !current)}
+                    aria-expanded={
+                      profileMenuOpen
+                    }
+                    onClick={() =>
+                      setProfileMenuOpen(
+                        (current) =>
+                          !current,
+                      )
+                    }
                   >
                     <ProfileAvatar
                       user={user}
                       className="profile-avatar profile-avatar-sm"
                     />
+
                     <span className="profile-trigger-copy">
-                      <span>{userDisplayName}</span>
-                      <small>Account</small>
+                      <span>
+                        {userDisplayName}
+                      </span>
+
+                      <small>
+                        Account
+                      </small>
                     </span>
                   </button>
 
                   {profileMenuOpen ? (
-                    <div className="profile-dropdown" role="menu">
+                    <div
+                      className="profile-dropdown"
+                      role="menu"
+                    >
                       <div className="profile-dropdown-header">
                         <ProfileAvatar
                           user={user}
                           className="profile-avatar profile-avatar-md"
                         />
+
                         <div>
-                          <strong>{userDisplayName}</strong>
+                          <strong>
+                            {userDisplayName}
+                          </strong>
+
                           <span>
-                            {user?.email || user?.phone || 'Signed in'}
+                            {user?.email ||
+                              user?.phone ||
+                              'Signed in'}
                           </span>
                         </div>
                       </div>
+
                       <Link
                         className="profile-dropdown-action"
                         role="menuitem"
@@ -230,11 +416,14 @@ export function Layout({ children }) {
                       >
                         Profile
                       </Link>
+
                       <button
                         type="button"
                         className="profile-dropdown-action profile-dropdown-logout"
                         role="menuitem"
-                        onClick={handleLogout}
+                        onClick={
+                          handleLogout
+                        }
                       >
                         Log out
                       </button>
@@ -246,29 +435,43 @@ export function Layout({ children }) {
               <>
                 <Link
                   className={
-                    isMenuPath(location.pathname) ? 'nav-cta active' : 'nav-cta'
+                    isMenuPath(
+                      location.pathname,
+                    )
+                      ? 'nav-cta active'
+                      : 'nav-cta'
                   }
                   to={menuPath}
                 >
                   Menu
                 </Link>
+
                 <Link
                   className={
-                    location.pathname === '/cart' ? 'nav-cta active' : 'nav-cta'
+                    location.pathname ===
+                    '/cart'
+                      ? 'nav-cta active'
+                      : 'nav-cta'
                   }
                   to={cartPath}
                 >
                   <span className="cart-link-icon">
                     <CartIcon />
                   </span>
+
                   Cart
+
                   {cartCount > 0 ? (
-                    <span className="cart-badge">{cartCount}</span>
+                    <span className="cart-badge">
+                      {cartCount}
+                    </span>
                   ) : null}
                 </Link>
+
                 <Link
                   className={
-                    location.pathname === '/login'
+                    location.pathname ===
+                    '/login'
                       ? 'nav-cta active'
                       : 'nav-cta'
                   }
@@ -276,9 +479,11 @@ export function Layout({ children }) {
                 >
                   Login
                 </Link>
+
                 <Link
                   className={
-                    location.pathname === '/register'
+                    location.pathname ===
+                    '/register'
                       ? 'nav-cta active'
                       : 'nav-cta'
                   }
@@ -294,10 +499,16 @@ export function Layout({ children }) {
             type="button"
             className="menu-toggle"
             aria-label={
-              menuOpen ? 'Close navigation menu' : 'Open navigation menu'
+              menuOpen
+                ? 'Close navigation menu'
+                : 'Open navigation menu'
             }
             aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((current) => !current)}
+            onClick={() =>
+              setMenuOpen(
+                (current) => !current,
+              )
+            }
           >
             <span />
             <span />
@@ -305,14 +516,29 @@ export function Layout({ children }) {
           </button>
         </div>
       </header>
+
       <div
-        className={menuOpen ? 'drawer-backdrop is-open' : 'drawer-backdrop'}
-        onClick={() => setMenuOpen(false)}
+        className={
+          menuOpen
+            ? 'drawer-backdrop is-open'
+            : 'drawer-backdrop'
+        }
+        onClick={() =>
+          setMenuOpen(false)
+        }
       />
-      <aside className={menuOpen ? 'mobile-drawer is-open' : 'mobile-drawer'}>
+
+      <aside
+        className={
+          menuOpen
+            ? 'mobile-drawer is-open'
+            : 'mobile-drawer'
+        }
+      >
         <div className="drawer-restaurant-search">
           <NavbarRestaurantSearch />
         </div>
+
         <nav className="drawer-nav">
           {user ? (
             <>
@@ -321,47 +547,95 @@ export function Layout({ children }) {
                   user={user}
                   className="profile-avatar profile-avatar-md"
                 />
+
                 <div>
-                  <strong>{userDisplayName}</strong>
-                  <span>{user?.email || user?.phone || 'Signed in'}</span>
+                  <strong>
+                    {userDisplayName}
+                  </strong>
+
+                  <span>
+                    {user?.email ||
+                      user?.phone ||
+                      'Signed in'}
+                  </span>
                 </div>
               </div>
+
               <Link
-                className={location.pathname === '/' ? 'active' : ''}
+                className={
+                  location.pathname === '/'
+                    ? 'active'
+                    : ''
+                }
                 to={homePath}
               >
                 Home
               </Link>
+
               <Link
-                className={isMenuPath(location.pathname) ? 'active' : ''}
+                className={
+                  isMenuPath(
+                    location.pathname,
+                  )
+                    ? 'active'
+                    : ''
+                }
                 to={menuPath}
               >
                 Menu
               </Link>
+
               <Link
-                className={location.pathname === '/orders' ? 'active' : ''}
+                className={
+                  location.pathname ===
+                  '/orders'
+                    ? 'active'
+                    : ''
+                }
                 to={ordersPath}
               >
                 Orders
               </Link>
+
               <Link
-                className={location.pathname === '/favorites' ? 'active' : ''}
+                className={
+                  location.pathname ===
+                  '/favorites'
+                    ? 'active'
+                    : ''
+                }
                 to={favoritesPath}
               >
                 Favorites
               </Link>
+
               <Link
-                className={location.pathname === '/cart' ? 'active' : ''}
+                className={
+                  location.pathname ===
+                  '/cart'
+                    ? 'active'
+                    : ''
+                }
                 to={cartPath}
               >
-                Cart {cartCount > 0 ? `(${cartCount})` : ''}
+                Cart{' '}
+                {cartCount > 0
+                  ? `(${cartCount})`
+                  : ''}
               </Link>
+
               <Link
-                className={location.pathname === '/profile' ? 'active' : ''}
+                className={
+                  location.pathname ===
+                  '/profile'
+                    ? 'active'
+                    : ''
+                }
                 to={profilePath}
               >
                 Profile
               </Link>
+
               <button
                 type="button"
                 className="ghost-button drawer-logout"
@@ -374,31 +648,52 @@ export function Layout({ children }) {
             <>
               <Link
                 className={
-                  isMenuPath(location.pathname) ? 'nav-cta active' : 'nav-cta'
+                  isMenuPath(
+                    location.pathname,
+                  )
+                    ? 'nav-cta active'
+                    : 'nav-cta'
                 }
                 to={menuPath}
               >
                 Menu
               </Link>
+
               <Link
                 className={
-                  location.pathname === '/cart' ? 'nav-cta active' : 'nav-cta'
+                  location.pathname ===
+                  '/cart'
+                    ? 'nav-cta active'
+                    : 'nav-cta'
                 }
                 to={cartPath}
               >
-                Cart {cartCount > 0 ? `(${cartCount})` : ''}
+                <span className="cart-link-icon">
+                  <CartIcon />
+                </span>
+
+                Cart{' '}
+                {cartCount > 0
+                  ? `(${cartCount})`
+                  : ''}
               </Link>
+
               <Link
                 className={
-                  location.pathname === '/login' ? 'nav-cta active' : 'nav-cta'
+                  location.pathname ===
+                  '/login'
+                    ? 'nav-cta active'
+                    : 'nav-cta'
                 }
                 to="/login"
               >
                 Login
               </Link>
+
               <Link
                 className={
-                  location.pathname === '/register'
+                  location.pathname ===
+                  '/register'
                     ? 'nav-cta active'
                     : 'nav-cta'
                 }
@@ -410,7 +705,10 @@ export function Layout({ children }) {
           )}
         </nav>
       </aside>
-      <main className="page">{content}</main>
+
+      <main className="page">
+        {content}
+      </main>
     </div>
   );
 }

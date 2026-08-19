@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, RoleType } from '@prisma/client';
+
 import { hash } from 'bcryptjs';
 import { Pool } from 'pg';
 

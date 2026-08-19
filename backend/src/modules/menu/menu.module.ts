@@ -1,15 +1,19 @@
 import { Module } from '@nestjs/common';
 
-import { AdminCategoryController } from './admin-category.controller';
-import { AdminMenuController } from './admin-menu.controller';
 import { MenuController } from './menu.controller';
 import { MenuService } from './menu.service';
-import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module';
+
+import { PrismaModule } from '../../prisma/prisma.module';
 import { LocationModule } from '../location/location.module';
+import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module';
 
 @Module({
-  imports: [CloudinaryModule, LocationModule],
-  controllers: [MenuController, AdminMenuController, AdminCategoryController],
+  imports: [
+    PrismaModule,
+    LocationModule,
+    CloudinaryModule,
+  ],
+  controllers: [MenuController],
   providers: [MenuService],
   exports: [MenuService],
 })
