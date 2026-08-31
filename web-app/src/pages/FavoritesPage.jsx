@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  clearError,
-  getEffectiveMenuPrice,
-} from "../store/slices/cartSlice";
+import { clearError } from "../store/slices/cartSlice";
 import { useAddToCart } from "../hooks/useAddToCart";
+import { useItemCustomizer } from "../hooks/useItemCustomizer";
+import { ItemCustomizerModal } from "../components/ItemCustomizerModal";
 import { isCrossRestaurantError } from "../utils/cartRestaurant";
 import {
   fetchFavorites,
@@ -12,13 +11,6 @@ import {
   removeFavorite,
 } from "../store/slices/favoritesSlice";
 import { MenuSlideCard } from "../utils/MenuSlideCard";
-
-const formatRupees = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 
 export function FavoritesPage() {
   const dispatch = useDispatch();
@@ -38,29 +30,12 @@ export function FavoritesPage() {
     cartError && !isCrossRestaurantError(cartError) ? cartError : null;
   const [cartMessage, setCartMessage] = useState("");
 
-  // Customizer state — mirrors MenuPage exactly
-  const [customizingItem, setCustomizingItem] = useState(null);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [selectedAddons, setSelectedAddons] = useState([]);
-  const [customizerQuantity, setCustomizerQuantity] = useState(1);
-  const [customizerError, setCustomizerError] = useState("");
-
   // Fetch favorites on mount / when auth changes
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchFavorites());
     }
   }, [dispatch, isAuthenticated]);
-
-  // Lock background scroll when customizer is open
-  useEffect(() => {
-    if (customizingItem) {
-      document.body.classList.add("modal-open");
-    } else {
-      document.body.classList.remove("modal-open");
-    }
-    return () => document.body.classList.remove("modal-open");
-  }, [customizingItem]);
 
   const handleToggleFavorite = (item) => {
     if (!isAuthenticated) return;
@@ -82,67 +57,15 @@ export function FavoritesPage() {
     }
   };
 
-  const handleToggleAddon = (group, option) => {
-    setSelectedAddons((current) => {
-      const isSelected = current.some((a) => a.addonOptionId === option.id);
-      if (isSelected) {
-        return current.filter((a) => a.addonOptionId !== option.id);
-      }
-      if (group.selectionType === "SINGLE") {
-        return [
-          ...current.filter((a) => a.addonGroupId !== group.id),
-          {
-            addonGroupId: group.id,
-            addonGroupName: group.name,
-            addonOptionId: option.id,
-            addonOptionName: option.name,
-            name: option.name,
-            price: option.price,
-          },
-        ];
-      }
-      const groupSelections = current.filter((a) => a.addonGroupId === group.id);
-      if (group.maxSelect && groupSelections.length >= group.maxSelect) {
-        setCustomizerError(
-          `You can select a maximum of ${group.maxSelect} options for ${group.name}`,
-        );
-        return current;
-      }
-      setCustomizerError("");
-      return [
-        ...current,
-        {
-          addonGroupId: group.id,
-          addonGroupName: group.name,
-          addonOptionId: option.id,
-          addonOptionName: option.name,
-          name: option.name,
-          price: option.price,
-        },
-      ];
-    });
-  };
+  const customizer = useItemCustomizer({ addToCart: handleAddToCart });
 
-  const handleAddCustomizedToCart = () => {
-    setCustomizerError("");
-    const activeGroups = customizingItem.addonGroups?.filter((g) => g.options.length > 0) || [];
-    for (const group of activeGroups) {
-      const selections = selectedAddons.filter((a) => a.addonGroupId === group.id);
-      const minSelect = group.isRequired ? Math.max(group.minSelect ?? 1, 1) : (group.minSelect ?? 0);
-      if (selections.length < minSelect) {
-        setCustomizerError(`Please select at least ${minSelect} option(s) for ${group.name}`);
-        return;
-      }
+  const handleAddOrCustomize = (item) => {
+    if (customizer.hasCustomization(item)) {
+      customizer.open(item);
+    } else {
+      handleAddToCart(item);
     }
-    handleAddToCart(customizingItem, selectedVariant, selectedAddons, customizerQuantity);
-    setCustomizingItem(null);
   };
-
-  const customizedUnitPrice = useMemo(() => {
-    if (!customizingItem) return 0;
-    const base = getEffectiveMenuPrice(customizingItem, selectedVariant);
-    return base + selectedAddons.reduce((sum, a) => sum + a.price, 0);
-  }, [customizingItem, selectedVariant, selectedAddons]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -239,169 +162,21 @@ export function FavoritesPage() {
         </div>
       ) : (
         <div className="menu-grid">
-          {favoriteItems.map((item) => {
-            const hasVariants = item.variants && item.variants.length > 0;
-            const hasAddons = item.addonGroups && item.addonGroups.length > 0;
-            return (
-              <MenuSlideCard
-                key={`fav-${item.id}`}
-                item={item}
-                isFavorite={favoriteIds.includes(item.id)}
-                isTogglingFavorite={!!favoritesToggling[item.id]}
-                onToggleFavorite={handleToggleFavorite}
-                onAdd={() => {
-                  if (hasVariants || hasAddons) {
-                    setCustomizingItem(item);
-                    setSelectedVariant(item.variants?.[0] || null);
-                    setSelectedAddons([]);
-                    setCustomizerQuantity(1);
-                    setCustomizerError("");
-                  } else {
-                    handleAddToCart(item);
-                  }
-                }}
-              />
-            );
-          })}
+          {favoriteItems.map((item) => (
+            <MenuSlideCard
+              key={`fav-${item.id}`}
+              item={item}
+              isFavorite={favoriteIds.includes(item.id)}
+              isTogglingFavorite={!!favoritesToggling[item.id]}
+              onToggleFavorite={handleToggleFavorite}
+              onAdd={() => handleAddOrCustomize(item)}
+            />
+          ))}
         </div>
       )}
 
-      {/* Customizer modal — identical to MenuPage */}
-      {customizingItem && (
-        <div className="customizer-overlay" onClick={() => setCustomizingItem(null)}>
-          <div className="customizer-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="customizer-header">
-              <div className="customizer-header-info">
-                {customizingItem.imageUrl ? (
-                  <img src={customizingItem.imageUrl} alt="" />
-                ) : (
-                  <div className="menu-slide-placeholder" style={{ width: "60px", height: "60px" }} />
-                )}
-                <div className="customizer-header-copy">
-                  <h2>{customizingItem.name}</h2>
-                  <p>{customizingItem.description || "Freshly cooked to your requirements."}</p>
-                  <strong>{formatRupees.format(customizedUnitPrice)}</strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="customizer-close"
-                onClick={() => setCustomizingItem(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="customizer-body">
-              {customizingItem.variants && customizingItem.variants.length > 0 && (
-                <div className="customizer-variant-section">
-                  <h3>Select Variant / Size</h3>
-                  <div className="customizer-variant-grid">
-                    {customizingItem.variants.map((v) => (
-                      <div
-                        key={`variant-${v.id}`}
-                        className={`customizer-variant-pill ${selectedVariant?.id === v.id ? "selected" : ""}`}
-                        onClick={() => setSelectedVariant(v)}
-                      >
-                        <span>{v.name}</span>
-                        <strong>{formatRupees.format(v.price)}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {customizingItem.addonGroups &&
-                customizingItem.addonGroups
-                  .filter((g) => g.options.length > 0)
-                  .map((group) => {
-                    const maxSelect = group.selectionType === "SINGLE" ? 1 : group.maxSelect;
-                    return (
-                      <div key={`addon-group-${group.id}`} className="customizer-option-group">
-                        <div className="customizer-group-title">
-                          <div>
-                            <h3>{group.name}</h3>
-                            {maxSelect && (
-                              <span className="customizer-group-limits">
-                                Choose up to {maxSelect} option(s)
-                              </span>
-                            )}
-                          </div>
-                          <span className={`customizer-group-badge ${group.isRequired ? "required" : ""}`}>
-                            {group.isRequired ? "Required" : "Optional"}
-                          </span>
-                        </div>
-                        <div className="customizer-option-list">
-                          {group.options.map((opt) => {
-                            const isChecked = selectedAddons.some((a) => a.addonOptionId === opt.id);
-                            const inputType = group.selectionType === "SINGLE" ? "radio" : "checkbox";
-                            return (
-                              <div
-                                key={`option-${opt.id}`}
-                                className={`customizer-option-row ${isChecked ? "checked" : ""}`}
-                                onClick={() => handleToggleAddon(group, opt)}
-                              >
-                                <label
-                                  className="customizer-option-label"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
-                                    type={inputType}
-                                    name={`group-${group.id}`}
-                                    checked={isChecked}
-                                    onChange={() => handleToggleAddon(group, opt)}
-                                  />
-                                  <span>{opt.name}</span>
-                                </label>
-                                <span className="customizer-option-price">
-                                  + {formatRupees.format(opt.price)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-            </div>
-
-            {customizerError && (
-              <div className="customizer-addon-error" style={{ margin: "1rem" }}>
-                {customizerError}
-              </div>
-            )}
-
-            <div className="customizer-footer">
-              <div className="customizer-stepper">
-                <button
-                  type="button"
-                  className="customizer-stepper-button"
-                  onClick={() => setCustomizerQuantity((q) => Math.max(1, q - 1))}
-                  disabled={customizerQuantity <= 1}
-                >
-                  -
-                </button>
-                <strong>{customizerQuantity}</strong>
-                <button
-                  type="button"
-                  className="customizer-stepper-button"
-                  onClick={() => setCustomizerQuantity((q) => q + 1)}
-                >
-                  +
-                </button>
-              </div>
-              <button
-                type="button"
-                className="primary-btn customizer-add-btn"
-                onClick={handleAddCustomizedToCart}
-              >
-                Add Item — {formatRupees.format(customizedUnitPrice * customizerQuantity)}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Customizer modal — shared with MenuPage */}
+      <ItemCustomizerModal {...customizer} />
     </section>
   );
 }

@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
-import {
-  clearError,
-  getEffectiveMenuPrice,
-} from "../store/slices/cartSlice";
+import { clearError } from "../store/slices/cartSlice";
 import { useAddToCart } from "../hooks/useAddToCart";
+import { useItemCustomizer } from "../hooks/useItemCustomizer";
+import { ItemCustomizerModal } from "../components/ItemCustomizerModal";
 import { isCrossRestaurantError } from "../utils/cartRestaurant";
 import { fetchMenu } from "../store/slices/menuSlice";
 import {
@@ -125,13 +124,6 @@ export function MenuPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("recommended");
   const [foodTypeFilter, setFoodTypeFilter] = useState(null); // 'VEG', 'NON_VEG', or null
-
-  // Customizer popup modal states
-  const [customizingItem, setCustomizingItem] = useState(null);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [selectedAddons, setSelectedAddons] = useState([]);
-  const [customizerQuantity, setCustomizerQuantity] = useState(1);
-  const [customizerError, setCustomizerError] = useState("");
 
   const [cartMessage, setCartMessage] = useState("");
 
@@ -300,20 +292,6 @@ export function MenuPage() {
     locationFlow.location?.lng,
   ]);
 
-  // Lock background scroll when customizing sheet is open
-  useEffect(() => {
-    if (customizingItem) {
-      document.body.classList.add("modal-open");
-    } else {
-      document.body.classList.remove("modal-open");
-    }
-    return () => {
-      document.body.classList.remove("modal-open");
-    };
-  }, [customizingItem]);
-
-
-
   // Debounce search query to prevent excessive layout shifts
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -389,105 +367,15 @@ export function MenuPage() {
     }
   };
 
+  const customizer = useItemCustomizer({ addToCart: handleAddToCart });
 
-
-  // Customizer Helper Functions
-  const handleToggleAddon = (group, option) => {
-    setSelectedAddons((current) => {
-      const isSelected = current.some(
-        (addon) => addon.addonOptionId === option.id,
-      );
-
-      if (isSelected) {
-        return current.filter((addon) => addon.addonOptionId !== option.id);
-      }
-
-      // If single choice group, filter out other options from same group
-      if (group.selectionType === "SINGLE") {
-        const filtered = current.filter(
-          (addon) => addon.addonGroupId !== group.id,
-        );
-        return [
-          ...filtered,
-          {
-            addonGroupId: group.id,
-            addonGroupName: group.name,
-            addonOptionId: option.id,
-            addonOptionName: option.name,
-            name: option.name,
-            price: option.price,
-          },
-        ];
-      }
-
-      // Check maxSelect limits
-      const groupSelections = current.filter(
-        (addon) => addon.addonGroupId === group.id,
-      );
-      if (group.maxSelect && groupSelections.length >= group.maxSelect) {
-        setCustomizerError(
-          `You can select a maximum of ${group.maxSelect} options for ${group.name}`,
-        );
-        return current;
-      }
-
-      setCustomizerError("");
-      return [
-        ...current,
-        {
-          addonGroupId: group.id,
-          addonGroupName: group.name,
-          addonOptionId: option.id,
-          addonOptionName: option.name,
-          name: option.name,
-          price: option.price,
-        },
-      ];
-    });
-  };
-
-  const handleAddCustomizedToCart = () => {
-    setCustomizerError("");
-
-    // Validate required groups
-    const activeGroups =
-      customizingItem.addonGroups?.filter((g) => g.options.length > 0) || [];
-    for (const group of activeGroups) {
-      const selections = selectedAddons.filter(
-        (addon) => addon.addonGroupId === group.id,
-      );
-
-      const minSelect = group.isRequired
-        ? Math.max(group.minSelect ?? 1, 1)
-        : (group.minSelect ?? 0);
-
-      if (selections.length < minSelect) {
-        setCustomizerError(
-          `Please select at least ${minSelect} option(s) for ${group.name}`,
-        );
-        return;
-      }
+  const handleAddOrCustomize = (item) => {
+    if (customizer.hasCustomization(item)) {
+      customizer.open(item);
+    } else {
+      handleAddToCart(item);
     }
-
-    handleAddToCart(
-      customizingItem,
-      selectedVariant,
-      selectedAddons,
-      customizerQuantity,
-    );
-    setCustomizingItem(null);
   };
-
-  // Dynamically calculate customized unit price
-  const customizedUnitPrice = useMemo(() => {
-    if (!customizingItem) return 0;
-    const base = getEffectiveMenuPrice(customizingItem, selectedVariant);
-    const addonsTotal = selectedAddons.reduce(
-      (sum, addon) => sum + addon.price,
-      0,
-    );
-    return base + addonsTotal;
-  }, [customizingItem, selectedVariant, selectedAddons]);
 
   if (!activeRestaurantSlug && !activeRestaurantId) {
     if (nearby.loading) {
@@ -618,9 +506,7 @@ export function MenuPage() {
                   item.discountPrice != null && item.discountPrice > 0
                     ? item.discountPrice
                     : item.price;
-                const hasVariants = item.variants && item.variants.length > 0;
-                const hasAddons =
-                  item.addonGroups && item.addonGroups.length > 0;
+                const customizations = customizer.hasCustomization(item);
 
                 return (
                   <div key={`best-${item.id}`} className="frequent-card">
@@ -647,19 +533,9 @@ export function MenuPage() {
                         <button
                           type="button"
                           className="frequent-add-btn"
-                          onClick={() => {
-                            if (hasVariants || hasAddons) {
-                              setCustomizingItem(item);
-                              setSelectedVariant(item.variants?.[0] || null);
-                              setSelectedAddons([]);
-                              setCustomizerQuantity(1);
-                              setCustomizerError("");
-                            } else {
-                              handleAddToCart(item);
-                            }
-                          }}
+                          onClick={() => handleAddOrCustomize(item)}
                         >
-                          Add {hasVariants || hasAddons ? "+" : ""}
+                          Add {customizations ? "+" : ""}
                         </button>
                       </div>
                     </div>
@@ -697,8 +573,7 @@ export function MenuPage() {
                 item.discountPrice != null && item.discountPrice > 0
                   ? item.discountPrice
                   : item.price;
-              const hasVariants = item.variants && item.variants.length > 0;
-              const hasAddons = item.addonGroups && item.addonGroups.length > 0;
+              const customizations = customizer.hasCustomization(item);
 
               return (
                 <div key={`frequent-${item.id}`} className="frequent-card">
@@ -725,19 +600,9 @@ export function MenuPage() {
                       <button
                         type="button"
                         className="frequent-add-btn"
-                        onClick={() => {
-                          if (hasVariants || hasAddons) {
-                            setCustomizingItem(item);
-                            setSelectedVariant(item.variants?.[0] || null);
-                            setSelectedAddons([]);
-                            setCustomizerQuantity(1);
-                            setCustomizerError("");
-                          } else {
-                            handleAddToCart(item);
-                          }
-                        }}
+                        onClick={() => handleAddOrCustomize(item)}
                       >
-                        Add {hasVariants || hasAddons ? "+" : ""}
+                        Add {customizations ? "+" : ""}
                       </button>
                     </div>
                   </div>
@@ -844,212 +709,21 @@ export function MenuPage() {
         </div>
       ) : (
         <div className="menu-grid">
-          {filteredItems.map((item) => {
-            const hasVariants = item.variants && item.variants.length > 0;
-            const hasAddons = item.addonGroups && item.addonGroups.length > 0;
-
-            return (
-              <MenuSlideCard
-                key={`menu-item-${item.id}`}
-                item={item}
-                isFavorite={favoriteIds.includes(item.id)}
-                isTogglingFavorite={!!favoritesToggling[item.id]}
-                onToggleFavorite={handleToggleFavorite}
-                onAdd={() => {
-                  if (hasVariants || hasAddons) {
-                    setCustomizingItem(item);
-                    setSelectedVariant(item.variants?.[0] || null);
-                    setSelectedAddons([]);
-                    setCustomizerQuantity(1);
-                    setCustomizerError("");
-                  } else {
-                    handleAddToCart(item);
-                  }
-                }}
-              />
-            );
-          })}
+          {filteredItems.map((item) => (
+            <MenuSlideCard
+              key={`menu-item-${item.id}`}
+              item={item}
+              isFavorite={favoriteIds.includes(item.id)}
+              isTogglingFavorite={!!favoritesToggling[item.id]}
+              onToggleFavorite={handleToggleFavorite}
+              onAdd={() => handleAddOrCustomize(item)}
+            />
+          ))}
         </div>
       )}
 
-      {/* 4. SWIGGY-STYLE CUSTOMIZATION SHEET POPUP MODAL */}
-      {customizingItem && (
-        <div
-          className="customizer-overlay"
-          onClick={() => setCustomizingItem(null)}
-        >
-          <div
-            className="customizer-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="customizer-header">
-              <div className="customizer-header-info">
-                {customizingItem.imageUrl ? (
-                  <img src={customizingItem.imageUrl} alt="" />
-                ) : (
-                  <div
-                    className="menu-slide-placeholder"
-                    style={{ width: "60px", height: "60px" }}
-                  />
-                )}
-                <div className="customizer-header-copy">
-                  <h2>{customizingItem.name}</h2>
-                  <p>
-                    {customizingItem.description ||
-                      "Freshly cooked to your requirements."}
-                  </p>
-                  <strong>{formatRupees.format(customizedUnitPrice)}</strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="customizer-close"
-                onClick={() => setCustomizingItem(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Scrollable Customization Content */}
-            <div className="customizer-body">
-              {/* Option 1: Variants Selector (Capsules) */}
-              {customizingItem.variants &&
-                customizingItem.variants.length > 0 && (
-                  <div className="customizer-variant-section">
-                    <h3>Select Variant / Size</h3>
-                    <div className="customizer-variant-grid">
-                      {customizingItem.variants.map((v) => (
-                        <div
-                          key={`variant-${v.id}`}
-                          className={`customizer-variant-pill ${selectedVariant?.id === v.id ? "selected" : ""}`}
-                          onClick={() => setSelectedVariant(v)}
-                        >
-                          <span>{v.name}</span>
-                          <strong>{formatRupees.format(v.price)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {/* Option 2: Addon Groups */}
-              {customizingItem.addonGroups &&
-                customizingItem.addonGroups
-                  .filter((g) => g.options.length > 0)
-                  .map((group) => {
-                    const maxSelect =
-                      group.selectionType === "SINGLE" ? 1 : group.maxSelect;
-
-                    return (
-                      <div
-                        key={`addon-group-${group.id}`}
-                        className="customizer-option-group"
-                      >
-                        <div className="customizer-group-title">
-                          <div>
-                            <h3>{group.name}</h3>
-                            {maxSelect && (
-                              <span className="customizer-group-limits">
-                                Choose up to {maxSelect} option(s)
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            className={`customizer-group-badge ${group.isRequired ? "required" : ""}`}
-                          >
-                            {group.isRequired ? "Required" : "Optional"}
-                          </span>
-                        </div>
-
-                        <div className="customizer-option-list">
-                          {group.options.map((opt) => {
-                            const isChecked = selectedAddons.some(
-                              (addon) => addon.addonOptionId === opt.id,
-                            );
-                            const inputType =
-                              group.selectionType === "SINGLE"
-                                ? "radio"
-                                : "checkbox";
-
-                            return (
-                              <div
-                                key={`option-${opt.id}`}
-                                className={`customizer-option-row ${isChecked ? "checked" : ""}`}
-                                onClick={() => handleToggleAddon(group, opt)}
-                              >
-                                <label
-                                  className="customizer-option-label"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
-                                    type={inputType}
-                                    name={`group-${group.id}`}
-                                    checked={isChecked}
-                                    onChange={() =>
-                                      handleToggleAddon(group, opt)
-                                    }
-                                  />
-                                  <span>{opt.name}</span>
-                                </label>
-                                <span className="customizer-option-price">
-                                  + {formatRupees.format(opt.price)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-            </div>
-
-            {/* Error alerts */}
-            {customizerError && (
-              <div
-                className="customizer-addon-error"
-                style={{ margin: "1rem" }}
-              >
-                {customizerError}
-              </div>
-            )}
-
-            {/* Footer with Quantities Stepper and Checkout Action */}
-            <div className="customizer-footer">
-              <div className="customizer-stepper">
-                <button
-                  type="button"
-                  className="customizer-stepper-button"
-                  onClick={() =>
-                    setCustomizerQuantity((q) => Math.max(1, q - 1))
-                  }
-                  disabled={customizerQuantity <= 1}
-                >
-                  -
-                </button>
-                <strong>{customizerQuantity}</strong>
-                <button
-                  type="button"
-                  className="customizer-stepper-button"
-                  onClick={() => setCustomizerQuantity((q) => q + 1)}
-                >
-                  +
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="primary-btn customizer-add-btn"
-                onClick={handleAddCustomizedToCart}
-              >
-                Add Item -{" "}
-                {formatRupees.format(customizedUnitPrice * customizerQuantity)}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* SWIGGY-STYLE CUSTOMIZATION SHEET POPUP MODAL */}
+      <ItemCustomizerModal {...customizer} />
     </section>
   );
 }

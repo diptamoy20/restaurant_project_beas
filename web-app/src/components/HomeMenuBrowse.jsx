@@ -6,10 +6,10 @@ import "swiper/css/pagination";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import { useDispatch } from "react-redux";
 
-import {
-  clearError,
-} from "../store/slices/cartSlice";
+import { clearError } from "../store/slices/cartSlice";
 import { useAddToCart } from "../hooks/useAddToCart";
+import { useItemCustomizer } from "../hooks/useItemCustomizer";
+import { ItemCustomizerModal } from "./ItemCustomizerModal";
 
 import { getBestSellingMenu } from "../services/menuPublicApi";
 import { MenuSlideCard } from "../utils/MenuSlideCard";
@@ -41,8 +41,6 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
   const [bestLoading, setBestLoading] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-
-  console.log("restaurantId =", restaurantId);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -78,27 +76,16 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
     return () => controller.abort();
   }, [coordinates?.lat, coordinates?.lng, restaurantId]);
 
-  const handleAddToCart = async (item) => {
+  const handleAddToCart = async (
+    item,
+    variant = null,
+    addOns = [],
+    quantity = 1,
+  ) => {
     setToast("");
     dispatch(clearError());
 
-    const hasVariants = item.variants?.length > 0;
-
-    const hasAddons = item.addonGroups?.some(
-      (group) => group.options?.length > 0,
-    );
-
-    if (hasVariants || hasAddons) {
-      setToast("Open the full menu to customize this dish before adding it.");
-
-      window.setTimeout(() => {
-        setToast("");
-      }, 3200);
-
-      return;
-    }
-
-    const added = await addItemToCart(item, null, [], 1);
+    const added = await addItemToCart(item, variant, addOns, quantity);
 
     if (added) {
       setToast(`${item.name} added to cart`);
@@ -107,6 +94,17 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
         setToast("");
       }, 2600);
     }
+  };
+
+  const customizer = useItemCustomizer({ addToCart: handleAddToCart });
+
+  const handleAddOrCustomize = (item) => {
+    if (customizer.hasCustomization(item)) {
+      customizer.open(item);
+      return;
+    }
+
+    handleAddToCart(item);
   };
 
   if (bestLoading) {
@@ -170,7 +168,7 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
               <SwiperSlide key={`best-${item.id}`}>
                 <MenuSlideCard
                   item={item}
-                  onAdd={() => handleAddToCart(item)}
+                  onAdd={() => handleAddOrCustomize(item)}
                   subtitle={item.restaurant?.name}
                 />
               </SwiperSlide>
@@ -178,6 +176,8 @@ export function HomeMenuBrowse({ restaurantId, coordinates }) {
           </Swiper>
         ) : null}
       </div>
+
+      <ItemCustomizerModal {...customizer} />
     </section>
   );
 }

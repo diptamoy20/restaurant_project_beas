@@ -245,6 +245,7 @@ function mapServerCart(cart) {
     quantity: item.quantity,
     price: item.price,
     unitPrice: item.unitPrice,
+    basePrice: item.basePrice,
     addOns: mapServerAddOns(item.addOns || []),
     cartKey: String(item.cartItemId),
 
