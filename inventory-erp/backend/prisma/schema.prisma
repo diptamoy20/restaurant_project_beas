@@ -1,630 +1,566 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-enum RoleType {
-  SUPER_ADMIN
-  INVENTORY_MANAGER
-  WAREHOUSE_MANAGER
-  PROCUREMENT_MANAGER
-  PURCHASE_OFFICER
-  GOODS_RECEIVING_OFFICER
-  STORE_MANAGER
-  AUDITOR
-}
-
-enum StockStatus {
-  HEALTHY
-  LOW_STOCK
-  OUT_OF_STOCK
-}
-
-enum PoStatus {
-  DRAFT
-  SUBMITTED
-  PENDING_APPROVAL
-  APPROVED
-  SENT
-  SUPPLIER_CONFIRMED
-  AWAITING_DELIVERY
-  GRN_CREATED
-  RECEIVING
-  RECEIVED
-  CLOSED
-  CANCELLED
-  REJECTED
-  PARTIALLY_DELIVERED
-  EXPIRED
-}
-
-enum SupplierPriceStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum GrnStatus {
-  PENDING_RECEIPT
-  COMPLETED
-  CANCELLED
-}
-
-enum BranchStoreRequestStatus {
-  PENDING
-  APPROVED
-  TRANSFER_CREATED
-  DISPATCHED
-  COMPLETED
-  REJECTED
-  FULFILLED
-}
-
-enum KitchenRequestStatus {
-  PENDING
-  APPROVED
-  TRANSFERRED
-  COMPLETED
-  REJECTED
-  FULFILLED
-}
-
-enum RequestSource {
-  MANUAL
-  AUTO
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  COMPLETED
-  REJECTED
-}
-
-enum WarehouseTransferStatus {
-  PENDING
-  APPROVED
-  IN_TRANSIT
-  COMPLETED
-  REJECTED
-}
-
-enum LedgerRefType {
-  PURCHASE
-  GOODS_RECEIPT
-  TRANSFER
-  RECIPE_CONSUMPTION
-  MATERIAL_RETURN
-  WASTE
-  ADJUSTMENT
-  OPENING_STOCK
-}
-
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  role      RoleType @default(STORE_MANAGER)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  createdPos              PurchaseOrder[]       @relation("PoCreator")
-  approvedPos             PurchaseOrder[]       @relation("PoApprover")
-  grns                    GoodsReceiptNote[]
-  grnApprovals            GoodsReceiptNote[]       @relation("GrnApprover")
-  transfersReq            KitchenTransfer[]     @relation("TransferRequester")
-  transfersApp            KitchenTransfer[]     @relation("TransferApprover")
-  kitchenRequestsReq      KitchenRequest[]      @relation("KitchenReqRequester")
-  kitchenRequestsApp      KitchenRequest[]      @relation("KitchenReqApprover")
-  branchStoreRequestsReq  BranchStoreRequest[]  @relation("BranchStoreReqRequester")
-  branchStoreRequestsFul  BranchStoreRequest[]  @relation("BranchStoreReqFulfiller")
-  warehouseTransfersReq   WarehouseTransfer[]   @relation("WhTransferRequester")
-  warehouseTransfersApp   WarehouseTransfer[]   @relation("WhTransferApprover")
-  wasteLogs               WasteLog[]
-  ledgerEntries           StockLedger[]
+  id                        Int                    @id @default(autoincrement())
+  name                      String?
+  email                     String?                @unique
+  phone                     String?                @unique
+  password                  String
+  isActive                  Boolean                @default(true) @map("is_active")
+  createdAt                 DateTime               @default(now()) @map("created_at")
+  updatedAt                 DateTime               @updatedAt @map("updated_at")
+  failed_login_attempts     Int                    @default(0)
+  last_login_at             DateTime?
+  lock_until                DateTime?
+  refresh_token             String?
+  refresh_token_expires_at  DateTime?
+  reset_password_token      String?
+  reset_password_expires_at DateTime?
+  profile_image_url         String?
+  permissions               Json?
+  profile_image_public_id   String?
+  restaurant_id             Int?
+  cart_items                cart_items[]
+  coupon_usages             coupon_usages[]
+  delivery_agents           delivery_agents?
+  device_tokens             device_tokens[]
+  favorite_menu_items       favorite_menu_items[]
+  loyalty_transactions      loyalty_transactions[]
+  memberships               memberships[]
+  notifications             notifications[]
+  orders                    orders[]
+  payments                  payments[]
+  social_accounts           social_accounts[]
+  user_addresses            user_addresses[]
+  user_role                 user_role?
+  restaurants               restaurants?           @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
 
   @@map("users")
 }
 
 model Category {
-  id        Int          @id @default(autoincrement())
-  name      String       @unique
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-  items     Ingredient[]
+  id            Int          @id @default(autoincrement())
+  restaurant_id Int
+  name          String
+  description   String?
+  restaurants   restaurants  @relation(fields: [restaurant_id], references: [id])
+  menu_items    menu_items[]
 
   @@map("categories")
 }
 
-model Brand {
-  id        Int          @id @default(autoincrement())
-  name      String       @unique
-  isActive  Boolean      @default(true) @map("is_active")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-  items     Ingredient[]
+model addon_groups {
+  id             Int             @id @default(autoincrement())
+  menu_item_id   Int
+  restaurant_id  Int
+  name           String
+  selection_type String          @default("MULTI")
+  is_required    Boolean         @default(false)
+  min_select     Int?
+  max_select     Int?
+  sort_order     Int             @default(0)
+  is_active      Boolean         @default(true)
+  menu_items     menu_items      @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+  restaurants    restaurants     @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  addon_options  addon_options[]
 
-  @@map("brands")
+  @@index([menu_item_id])
+  @@index([restaurant_id])
 }
 
-model Tax {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  rate      Float
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  items     Ingredient[]
+model addon_options {
+  id                Int                 @id @default(autoincrement())
+  group_id          Int
+  name              String
+  price             Float
+  is_available      Boolean             @default(true)
+  sort_order        Int                 @default(0)
+  addon_groups      addon_groups        @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  order_item_addons order_item_addons[]
 
-  @@map("taxes")
+  @@index([group_id])
 }
 
-model Ingredient {
-  id           Int         @id @default(autoincrement())
-  sku          String      @unique
-  name         String
-  categoryId   Int         @map("category_id")
-  brandId      Int?        @map("brand_id")
-  taxId        Int?        @map("tax_id")
-  unit         String      @default("KG")
-  minimumStock Float       @default(0) @map("minimum_stock")
-  maximumStock Float       @default(100) @map("maximum_stock")
-  reorderLevel Float       @default(10) @map("reorder_level")
-  status       StockStatus @default(HEALTHY)
-  isActive     Boolean     @default(true) @map("is_active")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+model cart_items {
+  id                 Int                 @id @default(autoincrement())
+  user_id            Int
+  menu_item_id       Int
+  variant_id         Int?
+  quantity           Int
+  price              Float
+  created_at         DateTime            @default(now())
+  updated_at         DateTime
+  addons             Json?
+  restaurant_id      Int?
+  menu_items         menu_items          @relation(fields: [menu_item_id], references: [id])
+  restaurants        restaurants?        @relation(fields: [restaurant_id], references: [id])
+  users              User                @relation(fields: [user_id], references: [id])
+  menu_item_variants menu_item_variants? @relation(fields: [variant_id], references: [id])
 
-  category Category @relation(fields: [categoryId], references: [id])
-  brand    Brand?   @relation(fields: [brandId], references: [id])
-  tax      Tax?     @relation(fields: [taxId], references: [id])
-
-  supplierPrices            SupplierIngredientPrice[]
-  poItems                   PurchaseOrderItem[]
-  grnItems                  GoodsReceiptNoteItem[]
-  warehouseStock            WarehouseInventory[]
-  storeStock                StoreInventory[]
-  kitchenStock              KitchenInventory[]
-  kitchenTransferItems      KitchenTransferItem[]
-  kitchenRequestItems       KitchenRequestItem[]
-  branchStoreRequestItems   BranchStoreRequestItem[]
-  warehouseTransferItems    WarehouseTransferItem[]
-  recipeIngredients         RecipeIngredient[]
-  wasteLogs                 WasteLog[]
-  ledgerEntries             StockLedger[]
-  returns                   MaterialReturn[]
-
-  @@map("ingredients")
+  @@unique([user_id, menu_item_id, variant_id])
 }
 
-model Supplier {
-  id            Int      @id @default(autoincrement())
-  supplierCode  String   @unique @map("supplier_code")
-  companyName   String   @map("company_name")
-  contactPerson String   @map("contact_person")
-  mobile        String
-  email         String
-  gstNumber     String?  @map("gst_number")
-  address       String
-  paymentTerms  String   @map("payment_terms")
-  creditLimit   Float    @default(0) @map("credit_limit")
-  poPrefix      String?  @map("po_prefix")
-  leadTime      Int?     @map("lead_time")
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  ingredientPrices SupplierIngredientPrice[]
-  purchaseOrders   PurchaseOrder[]
-
-  @@map("suppliers")
-}
-
-model SupplierIngredientPrice {
-  id           Int                  @id @default(autoincrement())
-  supplierId   Int                  @map("supplier_id")
-  ingredientId Int                  @map("ingredient_id")
-  price        Float
-  effectiveDate DateTime?           @map("effective_date")
-  status       SupplierPriceStatus  @default(ACTIVE)
-  createdAt    DateTime             @default(now()) @map("created_at")
-  updatedAt    DateTime             @updatedAt @map("updated_at")
-
-  supplier   Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-
-  @@unique([supplierId, ingredientId])
-  @@map("supplier_ingredient_prices")
-}
-
-model PurchaseOrder {
-  id                   Int      @id @default(autoincrement())
-  poNumber             String   @unique @map("po_number")
-  supplierId           Int      @map("supplier_id")
-  status               PoStatus @default(DRAFT)
-  poDate               DateTime @default(now()) @map("po_date")
-  validUntil           DateTime? @map("valid_until")
-  purpose              String?  @default("REPLENISHMENT")
-  priority             String?  @default("MEDIUM")
-  expiredAt            DateTime? @map("expired_at")
-  totalAmount          Float    @default(0) @map("total_amount")
-  notes                String?
-  orderDate            DateTime @default(now()) @map("order_date")
-  expectedDeliveryDate DateTime? @map("expected_delivery_date")
-  paymentTerms         String?  @map("payment_terms")
-  submittedAt          DateTime? @map("submitted_at")
-  approvedAt           DateTime? @map("approved_at")
-  sentAt               DateTime? @map("sent_at")
-  confirmedAt          DateTime? @map("confirmed_at")
-  supplierDeclinedAt   DateTime? @map("supplier_declined_at")
-  createdById          Int      @map("created_by_id")
-  approvedById         Int?     @map("approved_by_id")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
-
-  supplier   Supplier  @relation(fields: [supplierId], references: [id])
-  createdBy  User      @relation("PoCreator", fields: [createdById], references: [id])
-  approvedBy User?     @relation("PoApprover", fields: [approvedById], references: [id])
-  items      PurchaseOrderItem[]
-  grns       GoodsReceiptNote[]
-
-  @@map("purchase_orders")
-}
-
-model PurchaseOrderItem {
+model coupon_usages {
   id              Int      @id @default(autoincrement())
-  purchaseOrderId Int      @map("purchase_order_id")
-  ingredientId    Int      @map("ingredient_id")
-  quantity        Float
-  unitPrice       Float    @map("unit_price")
-  totalPrice      Float    @map("total_price")
+  coupon_id       Int
+  user_id         Int
+  order_id        Int
+  discount_amount Float    @default(0)
+  created_at      DateTime @default(now())
+  coupons         coupons  @relation(fields: [coupon_id], references: [id])
+  orders          orders   @relation(fields: [order_id], references: [id])
+  users           User     @relation(fields: [user_id], references: [id])
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  ingredient    Ingredient    @relation(fields: [ingredientId], references: [id])
-
-  @@map("purchase_order_items")
+  @@unique([coupon_id, order_id])
+  @@index([coupon_id])
+  @@index([user_id])
 }
 
-model GoodsReceiptNote {
-  id              Int       @id @default(autoincrement())
-  grnNumber       String    @unique @map("grn_number")
-  purchaseOrderId Int       @map("purchase_order_id")
-  receivedById    Int       @map("received_by_id")
-  status          GrnStatus @default(PENDING_RECEIPT)
-  invoiceNumber   String?   @map("invoice_number")
-  invoiceGeneratedAt DateTime? @map("invoice_generated_at")
-  approvedAt      DateTime? @map("approved_at")
-  approvedById    Int?      @map("approved_by_id")
-  deliveryChallan String?   @map("delivery_challan")
-  vehicleNumber   String?   @map("vehicle_number")
-  receivedDate    DateTime  @default(now()) @map("received_date")
-  notes           String?
-  createdAt       DateTime  @default(now()) @map("created_at")
+model coupons {
+  id                   Int             @id @default(autoincrement())
+  code                 String          @unique(map: "coupons_global_code_key", where: raw("(restaurant_id IS NULL)"))
+  discount_type        String
+  discount_value       Float
+  min_order_amount     Float?
+  expiry_date          DateTime?
+  updated_at           DateTime
+  restaurant_id        Int?
+  description          String?
+  max_discount_amount  Float?
+  starts_at            DateTime?
+  usage_limit_total    Int?
+  usage_limit_per_user Int?
+  is_active            Boolean         @default(true)
+  created_at           DateTime        @default(now())
+  coupon_usages        coupon_usages[]
+  restaurants          restaurants?    @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  receivedBy    User          @relation(fields: [receivedById], references: [id])
-  approvedBy    User?         @relation("GrnApprover", fields: [approvedById], references: [id])
-  items         GoodsReceiptNoteItem[]
-
-  @@map("goods_receipt_notes")
+  @@unique([code, restaurant_id], map: "coupons_restaurant_code_key", where: raw("(restaurant_id IS NOT NULL)"))
+  @@index([code, restaurant_id])
+  @@index([is_active])
+  @@index([restaurant_id])
 }
 
-model GoodsReceiptNoteItem {
-  id                 Int     @id @default(autoincrement())
-  goodsReceiptNoteId Int     @map("goods_receipt_note_id")
-  ingredientId       Int     @map("ingredient_id")
-  quantityReceived   Float   @map("quantity_received")
-  quantityRejected   Float   @default(0) @map("quantity_rejected")
-  acceptedQuantity   Float   @default(0) @map("accepted_quantity")
-  damagedQuantity    Float   @default(0) @map("damaged_quantity")
-  rejectionReason   String? @map("rejection_reason")
-  damageReason      String? @map("damage_reason")
-  remarks            String?
-
-  goodsReceiptNote GoodsReceiptNote @relation(fields: [goodsReceiptNoteId], references: [id], onDelete: Cascade)
-  ingredient       Ingredient       @relation(fields: [ingredientId], references: [id])
-
-  @@map("goods_receipt_note_items")
+model deliveries {
+  id                Int                 @id @default(autoincrement())
+  order_id          Int                 @unique
+  agent_id          Int?
+  status            String
+  delivery_agents   delivery_agents?    @relation(fields: [agent_id], references: [id])
+  orders            orders              @relation(fields: [order_id], references: [id])
+  delivery_tracking delivery_tracking[]
 }
 
-model Warehouse {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  location  String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model delivery_agents {
+  id                Int          @id @default(autoincrement())
+  name              String
+  phone             String
+  is_available      Boolean      @default(true)
+  user_id           Int?         @unique
+  is_verified       Boolean      @default(false)
+  address           String?
+  date_of_birth     DateTime?    @db.Date
+  gender            String?
+  emergency_contact String?
+  vehicle_type      String?
+  vehicle_number    String?
+  vehicle_brand     String?
+  vehicle_color     String?
+  deliveries        deliveries[]
+  users             User?        @relation(fields: [user_id], references: [id])
 
-  stock                 WarehouseInventory[]
-  returns               MaterialReturn[]
-  warehouseTransfers    WarehouseTransfer[]
-
-  @@map("warehouses")
+  @@index([phone])
 }
 
-model WarehouseInventory {
-  id                Int      @id @default(autoincrement())
-  warehouseId       Int      @map("warehouse_id")
-  ingredientId      Int      @map("ingredient_id")
-  availableQuantity Float    @default(0) @map("available_quantity")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-
-  warehouse  Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-
-  @@unique([warehouseId, ingredientId])
-  @@map("warehouse_inventories")
+model delivery_tracking {
+  id          Int        @id @default(autoincrement())
+  delivery_id Int
+  latitude    Float
+  longitude   Float
+  speed       Float?
+  heading     Float?
+  recorded_at DateTime   @default(now())
+  deliveries  deliveries @relation(fields: [delivery_id], references: [id])
 }
 
-model StoreInventory {
-  id                Int         @id @default(autoincrement())
-  restaurantId      Int         @map("restaurant_id")
-  ingredientId      Int         @map("ingredient_id")
-  availableQuantity Float       @default(0) @map("available_quantity")
-  reservedQuantity  Float       @default(0) @map("reserved_quantity")
-  minimumStock      Float       @default(0) @map("minimum_stock")
-  maximumStock      Float       @default(100) @map("maximum_stock")
-  reorderLevel      Float       @default(10) @map("reorder_level")
-  status            StockStatus @default(HEALTHY)
-  updatedAt         DateTime    @updatedAt @map("updated_at")
-
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-
-  @@unique([restaurantId, ingredientId])
-  @@map("store_inventories")
+model delivery_zones {
+  id                   Int                     @id @default(autoincrement())
+  restaurant_id        Int
+  polygon              Unsupported("geometry")
+  minimum_order_amount Float                   @default(0)
+  delivery_fee         Float                   @default(0)
+  created_at           DateTime                @default(now())
+  updated_at           DateTime
+  restaurants          restaurants             @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
 }
 
-model KitchenInventory {
-  id                Int         @id @default(autoincrement())
-  restaurantId      Int         @map("restaurant_id")
-  ingredientId      Int         @map("ingredient_id")
-  availableQuantity Float       @default(0) @map("available_quantity")
-  minimumStock      Float       @default(0) @map("minimum_stock")
-  status            StockStatus @default(HEALTHY)
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+model device_tokens {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  token        String   @unique
+  platform     String?
+  last_seen_at DateTime @default(now())
+  created_at   DateTime @default(now())
+  updated_at   DateTime
+  users        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
-
-  @@unique([restaurantId, ingredientId])
-  @@map("kitchen_inventories")
+  @@index([user_id])
 }
 
-model KitchenTransfer {
-  id                Int            @id @default(autoincrement())
-  transferNumber    String         @unique @map("transfer_number")
-  restaurantId      Int            @map("restaurant_id")
-  status            TransferStatus @default(PENDING)
-  requestedById     Int            @map("requested_by_id")
-  approvedById      Int?           @map("approved_by_id")
-  notes             String?
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
-
-  requestedBy User                @relation("TransferRequester", fields: [requestedById], references: [id])
-  approvedBy  User?               @relation("TransferApprover", fields: [approvedById], references: [id])
-  items       KitchenTransferItem[]
-
-  @@map("kitchen_transfers")
-}
-
-model KitchenTransferItem {
-  id           Int             @id @default(autoincrement())
-  transferId   Int             @map("transfer_id")
-  ingredientId Int             @map("ingredient_id")
-  quantity     Float
-  transfer     KitchenTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  ingredient   Ingredient      @relation(fields: [ingredientId], references: [id])
-
-  @@map("kitchen_transfer_items")
-}
-
-model KitchenRequest {
-  id            Int                  @id @default(autoincrement())
-  requestNumber String               @unique @map("request_number")
-  restaurantId  Int                  @map("restaurant_id")
-  status        KitchenRequestStatus @default(PENDING)
-  requestSource RequestSource        @default(MANUAL) @map("request_source")
-  requestedById Int                  @map("requested_by_id")
-  approvedById  Int?                 @map("approved_by_id")
-  notes         String?
-  createdAt     DateTime             @default(now()) @map("created_at")
-  updatedAt     DateTime             @updatedAt @map("updated_at")
-
-  requestedBy User                @relation("KitchenReqRequester", fields: [requestedById], references: [id])
-  approvedBy  User?               @relation("KitchenReqApprover", fields: [approvedById], references: [id])
-  items       KitchenRequestItem[]
-
-  @@map("kitchen_requests")
-}
-
-model KitchenRequestItem {
-  id           Int              @id @default(autoincrement())
-  requestId    Int              @map("request_id")
-  ingredientId Int              @map("ingredient_id")
-  quantity     Float
-  request      KitchenRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  ingredient   Ingredient       @relation(fields: [ingredientId], references: [id])
-
-  @@map("kitchen_request_items")
-}
-
-model WarehouseTransfer {
-  id             Int                     @id @default(autoincrement())
-  transferNumber String                  @unique @map("transfer_number")
-  warehouseId    Int                     @map("warehouse_id")
-  restaurantId   Int                     @map("restaurant_id")
-  status         WarehouseTransferStatus @default(PENDING)
-  requestedById  Int                     @map("requested_by_id")
-  approvedById   Int?                    @map("approved_by_id")
-  dispatchedById Int?                    @map("dispatched_by_id")
-  dispatchedAt   DateTime?               @map("dispatched_at")
-  receivedAt     DateTime?               @map("received_at")
-  notes          String?
-  createdAt      DateTime                @default(now()) @map("created_at")
-  updatedAt      DateTime                @updatedAt @map("updated_at")
-
-  warehouse   Warehouse              @relation(fields: [warehouseId], references: [id])
-  requestedBy User                   @relation("WhTransferRequester", fields: [requestedById], references: [id])
-  approvedBy  User?                  @relation("WhTransferApprover", fields: [approvedById], references: [id])
-  items       WarehouseTransferItem[]
-
-  @@map("warehouse_transfers")
-}
-
-model WarehouseTransferItem {
-  id           Int                @id @default(autoincrement())
-  transferId   Int                @map("transfer_id")
-  ingredientId Int                @map("ingredient_id")
-  quantity     Float
-  transfer     WarehouseTransfer  @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  ingredient   Ingredient         @relation(fields: [ingredientId], references: [id])
-
-  @@map("warehouse_transfer_items")
-}
-
-model Recipe {
-  id            Int      @id @default(autoincrement())
-  restaurantId  Int      @map("restaurant_id")
-  categoryId    Int?     @map("category_id")
-  menuItemId    Int      @map("menu_item_id")
-  menuItemName  String   @map("menu_item_name")
-  yieldQuantity Float    @default(1) @map("yield_quantity")
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  ingredients RecipeIngredient[]
-
-  @@unique([restaurantId, menuItemId])
-  @@index([restaurantId])
-  @@map("recipes")
-}
-
-model RecipeIngredient {
+model favorite_menu_items {
   id           Int        @id @default(autoincrement())
-  recipeId     Int        @map("recipe_id")
-  ingredientId Int        @map("ingredient_id")
-  quantity     Float
-  wastagePct   Float      @default(0) @map("wastage_pct")
-  unit         String
+  user_id      Int
+  menu_item_id Int
+  created_at   DateTime   @default(now())
+  menu_items   menu_items @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+  users        User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
-
-  @@map("recipe_ingredients")
+  @@unique([user_id, menu_item_id])
+  @@index([menu_item_id])
+  @@index([user_id])
 }
 
-model BranchStoreRequest {
-  id              Int                       @id @default(autoincrement())
-  requestNumber   String                    @unique @map("request_number")
-  restaurantId    Int                       @map("restaurant_id")
-  status          BranchStoreRequestStatus  @default(PENDING)
-  isAutoGenerated Boolean                   @default(false) @map("is_auto_generated")
-  requestedById   Int                       @map("requested_by_id")
-  fulfilledById   Int?                      @map("fulfilled_by_id")
-  approvedAt      DateTime?                 @map("approved_at")
-  completedAt     DateTime?                 @map("completed_at")
-  notes           String?
-  createdAt       DateTime                  @default(now()) @map("created_at")
-  updatedAt       DateTime                  @updatedAt @map("updated_at")
+model invoices {
+  id             Int       @id @default(autoincrement())
+  order_id       Int       @unique
+  invoice_number String    @unique
+  status         String    @default("LOCKED")
+  issued_at      DateTime?
+  paid_at        DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime
+  orders         orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
-  requestedBy User                       @relation("BranchStoreReqRequester", fields: [requestedById], references: [id])
-  fulfilledBy User?                      @relation("BranchStoreReqFulfiller", fields: [fulfilledById], references: [id])
-  items       BranchStoreRequestItem[]
-
-  @@map("branch_store_requests")
+  @@index([status])
 }
 
-model BranchStoreRequestItem {
-  id            Int                  @id @default(autoincrement())
-  requestId     Int                  @map("request_id")
-  ingredientId  Int                  @map("ingredient_id")
-  quantity      Float
-  request       BranchStoreRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  ingredient    Ingredient           @relation(fields: [ingredientId], references: [id])
-
-  @@map("branch_store_request_items")
+model loyalty_transactions {
+  id       Int    @id @default(autoincrement())
+  user_id  Int
+  points   Int
+  type     String
+  order_id Int?
+  users    User   @relation(fields: [user_id], references: [id])
 }
 
-model MaterialReturn {
-  id           Int      @id @default(autoincrement())
-  returnNumber String   @unique @map("return_number")
-  fromType     String   @map("from_type")
-  toType       String   @map("to_type")
-  restaurantId Int      @map("restaurant_id")
-  warehouseId  Int?     @map("warehouse_id")
-  ingredientId Int      @map("ingredient_id")
-  quantity     Float
-  reason       String
-  isApproved   Boolean  @default(false) @map("is_approved")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  warehouse  Warehouse? @relation(fields: [warehouseId], references: [id])
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
-
-  @@map("material_returns")
+model membership_tiers {
+  id          Int           @id @default(autoincrement())
+  name        String
+  features    String?
+  memberships memberships[]
 }
 
-model WasteLog {
-  id           Int      @id @default(autoincrement())
-  restaurantId Int      @map("restaurant_id")
-  ingredientId Int      @map("ingredient_id")
-  quantity     Float
-  wasteType    String   @map("waste_type")
-  notes        String?
-  loggedById   Int      @map("logged_by_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
-  loggedBy   User       @relation(fields: [loggedById], references: [id])
-
-  @@map("waste_logs")
+model memberships {
+  id               Int              @id @default(autoincrement())
+  user_id          Int
+  tier_id          Int
+  points           Int              @default(0)
+  membership_tiers membership_tiers @relation(fields: [tier_id], references: [id])
+  users            User             @relation(fields: [user_id], references: [id])
 }
 
-model StockLedger {
-  id             Int           @id @default(autoincrement())
-  ingredientId   Int           @map("ingredient_id")
-  locationType   String        @map("location_type")
-  locationId     Int           @map("location_id")
-  refType        LedgerRefType @map("ref_type")
-  referenceId    String        @map("reference_id")
-  quantity       Float
-  beforeQuantity Float         @map("before_quantity")
-  afterQuantity  Float         @map("after_quantity")
-  unit           String
-  userId         Int?          @map("user_id")
-  timestamp      DateTime      @default(now())
-
-  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
-  user       User?      @relation(fields: [userId], references: [id])
-
-  @@map("stock_ledgers")
+model menu_item_variants {
+  id           Int           @id @default(autoincrement())
+  menu_item_id Int
+  name         String
+  price        Float
+  cart_items   cart_items[]
+  menu_items   menu_items    @relation(fields: [menu_item_id], references: [id])
+  order_items  order_items[]
 }
 
-model Permission {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  module    String
-  action    String
-  label     String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  roles RolePermission[]
-
-  @@map("permissions")
+model menu_items {
+  id                   Int                   @id @default(autoincrement())
+  restaurant_id        Int
+  category_id          Int
+  name                 String
+  description          String?
+  price                Float
+  is_available         Boolean               @default(true)
+  preparation_time     Int?
+  discount_price       Float?
+  image_url            String?
+  food_type            String                @default("VEG")
+  spicy_level          Int?
+  ingredients          String?
+  is_best_selling      Boolean               @default(false)
+  popularity_score     Int                   @default(0)
+  rating               Float?
+  customizable_options Json?
+  image_public_id      String?
+  addon_groups         addon_groups[]
+  cart_items           cart_items[]
+  favorite_menu_items  favorite_menu_items[]
+  menu_item_variants   menu_item_variants[]
+  categories           Category              @relation(fields: [category_id], references: [id])
+  restaurants          restaurants           @relation(fields: [restaurant_id], references: [id])
+  order_items          order_items[]
 }
 
-model RolePermission {
-  id           Int      @id @default(autoincrement())
-  role         RoleType
-  permissionId Int      @map("permission_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+model notifications {
+  id      Int     @id @default(autoincrement())
+  user_id Int
+  title   String
+  message String
+  is_read Boolean @default(false)
+  users   User    @relation(fields: [user_id], references: [id])
+}
 
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+model order_item_addons {
+  id                 Int            @id @default(autoincrement())
+  order_item_id      Int
+  addon_group_id     Int?
+  addon_option_id    Int?
+  addon_group_name   String
+  addon_option_name  String
+  addon_option_price Float
+  quantity           Int            @default(1)
+  addon_options      addon_options? @relation(fields: [addon_option_id], references: [id])
+  order_items        order_items    @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
 
-  @@unique([role, permissionId])
-  @@map("role_permissions")
+  @@index([addon_option_id])
+  @@index([order_item_id])
+}
+
+model order_items {
+  id                 Int                 @id @default(autoincrement())
+  order_id           Int
+  menu_item_id       Int
+  variant_id         Int?
+  quantity           Int
+  price              Float
+  total_price        Float
+  order_item_addons  order_item_addons[]
+  menu_items         menu_items          @relation(fields: [menu_item_id], references: [id])
+  orders             orders              @relation(fields: [order_id], references: [id])
+  menu_item_variants menu_item_variants? @relation(fields: [variant_id], references: [id])
+
+  @@index([menu_item_id])
+  @@index([order_id, menu_item_id])
+}
+
+model order_status_logs {
+  id                 Int      @id @default(autoincrement())
+  order_id           Int
+  status             String
+  changed_at         DateTime @default(now())
+  note               String?
+  changed_by_user_id Int?
+  orders             orders   @relation(fields: [order_id], references: [id])
+}
+
+model orders {
+  id                     Int                 @id @default(autoincrement())
+  user_id                Int?
+  restaurant_id          Int
+  table_id               Int?
+  address_id             Int?
+  order_number           String              @unique
+  status                 String
+  order_type             String
+  total_amount           Float
+  discount_amount        Float?
+  final_amount           Float
+  payment_status         String
+  created_at             DateTime            @default(now())
+  payment_method         String?
+  razorpay_order_id      String?
+  razorpay_payment_id    String?
+  razorpay_signature     String?
+  payment_failure_reason String?
+  payment_retry_count    Int                 @default(0)
+  razorpay_details       Json?
+  accepted_at            DateTime?
+  prepared_at            DateTime?
+  delivered_at           DateTime?
+  source                 OrderSource         @default(WEBSITE)
+  subtotal_amount        Float               @default(0)
+  menu_discount_amount   Float               @default(0)
+  coupon_discount_amount Float               @default(0)
+  manual_discount_amount Float               @default(0)
+  taxable_amount         Float               @default(0)
+  gst_rate               Float               @default(0)
+  cgst_amount            Float               @default(0)
+  sgst_amount            Float               @default(0)
+  igst_amount            Float               @default(0)
+  tax_amount             Float               @default(0)
+  delivery_charge        Float               @default(0)
+  packaging_charge       Float               @default(0)
+  delivery_distance_km   Float?
+  tip_amount             Float               @default(0)
+  cancelled_at           DateTime?
+  cancellation_reason    String?
+  cancelled_by_user_id   Int?
+  session_id             Int?
+  customer_phone         String?
+  kitchen_note           String?
+  coupon_usages          coupon_usages[]
+  deliveries             deliveries?
+  invoices               invoices?
+  order_items            order_items[]
+  order_status_logs      order_status_logs[]
+  user_addresses         user_addresses?     @relation(fields: [address_id], references: [id])
+  restaurants            restaurants         @relation(fields: [restaurant_id], references: [id])
+  table_sessions         table_sessions?     @relation(fields: [session_id], references: [id])
+  restaurant_tables      restaurant_tables?  @relation(fields: [table_id], references: [id])
+  users                  User?               @relation(fields: [user_id], references: [id])
+  payments               payments[]
+
+  @@index([restaurant_id, created_at])
+  @@index([user_id, restaurant_id, created_at])
+}
+
+model payments {
+  id             Int     @id @default(autoincrement())
+  order_id       Int
+  user_id        Int?
+  transaction_id String?
+  amount         Float
+  status         String
+  method         String
+  orders         orders  @relation(fields: [order_id], references: [id])
+  users          User?   @relation(fields: [user_id], references: [id])
+}
+
+model restaurant_tables {
+  id             Int              @id @default(autoincrement())
+  restaurant_id  Int
+  table_number   String
+  qr_code        String?
+  status         String?
+  capacity       Int              @default(4)
+  table_token    String?          @unique
+  qr_code_url    String?
+  is_active      Boolean          @default(true)
+  created_at     DateTime         @default(now())
+  updated_at     DateTime
+  orders         orders[]
+  restaurants    restaurants      @relation(fields: [restaurant_id], references: [id])
+  table_sessions table_sessions[]
+
+  @@unique([restaurant_id, table_number])
+}
+
+model restaurants {
+  id                        Int                       @id @default(autoincrement())
+  name                      String
+  address                   String
+  city                      String?
+  latitude                  Float
+  longitude                 Float
+  is_active                 Boolean                   @default(true)
+  delivery_radius_km        Float                     @default(8)
+  is_location_enabled       Boolean                   @default(true)
+  location                  Unsupported("geography")?
+  cuisine_type              String?
+  description               String?
+  image_url                 String?
+  created_at                DateTime                  @default(now())
+  updated_at                DateTime
+  gstin                     String?
+  gst_rate                  Float                     @default(5)
+  gst_enabled               Boolean                   @default(true)
+  gst_mode                  String                    @default("EXCLUSIVE")
+  delivery_enabled          Boolean                   @default(true)
+  delivery_base_fee         Float                     @default(20)
+  delivery_base_distance_km Float                     @default(1)
+  delivery_per_km_fee       Float                     @default(7)
+  delivery_fee_min          Float?
+  delivery_fee_cap          Float?
+  free_delivery_min_amount  Float?
+  packaging_charge          Float                     @default(0)
+  image_public_id           String?
+  slug                      String                    @unique
+  addon_groups              addon_groups[]
+  cart_items                cart_items[]
+  categories                Category[]
+  coupons                   coupons[]
+  delivery_zones            delivery_zones[]
+  menu_items                menu_items[]
+  orders                    orders[]
+  restaurant_tables         restaurant_tables[]
+  table_sessions            table_sessions[]
+  users                     User[]
+}
+
+model role_master {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique
+  user_role user_role[]
+}
+
+model social_accounts {
+  id               Int      @id @default(autoincrement())
+  user_id          Int
+  provider         String
+  provider_user_id String
+  email            String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime
+  users            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, provider_user_id])
+  @@index([user_id])
+}
+
+model table_sessions {
+  id                Int                @id @default(autoincrement())
+  restaurant_id     Int
+  table_id          Int
+  session_token     String             @unique
+  status            TableSessionStatus @default(ACTIVE)
+  started_at        DateTime           @default(now())
+  ended_at          DateTime?
+  created_at        DateTime           @default(now())
+  updated_at        DateTime
+  orders            orders[]
+  restaurants       restaurants        @relation(fields: [restaurant_id], references: [id])
+  restaurant_tables restaurant_tables  @relation(fields: [table_id], references: [id])
+
+  @@index([restaurant_id, status])
+  @@index([table_id, status])
+}
+
+model user_addresses {
+  id              Int      @id @default(autoincrement())
+  user_id         Int
+  address         String
+  city            String?
+  state           String?
+  latitude        Float
+  longitude       Float
+  is_default      Boolean  @default(false)
+  label           String   @default("Home")
+  building_floor  String?
+  nearby_landmark String?
+  orders          orders[]
+  users           User     @relation(fields: [user_id], references: [id])
+}
+
+model user_role {
+  id          Int         @id @default(autoincrement())
+  user_id     Int         @unique
+  role_id     Int
+  role_master role_master @relation(fields: [role_id], references: [id])
+  users       User        @relation(fields: [user_id], references: [id])
+}
+
+enum OrderSource {
+  WEBSITE
+  QR_DINE_IN
+  ADMIN
+  MOBILE_APP
+  POS
+}
+
+enum TableSessionStatus {
+  ACTIVE
+  CLOSED
 }
