@@ -704,7 +704,7 @@ export function CheckoutPage() {
               </strong>
             </div>
 
-            {/* Menu/item-level discount */}
+            {/* Menu/item-level discount
             {quote?.menuDiscountAmount ? (
               <div className="bill-row bill-row-discount">
                 <span>Item discount</span>
@@ -713,7 +713,7 @@ export function CheckoutPage() {
                   -{formatCurrency.format(quote.menuDiscountAmount)}
                 </strong>
               </div>
-            ) : null}
+            ) : null} */}
 
             {/* Coupon discount */}
             {quote?.couponDiscountAmount ? (

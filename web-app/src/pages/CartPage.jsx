@@ -385,7 +385,7 @@ export function CartPage() {
                         <span className="pill">{item.category?.name}</span>
                         <h3>{item.name}</h3>
                         <p className="line-item-meta">
-                          {formatCurrency.format(item.unitPrice)} per item
+                          {formatCurrency.format(item.basePrice ?? item.unitPrice)} per item
                         </p>
                         {(item.variant ||
                           (item.addOns && item.addOns.length > 0)) && (
