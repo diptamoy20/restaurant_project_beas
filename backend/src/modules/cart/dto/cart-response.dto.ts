@@ -52,6 +52,9 @@ class CartSummaryItemDto {
   @ApiProperty()
   unitPrice!: number;
 
+  @ApiProperty()
+  basePrice!: number;
+
   @ApiProperty({
     nullable: true,
   })

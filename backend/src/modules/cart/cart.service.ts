@@ -113,6 +113,7 @@ export class CartService {
       cartItems.map(async (item) => {
         const unitPrice = item.price;
         const totalPrice = unitPrice * item.quantity;
+        const basePrice = item.variant?.price ?? this.getMenuItemPrice(item.menuItem);
 
         return {
           cartItemId: item.id,
@@ -120,6 +121,7 @@ export class CartService {
           quantity: item.quantity,
           price: totalPrice,
           unitPrice: unitPrice,
+          basePrice: basePrice,
           restaurantId: item.restaurantId,
           restaurantName: item.restaurant?.name ?? null,
           discount: item.menuItem.discountPrice,
