@@ -24,7 +24,7 @@ import { ApiStandardErrorResponses } from '../../common/decorators/api-standard-
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/auth.types';
-
+import { PrepareBomDto } from './dto/prepare-bom.dto';
 @Controller('inventory')
 @Roles(Role.ADMIN, Role.MANAGER)
 @ApiTags('Inventory Management')
@@ -64,66 +64,23 @@ export class InventoryController {
     @Query('category') category?: string,
     @Query('status') status?: string,
   ) {
-    if (restaurantId) {
-      const data = await this.integrationService.getStoreInventory(Number(restaurantId));
-      return data
-        .filter((s: any) => {
-          const cat = s.ingredient?.category?.name || '';
-          if (category && cat !== category) return false;
-          if (status && s.status !== status) return false;
-          const itemName = s.ingredient?.name || '';
-          if (search && !itemName.toLowerCase().includes(search.toLowerCase())) return false;
-          return true;
-        })
-        .map((s: any) => ({
-          id: s.id,
-          itemId: s.ingredientId,
-          name: s.ingredient?.name || '',
-          sku: s.ingredient?.sku || '',
-          category: s.ingredient?.category?.name || '',
-          unit: s.ingredient?.unit || '',
-          availableQuantity: s.availableQuantity,
-          reservedQuantity: s.reservedQuantity,
-          minimumStock: s.minimumStock,
-          maximumStock: s.maximumStock,
-          reorderLevel: s.reorderLevel,
-          status: s.status,
-          updatedAt: s.updatedAt,
-        }));
-    }
     return this.inventoryService.listStoreInventory(
       restaurantId ? Number(restaurantId) : undefined,
       { search, category, status },
     );
   }
-
   @Get('kitchen')
-  @ApiOperation({ summary: 'List Kitchen Operational Inventory items and stock levels (from ERP)' })
+  @ApiOperation({ summary: 'List Kitchen Operational Inventory items and stock levels' })
   async listKitchenInventory(
     @Query('restaurantId') restaurantId?: number,
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
-    if (restaurantId) {
-      const data = await this.integrationService.getKitchenInventory(Number(restaurantId));
-      return data.map((k: any) => ({
-        id: k.id,
-        ingredientId: k.ingredientId,
-        name: k.ingredient?.name || '',
-        category: k.ingredient?.category?.name || '',
-        unit: k.ingredient?.unit || '',
-        availableQuantity: k.availableQuantity,
-        minimumStock: k.minimumStock,
-        status: k.status,
-        updatedAt: k.updatedAt,
-      }));
-    }
     return this.inventoryService.listKitchenInventory(
       restaurantId ? Number(restaurantId) : undefined,
       { search, status },
     );
   }
-
   @Post('items')
   @HttpCode(201)
   @ApiOperation({
@@ -153,6 +110,21 @@ export class InventoryController {
       dto,
     );
   }
+  @Post('recipes/preparation-plan')
+  @ApiOperation({
+    summary: 'Calculate BOM requirements for planned preparation',
+  })
+  async planPreparation(
+    @Body() dto: PrepareBomDto,
+    @Query('restaurantId', ParseIntPipe) restaurantId: number,
+    @Req() req: { user: AuthenticatedUser },
+  ) {
+    return this.inventoryService.planPreparation(
+      restaurantId,
+      req.user.id,
+      dto.items,
+    );
+  }
 
   @Get('transfers')
   @ApiOperation({ summary: 'List Kitchen Requests (from ERP — the single source of truth)' })
@@ -165,30 +137,36 @@ export class InventoryController {
 
   @Post('transfers')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Create Kitchen Request in ERP (kitchen → store)' })
+  @ApiOperation({ summary: 'Create Kitchen Transfer (Store → Kitchen)' })
   async createKitchenTransfer(
     @Body() dto: CreateKitchenTransferDto,
     @Req() req: { user: AuthenticatedUser },
   ) {
     const restaurantId = dto.restaurantId;
+
     if (!restaurantId) {
       throw new Error('restaurantId is required');
     }
-    return this.integrationService.createKitchenRequest(restaurantId, req.user.id, {
-      notes: dto.notes,
-      items: dto.items.map((i) => ({ ingredientId: i.itemId, quantity: i.quantity })),
-    });
+
+    return this.inventoryService.createKitchenTransfer(
+      restaurantId,
+      req.user.id,
+      dto,
+    );
   }
 
   @Post('transfers/:id/approve')
   @ApiOperation({
-    summary: 'Approve & Issue Kitchen Stock Transfer (deprecated — approval happens in ERP)',
+    summary: 'Approve & Issue Kitchen Stock Transfer (Store → Kitchen)',
   })
   async approveKitchenTransfer(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: { user: AuthenticatedUser },
   ) {
-    return this.integrationService.approveTransfer(id);
+    return this.inventoryService.approveKitchenTransfer(
+      id,
+      req.user.id,
+    );
   }
 
   @Get('consumption')

@@ -769,6 +769,91 @@ export class InventoryService {
   /**
    * List Consumption History Logs
    */
+  async planPreparation(
+  restaurantId: number,
+  requestedById: number,
+  items: Array<{ menuItemId: number; quantity: number }>,
+) {
+  const requirements = new Map<
+    number,
+    {
+      itemId: number;
+      name: string;
+      unit: string;
+      required: number;
+    }
+  >();
+
+  for (const plannedItem of items) {
+    const recipe = await this.prisma.recipe.findFirst({
+      where: {
+        restaurantId,
+        menuItemId: plannedItem.menuItemId,
+        isActive: true,
+      },
+      include: {
+        ingredients: {
+          include: {
+            item: true,
+          },
+        },
+      },
+    });
+
+    if (!recipe) {
+      throw new NotFoundException(
+        `No active recipe found for menu item ${plannedItem.menuItemId}`,
+      );
+    }
+
+    for (const ing of recipe.ingredients) {
+      const required =
+        (ing.quantity * plannedItem.quantity) /
+        (recipe.yieldQuantity || 1);
+
+      const existing = requirements.get(ing.itemId);
+
+      if (existing) {
+        existing.required += required;
+      } else {
+        requirements.set(ing.itemId, {
+          itemId: ing.itemId,
+          name: ing.item.name,
+          unit: ing.unit,
+          required,
+        });
+      }
+    }
+  }
+
+  const checks = [];
+
+  for (const requirement of requirements.values()) {
+    const kitchenStock = await this.prisma.kitchenInventory.findUnique({
+      where: {
+        itemId: requirement.itemId,
+      },
+    });
+
+    const current = kitchenStock?.availableQuantity ?? 0;
+    const shortage = Math.max(0, requirement.required - current);
+
+    checks.push({
+      itemId: requirement.itemId,
+      name: requirement.name,
+      unit: requirement.unit,
+      required: requirement.required,
+      current,
+      sufficient: shortage === 0,
+      shortage,
+    });
+  }
+
+  return {
+    available: checks.every((item) => item.sufficient),
+    checks,
+  };
+}
   async listConsumptionHistory(restaurantIdParam?: number) {
     const restaurantId = await this.getEffectiveRestaurantId(restaurantIdParam);
 
