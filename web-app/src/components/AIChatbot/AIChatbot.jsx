@@ -14,15 +14,34 @@ export function AIChatbot({ restaurantId }) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const [activeRestaurantId, setActiveRestaurantId] =
+    useState(
+      restaurantId
+        ? Number(restaurantId)
+        : null,
+    );
+
+  const [restaurantList, setRestaurantList] =
+    useState([]);
+
   const messagesEndRef = useRef(null);
 
   const [messages, setMessages] = useState([
     {
       id: 1,
       type: 'bot',
-      text: 'Hi! 👋 I’m Foodyply AI. What would you like to eat today?',
+      text:
+        'Hi! 👋 I’m Foodyply AI. What would you like to eat today?',
     },
   ]);
+
+  useEffect(() => {
+    if (restaurantId) {
+      setActiveRestaurantId(
+        Number(restaurantId),
+      );
+    }
+  }, [restaurantId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -30,21 +49,126 @@ export function AIChatbot({ restaurantId }) {
     });
   }, [messages, isLoading]);
 
-  const sendMessage = async (text = message) => {
-    const trimmedMessage = text.trim();
+  const selectRestaurantFromList = (
+    userInput,
+  ) => {
+    if (!restaurantList.length) {
+      return null;
+    }
 
-    if (!trimmedMessage || isLoading) return;
+    const trimmed =
+      userInput.trim();
 
-    console.log(
-      'Foodyply AI restaurantId:',
-      restaurantId,
+    const number =
+      Number(trimmed);
+
+    if (
+      Number.isInteger(number) &&
+      number >= 1 &&
+      number <= restaurantList.length
+    ) {
+      return restaurantList[number - 1];
+    }
+
+    const normalizedInput =
+      trimmed.toLowerCase();
+
+    const exactMatch =
+      restaurantList.find(
+        (restaurant) =>
+          restaurant.name
+            ?.toLowerCase()
+            .trim() ===
+          normalizedInput,
+      );
+
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    return restaurantList.find(
+      (restaurant) =>
+        restaurant.name
+          ?.toLowerCase()
+          .includes(
+            normalizedInput,
+          ),
     );
+  };
+
+  const addBotMessage = (text) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id:
+          Date.now() +
+          Math.random(),
+        type: 'bot',
+        text,
+      },
+    ]);
+  };
+
+  const sendMessage = async (
+    text = message,
+  ) => {
+    const trimmedMessage =
+      text.trim();
+
+    if (
+      !trimmedMessage ||
+      isLoading
+    ) {
+      return;
+    }
+
+    const selectedRestaurant =
+      selectRestaurantFromList(
+        trimmedMessage,
+      );
+
+    if (selectedRestaurant) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: 'user',
+          text: trimmedMessage,
+        },
+      ]);
+
+      setMessage('');
+
+      setActiveRestaurantId(
+        Number(
+          selectedRestaurant.id,
+        ),
+      );
+
+      setRestaurantList([]);
+
+      addBotMessage(
+        `Great! 🍽️ I've selected **${selectedRestaurant.name}**.\n\nYou can now ask me to show the menu, recommend something, find vegetarian dishes, or suggest food within a budget.`,
+      );
+
+      return;
+    }
 
     const userMessage = {
       id: Date.now(),
       type: 'user',
       text: trimmedMessage,
     };
+
+    const history = messages
+      .slice(-10)
+      .map((item) => ({
+        role:
+          item.type === 'user'
+            ? 'user'
+            : 'assistant',
+        content: item.text,
+      }));
 
     setMessages((prev) => [
       ...prev,
@@ -55,23 +179,35 @@ export function AIChatbot({ restaurantId }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        'http://localhost:7001/api/ai/chat',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: trimmedMessage,
-            restaurantId: restaurantId
-              ? Number(restaurantId)
-              : null,
-          }),
-        },
-      );
+      const response =
+        await fetch(
+          'http://localhost:7001/api/ai/chat',
+          {
+            method: 'POST',
 
-      const data = await response.json();
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+
+            body: JSON.stringify({
+              message:
+                trimmedMessage,
+
+              restaurantId:
+                activeRestaurantId
+                  ? Number(
+                      activeRestaurantId,
+                    )
+                  : null,
+
+              history,
+            }),
+          },
+        );
+
+      const data =
+        await response.json();
 
       console.log(
         'Foodyply AI API response:',
@@ -80,24 +216,48 @@ export function AIChatbot({ restaurantId }) {
 
       if (!response.ok) {
         throw new Error(
-          data.message || 'AI request failed',
+          data.message ||
+            'AI request failed',
         );
       }
 
-      const aiResponse =
-        data.data?.message ||
-        data.message ||
-        'Sorry, I could not generate a response.';
+      const responseData =
+        data?.data ?? data;
 
-      const botMessage = {
-        id: Date.now() + 1,
-        type: 'bot',
-        text: aiResponse,
-      };
+      if (
+        Array.isArray(
+          responseData.restaurants,
+        )
+      ) {
+        setRestaurantList(
+          responseData.restaurants,
+        );
+      }
+
+      if (
+        responseData.restaurant?.id
+      ) {
+        setActiveRestaurantId(
+          Number(
+            responseData
+              .restaurant.id,
+          ),
+        );
+
+        setRestaurantList([]);
+      }
+
+      const aiResponse =
+        responseData.message ||
+        'Sorry, I could not generate a response.';
 
       setMessages((prev) => [
         ...prev,
-        botMessage,
+        {
+          id: Date.now() + 1,
+          type: 'bot',
+          text: aiResponse,
+        },
       ]);
     } catch (error) {
       console.error(
@@ -129,7 +289,9 @@ export function AIChatbot({ restaurantId }) {
       {!isOpen && (
         <button
           className="ai-chatbot-button"
-          onClick={() => setIsOpen(true)}
+          onClick={() =>
+            setIsOpen(true)
+          }
           aria-label="Open Foodyply AI"
         >
           <span className="ai-chatbot-sparkle">
@@ -177,6 +339,7 @@ export function AIChatbot({ restaurantId }) {
 
                 <span>
                   <i />
+
                   {isLoading
                     ? 'Thinking...'
                     : 'Online'}
@@ -208,32 +371,44 @@ export function AIChatbot({ restaurantId }) {
                 {item.type === 'bot' ? (
                   <ReactMarkdown
                     components={{
-                      p: ({ children }) => (
+                      p: ({
+                        children,
+                      }) => (
                         <p className="ai-markdown-p">
                           {children}
                         </p>
                       ),
 
-                      strong: ({ children }) => (
+                      strong: ({
+                        children,
+                      }) => (
                         <strong className="ai-markdown-bold">
                           {children}
                         </strong>
                       ),
 
-                      ul: ({ children }) => (
+                      ul: ({
+                        children,
+                      }) => (
                         <ul className="ai-markdown-list">
                           {children}
                         </ul>
                       ),
 
-                      ol: ({ children }) => (
+                      ol: ({
+                        children,
+                      }) => (
                         <ol className="ai-markdown-list">
                           {children}
                         </ol>
                       ),
 
-                      li: ({ children }) => (
-                        <li>{children}</li>
+                      li: ({
+                        children,
+                      }) => (
+                        <li>
+                          {children}
+                        </li>
                       ),
                     }}
                   >
@@ -255,13 +430,16 @@ export function AIChatbot({ restaurantId }) {
               </div>
             )}
 
-            {messages.length === 1 &&
+            {messages.length ===
+              1 &&
               !isLoading && (
                 <div className="ai-chatbot-suggestions">
                   {suggestions.map(
                     (suggestion) => (
                       <button
-                        key={suggestion}
+                        key={
+                          suggestion
+                        }
                         onClick={() =>
                           sendMessage(
                             suggestion,
@@ -275,7 +453,11 @@ export function AIChatbot({ restaurantId }) {
                 </div>
               )}
 
-            <div ref={messagesEndRef} />
+            <div
+              ref={
+                messagesEndRef
+              }
+            />
           </div>
 
           <form
@@ -286,10 +468,14 @@ export function AIChatbot({ restaurantId }) {
               type="text"
               value={message}
               onChange={(e) =>
-                setMessage(e.target.value)
+                setMessage(
+                  e.target.value,
+                )
               }
               placeholder="Ask about food..."
-              disabled={isLoading}
+              disabled={
+                isLoading
+              }
             />
 
             <button
