@@ -7,6 +7,8 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { Loader } from '../components/ui/Loader';
 import { SelectField } from '../components/ui/SelectField';
 import { useGetDashboardOverviewQuery } from '../services/analyticsApi';
+import { usePrepareBomMutation } from '../services/inventoryApi';
+import { useGetAdminRestaurantMenuQuery } from '../services/menuApi';
 
 const rangeOptions = [
   { value: 'today', label: 'Today' },
@@ -182,19 +184,63 @@ function SplitList({ data, labelKey, valueKey, valueFormatter = formatNumber, em
 
 export function DashboardPage() {
   const [filters, setFilters] = useState({
-    restaurantId: '',
-    range: 'today',
-  });
-  const queryParams = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(filters).filter(
-          ([, value]) => value !== '' && value !== null && value !== undefined,
-        ),
+  restaurantId: '',
+  range: 'today',
+});
+
+const queryParams = useMemo(
+  () =>
+    Object.fromEntries(
+      Object.entries(filters).filter(
+        ([, value]) => value !== '' && value !== null && value !== undefined,
       ),
-    [filters],
-  );
-  const { data, isLoading, isFetching, error } = useGetDashboardOverviewQuery(queryParams, {
+    ),
+  [filters],
+);
+
+const [selectedMenuItem, setSelectedMenuItem] = useState('');
+const [preparationQuantity, setPreparationQuantity] = useState(''); 
+
+const [prepareBom, { data: bomData, isLoading: isBomLoading, error: bomError }] =
+  usePrepareBomMutation();
+  
+const { data: menuData, isLoading: isMenuLoading } =
+  useGetAdminRestaurantMenuQuery(filters.restaurantId, {
+    skip: !filters.restaurantId,
+  });
+
+const menuItems = menuData?.items ?? [];
+
+console.log('MENU DATA:', menuData);
+console.log('MENU ITEMS:', menuItems);
+
+const handlePrepareBom = async () => {
+  console.log('CHECK PREPARATION CLICKED');
+
+  if (!filters.restaurantId || !selectedMenuItem || !preparationQuantity) {
+    console.log('Missing values');
+    return;
+  }
+
+  try {
+    const result = await prepareBom({
+      restaurantId: Number(filters.restaurantId),
+      items: [
+        {
+          menuItemId: Number(selectedMenuItem),
+          quantity: Number(preparationQuantity),
+        },
+      ],
+    }).unwrap();
+
+    console.log('BOM RESULT:', result);
+  } catch (error) {
+    console.error('BOM ERROR:', error);
+  }
+};
+
+  const { data, isLoading, isFetching, error } =
+    useGetDashboardOverviewQuery(queryParams, {
     pollingInterval: 30000,
   });
 
@@ -300,6 +346,126 @@ export function DashboardPage() {
           </div>
         </div>
       </Card>
+                    <Card eyebrow="Inventory" title="Preparation / BOM Status">
+        {!filters.restaurantId ? (
+          <p className="text-sm text-slate-500">
+            Select a restaurant to check preparation requirements.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Menu Item
+                </label>
+
+                <select
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={selectedMenuItem}
+                  onChange={(event) => setSelectedMenuItem(event.target.value)}
+                  disabled={isMenuLoading}
+                >
+                  <option value="">
+                    {isMenuLoading ? 'Loading menu...' : 'Select menu item'}
+                  </option>
+
+                  {menuItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Quantity to Prepare
+                </label>
+
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2"
+                  value={preparationQuantity}
+                  onChange={(event) =>
+                    setPreparationQuantity(event.target.value)
+                  }
+                  placeholder="Enter quantity"
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handlePrepareBom}
+              disabled={
+                !selectedMenuItem ||
+                !preparationQuantity ||
+                isBomLoading
+              }
+            >
+              {isBomLoading ? 'Checking...' : 'Check Preparation'}
+            </Button>
+
+            {bomError ? (
+              <p className="text-sm text-red-600">
+                Failed to check preparation requirements.
+              </p>
+            ) : null}
+
+            {bomData ? (
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-950">
+                    Preparation Status
+                  </h3>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      bomData.available
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {bomData.available ? 'Available' : 'Shortage'}
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {(bomData.checks ?? []).map((item) => (
+                    <div
+                      key={item.itemId}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900">
+                          {item.name}
+                        </p>
+
+                        <p className="text-sm text-slate-500">
+                          Required: {item.required} {item.unit} · Current:{' '}
+                          {item.current} {item.unit}
+                        </p>
+                      </div>
+
+                      {item.shortage > 0 ? (
+                        <span className="text-sm font-semibold text-red-600">
+                          Shortage: {item.shortage} {item.unit}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-semibold text-emerald-600">
+                          Sufficient
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"></section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map((card) => (

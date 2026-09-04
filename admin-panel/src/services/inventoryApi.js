@@ -60,6 +60,13 @@ export const inventoryApi = createApi({
         restaurantId ? `/inventory/recipes?restaurantId=${restaurantId}` : '/inventory/recipes',
       providesTags: ['Recipes'],
     }),
+    prepareBom: builder.mutation({
+      query: ({ restaurantId, items }) => ({
+        url: `/inventory/recipes/preparation-plan?restaurantId=${restaurantId}`,
+        method: 'POST',
+        body: { items },
+   }),
+  }),
 
     createOrUpdateRecipe: builder.mutation({
       query: (body) => ({
@@ -164,4 +171,5 @@ export const {
   useGetRequisitionsQuery,
   useCreateRequisitionMutation,
   useSeedInventoryDataMutation,
+  usePrepareBomMutation,
 } = inventoryApi;
