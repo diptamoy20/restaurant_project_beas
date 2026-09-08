@@ -115,6 +115,10 @@ export class InventoryIntegrationService {
     return this.erpFetch(`/integration/kitchen-inventory?restaurantId=${restaurantId}`);
   }
 
+  async getIngredients() {
+    return this.erpFetch('/master/ingredients');
+  }
+
   async checkAvailability(restaurantId: number, menuItemId: number, quantity: number = 1) {
     return this.erpFetch(
       `/integration/availability?restaurantId=${restaurantId}&menuItemId=${menuItemId}&quantity=${quantity}`,
@@ -200,4 +204,19 @@ export class InventoryIntegrationService {
       body: JSON.stringify({ warehouseId }),
     });
   }
+  async planPreparation(
+  restaurantId: number,
+  requestedById: number,
+  items: Array<{ menuItemId: number; quantity: number }>,
+) {
+  return this.erpFetch('/integration/preparation-plan', {
+    method: 'POST',
+    body: JSON.stringify({
+      restaurantId,
+      requestedById,
+      items,
+    }),
+  });
+}
+
 }

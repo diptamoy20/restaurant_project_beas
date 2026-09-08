@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InventoryIntegrationService } from './inventory-integration.service';
 import {
   InventoryTransactionType,
   InventoryType,
@@ -17,7 +18,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class InventoryService {
   private readonly logger = new Logger(InventoryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventoryIntegrationService: InventoryIntegrationService,
+  ) {}
 
   /**
    * Helper to resolve restaurant ID (default to first active restaurant if not specified)
@@ -828,31 +832,75 @@ export class InventoryService {
 
   const checks = [];
 
-  for (const requirement of requirements.values()) {
-    const kitchenStock = await this.prisma.kitchenInventory.findUnique({
-      where: {
-        itemId: requirement.itemId,
-      },
-    });
-
-    const current = kitchenStock?.availableQuantity ?? 0;
-    const shortage = Math.max(0, requirement.required - current);
-
-    checks.push({
+for (const requirement of requirements.values()) {
+  const kitchenStock = await this.prisma.kitchenInventory.findUnique({
+    where: {
       itemId: requirement.itemId,
-      name: requirement.name,
-      unit: requirement.unit,
-      required: requirement.required,
-      current,
-      sufficient: shortage === 0,
-      shortage,
-    });
-  }
+    },
+  });
 
-  return {
-    available: checks.every((item) => item.sufficient),
-    checks,
-  };
+  const current = kitchenStock?.availableQuantity ?? 0;
+  const shortage = Math.max(0, requirement.required - current);
+
+  checks.push({
+    itemId: requirement.itemId,
+    name: requirement.name,
+    unit: requirement.unit,
+    required: requirement.required,
+    current,
+    sufficient: shortage === 0,
+    shortage,
+  });
+}
+
+// Create a Kitchen Request only when there is a shortage
+const shortages = checks.filter((item) => item.shortage > 0);
+
+let kitchenRequest = null;
+
+if (shortages.length > 0) {
+  const erpIngredients =
+    await this.inventoryIntegrationService.getIngredients();
+
+  const ingredients = Array.isArray(erpIngredients)
+    ? erpIngredients
+    : erpIngredients?.data || [];
+
+  const requestItems = shortages.map((item) => {
+    const erpIngredient = ingredients.find(
+      (ingredient: any) =>
+        ingredient.name?.trim().toLowerCase() ===
+        item.name.trim().toLowerCase(),
+    );
+
+    if (!erpIngredient) {
+      throw new NotFoundException(
+        `No matching ERP ingredient found for "${item.name}"`,
+      );
+    }
+
+    return {
+      ingredientId: erpIngredient.id,
+      quantity: item.shortage,
+    };
+  });
+
+  kitchenRequest =
+    await this.inventoryIntegrationService.createKitchenRequest(
+      restaurantId,
+      requestedById,
+      {
+        notes: 'Automatic kitchen request created from BOM preparation shortage',
+        items: requestItems,
+      },
+    );
+}
+
+return {
+  available: shortages.length === 0,
+  checks,
+  kitchenRequest,
+};
 }
   async listConsumptionHistory(restaurantIdParam?: number) {
     const restaurantId = await this.getEffectiveRestaurantId(restaurantIdParam);
