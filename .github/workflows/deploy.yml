@@ -10,7 +10,6 @@ on:
       - web-app/**
       - admin-panel/**
       - qr-ordering-frontend/**
-      - inventory-erp/**
       - .github/workflows/deploy.yml
   push:
     branches:
@@ -21,7 +20,6 @@ on:
       - web-app/**
       - admin-panel/**
       - qr-ordering-frontend/**
-      - inventory-erp/**
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
@@ -42,12 +40,6 @@ env:
   WEB_APP_PORT: ${{ vars.WEB_APP_PORT != '' && vars.WEB_APP_PORT || '7002' }}
   ADMIN_PANEL_PORT: ${{ vars.ADMIN_PANEL_PORT != '' && vars.ADMIN_PANEL_PORT || '7003' }}
   QR_ORDERING_PORT: ${{ vars.QR_ORDERING_PORT != '' && vars.QR_ORDERING_PORT || '7004' }}
-  INVENTORY_BACKEND_DIR: inventory-erp/backend
-  INVENTORY_FRONTEND_DIR: inventory-erp/frontend
-  INVENTORY_BACKEND_PM2_APP_NAME: ${{ vars.INVENTORY_BACKEND_PM2_APP_NAME != '' && vars.INVENTORY_BACKEND_PM2_APP_NAME || 'inventory-erp-backend' }}
-  INVENTORY_FRONTEND_PM2_APP_NAME: ${{ vars.INVENTORY_FRONTEND_PM2_APP_NAME != '' && vars.INVENTORY_FRONTEND_PM2_APP_NAME || 'inventory-erp-frontend' }}
-  INVENTORY_BACKEND_PORT: ${{ vars.INVENTORY_BACKEND_PORT != '' && vars.INVENTORY_BACKEND_PORT || '4001' }}
-  INVENTORY_FRONTEND_PORT: ${{ vars.INVENTORY_FRONTEND_PORT != '' && vars.INVENTORY_FRONTEND_PORT || '4002' }}
 
 jobs:
   backend-ci:
@@ -70,8 +62,6 @@ jobs:
             web-app/package-lock.json
             admin-panel/package-lock.json
             qr-ordering-frontend/package-lock.json
-            inventory-erp/backend/package-lock.json
-            inventory-erp/frontend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: ${{ env.BACKEND_DIR }}
@@ -128,30 +118,6 @@ jobs:
         working-directory: ${{ env.QR_ORDERING_DIR }}
         run: npm run build
 
-      - name: Install inventory backend dependencies
-        working-directory: ${{ env.INVENTORY_BACKEND_DIR }}
-        run: npm ci
-
-      - name: Lint inventory backend
-        working-directory: ${{ env.INVENTORY_BACKEND_DIR }}
-        run: npm run lint
-
-      - name: Typecheck inventory backend
-        working-directory: ${{ env.INVENTORY_BACKEND_DIR }}
-        run: npm run typecheck
-
-      - name: Build inventory backend
-        working-directory: ${{ env.INVENTORY_BACKEND_DIR }}
-        run: npm run build
-
-      - name: Install inventory frontend dependencies
-        working-directory: ${{ env.INVENTORY_FRONTEND_DIR }}
-        run: npm ci
-
-      - name: Build inventory frontend
-        working-directory: ${{ env.INVENTORY_FRONTEND_DIR }}
-        run: npm run build
-
   deploy:
     name: Deploy All Apps To Server
     needs: backend-ci
@@ -174,17 +140,13 @@ jobs:
           WEB_APP_PORT: ${{ env.WEB_APP_PORT }}
           ADMIN_PANEL_PORT: ${{ env.ADMIN_PANEL_PORT }}
           QR_ORDERING_PORT: ${{ env.QR_ORDERING_PORT }}
-          INVENTORY_BACKEND_PM2_APP_NAME: ${{ env.INVENTORY_BACKEND_PM2_APP_NAME }}
-          INVENTORY_FRONTEND_PM2_APP_NAME: ${{ env.INVENTORY_FRONTEND_PM2_APP_NAME }}
-          INVENTORY_BACKEND_PORT: ${{ env.INVENTORY_BACKEND_PORT }}
-          INVENTORY_FRONTEND_PORT: ${{ env.INVENTORY_FRONTEND_PORT }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
-          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT,INVENTORY_BACKEND_PM2_APP_NAME,INVENTORY_FRONTEND_PM2_APP_NAME,INVENTORY_BACKEND_PORT,INVENTORY_FRONTEND_PORT
+          envs: APP_DIR,BRANCH,PM2_APP_NAME,WEB_PM2_APP_NAME,ADMIN_PM2_APP_NAME,QR_PM2_APP_NAME,WEB_APP_PORT,ADMIN_PANEL_PORT,QR_ORDERING_PORT
           script: |
             set -e
 
@@ -294,35 +256,6 @@ jobs:
             fi
             pm2 serve "$APP_DIR/qr-ordering-frontend/dist" "$QR_ORDERING_PORT" --name "$QR_PM2_APP_NAME" --spa
 
-            cd "$APP_DIR/inventory-erp/backend"
-            if [ ! -f "$APP_DIR/shared/inventory-backend.env" ]; then
-              echo "Missing env file: $APP_DIR/shared/inventory-backend.env"
-              exit 1
-            fi
-            export PM2_APP_NAME="$INVENTORY_BACKEND_PM2_APP_NAME"
-            export PM2_ENV_FILE="$APP_DIR/shared/inventory-backend.env"
-            npm ci --include=dev
-            npm run prisma:generate
-            npm run prisma:migrate:deploy
-            npm run build
-            if pm2 describe "$PM2_APP_NAME" >/dev/null 2>&1; then
-              pm2 startOrReload ecosystem.config.cjs --only "$PM2_APP_NAME" --env production --update-env
-            else
-              pm2 start ecosystem.config.cjs --only "$PM2_APP_NAME" --env production
-            fi
-
-            cd "$APP_DIR/inventory-erp/frontend"
-            if [ ! -f .env ]; then
-              echo "Missing $APP_DIR/inventory-erp/frontend/.env - create it on the server before deploying."
-              exit 1
-            fi
-            npm ci --include=dev
-            npm run build
-            if pm2 describe "$INVENTORY_FRONTEND_PM2_APP_NAME" >/dev/null 2>&1; then
-              pm2 delete "$INVENTORY_FRONTEND_PM2_APP_NAME"
-            fi
-            pm2 serve "$APP_DIR/inventory-erp/frontend/dist" "$INVENTORY_FRONTEND_PORT" --name "$INVENTORY_FRONTEND_PM2_APP_NAME" --spa
-
             pm2 save
 
             HEALTH_PORT="${PORT:-4000}"
@@ -341,5 +274,3 @@ jobs:
             curl -fsS "http://127.0.0.1:${WEB_APP_PORT}/" >/dev/null
             curl -fsS "http://127.0.0.1:${ADMIN_PANEL_PORT}/" >/dev/null
             curl -fsS "http://127.0.0.1:${QR_ORDERING_PORT}/" >/dev/null
-            curl -fsS "http://127.0.0.1:${INVENTORY_BACKEND_PORT}/api/docs" >/dev/null || true
-            curl -fsS "http://127.0.0.1:${INVENTORY_FRONTEND_PORT}/" >/dev/null
